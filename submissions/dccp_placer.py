@@ -55,7 +55,7 @@ def _legalize_centers(
     sizes: np.ndarray,
     cw: float,
     ch: float,
-    max_iters: int = 10000,
+    max_iters: int = 2000,
     gap: float = 1e-3,
 ) -> np.ndarray:
     """
@@ -253,7 +253,7 @@ class DccpPlacer:
             # Must check *after* legalization: pre-legalize overlap can be large while a single
             # legalize pass fixes everything — otherwise we keep adding DCCP pairs, later solves
             # get worse, and the final iterate may not legalize within max_iters.
-            centers = _legalize_centers(centers, sizes, cw, ch, max_iters=10000)
+            centers = _legalize_centers(centers, sizes, cw, ch)
 
             viol = self._overlapping_pairs(centers, sizes, margin=1e-3)
             if not viol:
@@ -263,7 +263,7 @@ class DccpPlacer:
                 pair_set.add((a, b))
 
         # Final pass (noop if already legal); cheap insurance if the last outer iter broke early.
-        centers = _legalize_centers(centers, sizes, cw, ch, max_iters=10000)
+        centers = _legalize_centers(centers, sizes, cw, ch)
 
         for k, tensor_i in enumerate(idx_list):
             placement[tensor_i, 0] = float(centers[k, 0])
@@ -352,7 +352,7 @@ class DccpPlacer:
             dccp_ccp(
                 prob,
                 max_iter=self.dccp_max_iter,
-                solver=cp.SCS,
+                solver=cp.CLARABEL,
                 ep=1e-4,
                 max_slack=1e-2,
             )
