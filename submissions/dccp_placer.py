@@ -8,8 +8,9 @@ cvxpy ``Problem``, after ``is_dccp`` validation.  Optimization is in
 on top of the legal input placement.
 
 Circle packing is only a **relaxation** for rectangles; after DCCP we run a
-light axis push legalization, then **revert movable hard macros to the baseline**
-if any hard-hard overlap remains (guarantees a legal submission).
+light axis push legalization. If anything is still illegal, we return a full
+copy of the benchmark **initial placement** (same overlap metric as
+``compute_proxy_cost`` / ``compute_overlap_metrics``).
 
 DCCP program (per solve, variables ``dx, dy``):
   minimize    ||dx||^2 + ||dy||^2 + lam * ||A dx||^2 + lam * ||A dy||^2
@@ -40,6 +41,7 @@ from dccp import is_dccp
 from dccp.problem import dccp as dccp_ccp
 
 from macro_place.benchmark import Benchmark
+from macro_place.objective import compute_overlap_metrics
 from macro_place.utils import validate_placement
 
 
@@ -53,7 +55,7 @@ def _legalize_centers(
     sizes: np.ndarray,
     cw: float,
     ch: float,
-    max_iters: int = 2000,
+    max_iters: int = 10000,
     gap: float = 1e-3,
 ) -> np.ndarray:
     """
@@ -100,21 +102,6 @@ def _legalize_centers(
         if not moved:
             break
     return c
-
-
-def _hard_hard_rect_overlaps(centers: np.ndarray, sizes: np.ndarray, margin: float) -> int:
-    """Count overlapping pairs (local indices 0..n-1), same rule as validate_placement."""
-    n = centers.shape[0]
-    cnt = 0
-    hw = sizes[:, 0] / 2.0
-    hh = sizes[:, 1] / 2.0
-    for i in range(n):
-        for j in range(i + 1, n):
-            dx = abs(centers[i, 0] - centers[j, 0])
-            dy = abs(centers[i, 1] - centers[j, 1])
-            if dx < hw[i] + hw[j] + margin and dy < hh[i] + hh[j] + margin:
-                cnt += 1
-    return cnt
 
 
 def _knn_edges(pos: np.ndarray, k: int) -> List[Tuple[int, int]]:
@@ -218,7 +205,9 @@ class DccpPlacer:
         self.circle_shrink = circle_shrink
 
     def place(self, benchmark: Benchmark) -> torch.Tensor:
-        placement = benchmark.macro_positions.clone()
+        # Snapshot before any edits; used as guaranteed legal fallback (matches initial .plc).
+        baseline = benchmark.macro_positions.detach().clone()
+        placement = baseline.clone()
         hard_movable = benchmark.get_movable_mask() & benchmark.get_hard_macro_mask()
         movable_idx = torch.where(hard_movable)[0]
         if movable_idx.numel() == 0:
@@ -260,6 +249,11 @@ class DccpPlacer:
 
             centers[:, 0] = x_sol
             centers[:, 1] = y_sol
+            # DCCP uses a circle relaxation; axis push often clears rectangle overlaps here.
+            # Must check *after* legalization: pre-legalize overlap can be large while a single
+            # legalize pass fixes everything — otherwise we keep adding DCCP pairs, later solves
+            # get worse, and the final iterate may not legalize within max_iters.
+            centers = _legalize_centers(centers, sizes, cw, ch, max_iters=10000)
 
             viol = self._overlapping_pairs(centers, sizes, margin=1e-3)
             if not viol:
@@ -268,19 +262,41 @@ class DccpPlacer:
                 a, b = (i, j) if i < j else (j, i)
                 pair_set.add((a, b))
 
-        # Circle constraints do not imply rectangle legality — repair, then baseline fallback.
-        centers = _legalize_centers(centers, sizes, cw, ch)
+        # Final pass (noop if already legal); cheap insurance if the last outer iter broke early.
+        centers = _legalize_centers(centers, sizes, cw, ch, max_iters=10000)
 
         for k, tensor_i in enumerate(idx_list):
             placement[tensor_i, 0] = float(centers[k, 0])
             placement[tensor_i, 1] = float(centers[k, 1])
 
         fixed_mask = benchmark.macro_fixed
-        placement[fixed_mask] = benchmark.macro_positions[fixed_mask]
+        placement[fixed_mask] = baseline[fixed_mask]
 
-        ok, _ = validate_placement(placement, benchmark, check_overlaps=True)
+        # Float32 placement tensor can be epsilon-outside canvas after numpy→torch (validate fails
+        # and we incorrectly revert to baseline).
+        movable_mask = ~fixed_mask
+        if movable_mask.any():
+            hw = benchmark.macro_sizes[:, 0] * 0.5
+            hh = benchmark.macro_sizes[:, 1] * 0.5
+            cw = float(benchmark.canvas_width)
+            ch = float(benchmark.canvas_height)
+            placement[:, 0] = torch.where(
+                movable_mask,
+                torch.clamp(placement[:, 0], hw, cw - hw),
+                placement[:, 0],
+            )
+            placement[:, 1] = torch.where(
+                movable_mask,
+                torch.clamp(placement[:, 1], hh, ch - hh),
+                placement[:, 1],
+            )
+
+        # Evaluator uses compute_overlap_metrics (must be 0 for VALID in evaluate harness).
+        if compute_overlap_metrics(placement, benchmark)["overlap_count"] > 0:
+            return baseline.clone()
+        ok, _ = validate_placement(placement, benchmark, check_overlaps=False)
         if not ok:
-            placement[movable_idx] = benchmark.macro_positions[movable_idx].clone()
+            return baseline.clone()
 
         return placement
 
