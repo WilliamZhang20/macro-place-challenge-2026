@@ -35,6 +35,7 @@ dependencies = [
     "absl-py>=1.0.0",
     "cvxpy>=1.4.0",
     "dccp>=1.0.0",
+    "clarabel>=0.9.0",
 ]
 
 [project.optional-dependencies]

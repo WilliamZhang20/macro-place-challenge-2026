@@ -2652,6 +2652,8 @@ source = { editable = "." }
 dependencies = [
     { name = "absl-py", version = "2.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "absl-py", version = "2.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "clarabel", version = "0.9.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "clarabel", version = "0.11.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "cvxpy", version = "1.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "cvxpy", version = "1.7.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9' and python_full_version < '3.11'" },
     { name = "cvxpy", version = "1.8.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -2694,6 +2696,7 @@ dev = [
 requires-dist = [
     { name = "absl-py", specifier = ">=1.0.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
+    { name = "clarabel", specifier = ">=0.9.0" },
     { name = "cvxpy", specifier = ">=1.4.0" },
     { name = "dccp", specifier = ">=1.0.0" },
     { name = "flake8", marker = "python_full_version >= '3.9' and extra == 'dev'", specifier = ">=6.0.0" },
