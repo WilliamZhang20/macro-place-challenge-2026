@@ -8,7 +8,10 @@ cvxpy ``Problem``, after ``is_dccp`` validation.  Optimization is in
 on top of the legal input placement.
 
 Circle packing is only a **relaxation** for rectangles; after DCCP we run a
-light axis push legalization.
+light axis push legalization. Dense handoffs (e.g. NG45) may need **multi-seed**
+restarts of that push with larger budgets so pair order does not deadlock; this
+runs only when strict validation still fails (IBM cases that are already legal
+stay on the fast path).
 
 Some ``.plc`` handoffs are slightly illegal under strict Python geometry (bounds
 epsilon, hard overlaps that PLC tolerates under its overlap threshold). In that
@@ -23,7 +26,7 @@ DCCP program (per solve, variables ``dx, dy``):
               centers stay inside canvas (linear in dx, dy)
 
 Usage:
-    source ~/myenv/bin/activate   # or: uv run …
+    source ~/myenv/bin/activate   # dependencies (or: uv run …); time out long runs, e.g. timeout 300 …
     python -m macro_place.evaluate submissions/dccp_placer.py -b ibm01
     python -m macro_place.evaluate submissions/dccp_placer.py --all
 
@@ -39,6 +42,7 @@ import argparse
 import math
 import os
 import sys
+import time
 from pathlib import Path
 from typing import List, Optional, Sequence, Set, Tuple
 
@@ -58,6 +62,124 @@ def _debug(msg: str) -> None:
         print(f"[DccpPlacer] {msg}", file=sys.stderr, flush=True)
 
 
+def _movable_bbox_exceeds_canvas(
+    placement: torch.Tensor, benchmark: Benchmark, margin: float = 1e-4
+) -> bool:
+    """True if the axis-aligned bbox of all movable macros is wider/taller than the canvas."""
+    n = benchmark.num_macros
+    if n == 0:
+        return False
+    movable = (~benchmark.macro_fixed[:n]).detach().cpu().numpy()
+    if not movable.any():
+        return False
+    cw = float(benchmark.canvas_width)
+    ch = float(benchmark.canvas_height)
+    w = benchmark.macro_sizes[:n, 0].detach().cpu().numpy().astype(np.float64)
+    h = benchmark.macro_sizes[:n, 1].detach().cpu().numpy().astype(np.float64)
+    pos = placement[:n, :].detach().cpu().numpy().astype(np.float64)
+    idx = np.flatnonzero(movable)
+    min_lx = float(np.min(pos[idx, 0] - w[idx] / 2.0))
+    min_ly = float(np.min(pos[idx, 1] - h[idx] / 2.0))
+    max_ux = float(np.max(pos[idx, 0] + w[idx] / 2.0))
+    max_uy = float(np.max(pos[idx, 1] + h[idx] / 2.0))
+    span_x = max_ux - min_lx
+    span_y = max_uy - min_ly
+    # Strictly larger than canvas (float noise on ibm01: span_y ≈ ch triggers false shelf).
+    tol = 1e-3
+    return span_x > cw + tol or span_y > ch + tol
+
+
+def _shelf_pack_movable_hard_macros(placement: torch.Tensor, benchmark: Benchmark) -> None:
+    """
+    In-place greedy row packing for movable **hard** macros only (demo placer logic).
+    Used when the initial floorplan's footprint is larger than the canvas (some NG45
+    handoffs): translation cannot fit, and scaling centers would break non-overlap.
+    """
+    movable = benchmark.get_movable_mask() & benchmark.get_hard_macro_mask()
+    movable_indices = torch.where(movable)[0].tolist()
+    if not movable_indices:
+        return
+    sizes = benchmark.macro_sizes
+    canvas_w = float(benchmark.canvas_width)
+    canvas_h = float(benchmark.canvas_height)
+    movable_indices.sort(key=lambda i: -sizes[i, 1].item())
+    gap = 0.001
+    cursor_x = 0.0
+    cursor_y = 0.0
+    row_height = 0.0
+    for idx in movable_indices:
+        w = sizes[idx, 0].item()
+        h = sizes[idx, 1].item()
+        if cursor_x + w > canvas_w:
+            cursor_x = 0.0
+            cursor_y += row_height + gap
+            row_height = 0.0
+        if cursor_y + h > canvas_h:
+            placement[idx, 0] = w / 2.0
+            placement[idx, 1] = h / 2.0
+            continue
+        placement[idx, 0] = cursor_x + w / 2.0
+        placement[idx, 1] = cursor_y + h / 2.0
+        cursor_x += w + gap
+        row_height = max(row_height, h)
+
+
+def _fit_all_macros_in_canvas(placement: torch.Tensor, benchmark: Benchmark) -> None:
+    """
+    In-place translate / uniform scale so **movable** macro bboxes fit inside the canvas.
+
+    NanGate45 ``initial.plc`` handoffs are often strictly overlap-free but slightly
+    out of bounds. Clamping centers directly then piles macros on the border and
+    creates massive overlaps. This preserves relative layout when only a shift (or
+    rare scale-down) is needed; designs already in-bounds are unchanged. Fixed macros
+    are not moved (IBM handoffs).
+    """
+    n = benchmark.num_macros
+    if n == 0:
+        return
+    movable = (~benchmark.macro_fixed[:n]).detach().cpu().numpy()
+    if not movable.any():
+        return
+    cw = float(benchmark.canvas_width)
+    ch = float(benchmark.canvas_height)
+    if cw <= 0 or ch <= 0:
+        return
+
+    w = benchmark.macro_sizes[:n, 0].detach().cpu().numpy().astype(np.float64)
+    h = benchmark.macro_sizes[:n, 1].detach().cpu().numpy().astype(np.float64)
+    pos = placement[:n, :].detach().cpu().numpy().astype(np.float64)
+    idx = np.flatnonzero(movable)
+    min_lx = float(np.min(pos[idx, 0] - w[idx] / 2.0))
+    min_ly = float(np.min(pos[idx, 1] - h[idx] / 2.0))
+    max_ux = float(np.max(pos[idx, 0] + w[idx] / 2.0))
+    max_uy = float(np.max(pos[idx, 1] + h[idx] / 2.0))
+    span_x = max_ux - min_lx
+    span_y = max_uy - min_ly
+    margin = 1e-4
+
+    def write_movable() -> None:
+        for i in idx:
+            placement[i, 0] = float(pos[i, 0])
+            placement[i, 1] = float(pos[i, 1])
+
+    # No uniform scale of centers (sizes are fixed): it does not preserve non-overlap.
+    # If the movable footprint cannot fit by translation alone, skip and let the caller
+    # repack hard macros (shelf) before retrying this fit.
+    tol = 1e-3
+    if span_x > cw + tol or span_y > ch + tol:
+        return
+
+    dx_lo = -min_lx + margin if min_lx < margin else 0.0
+    dx_hi = cw - margin - max_ux if max_ux > cw - margin else 0.0
+    dy_lo = -min_ly + margin if min_ly < margin else 0.0
+    dy_hi = ch - margin - max_uy if max_uy > ch - margin else 0.0
+    dx = dx_lo + dx_hi
+    dy = dy_lo + dy_hi
+    pos[idx, 0] += dx
+    pos[idx, 1] += dy
+    write_movable()
+
+
 def _clamp_movable_to_canvas(placement: torch.Tensor, benchmark: Benchmark) -> None:
     """In-place clamp of every non-fixed macro center so its bbox stays inside the canvas."""
     movable = ~benchmark.macro_fixed
@@ -67,14 +189,16 @@ def _clamp_movable_to_canvas(placement: torch.Tensor, benchmark: Benchmark) -> N
     hh = benchmark.macro_sizes[:, 1] * 0.5
     cw = float(benchmark.canvas_width)
     ch = float(benchmark.canvas_height)
+    # Tiny inset avoids float32 edge overflow that fails strict validate_placement (x_max > cw).
+    inset = 1e-3
     placement[:, 0] = torch.where(
         movable,
-        torch.clamp(placement[:, 0], hw, cw - hw),
+        torch.clamp(placement[:, 0], hw + inset, cw - hw - inset),
         placement[:, 0],
     )
     placement[:, 1] = torch.where(
         movable,
-        torch.clamp(placement[:, 1], hh, ch - hh),
+        torch.clamp(placement[:, 1], hh + inset, ch - hh - inset),
         placement[:, 1],
     )
 
@@ -86,21 +210,31 @@ def _placement_needs_repair(placement: torch.Tensor, benchmark: Benchmark) -> bo
     return not ok
 
 
-def _repair_loaded_floorplan(placement: torch.Tensor, benchmark: Benchmark) -> torch.Tensor:
+def _repair_loaded_floorplan(
+    placement: torch.Tensor,
+    benchmark: Benchmark,
+    *,
+    max_seconds: float = 72.0,
+) -> torch.Tensor:
     """
     Some ICCAD04 .plc tensors are slightly illegal in Python (bounds epsilon, hard overlaps
     under PLC overlap threshold). Repair with clamp + shuffled axis legalization + rare jitter.
+    Bounded by *max_seconds* so dense NG45 floorplans cannot stall indefinitely.
     """
     rng = np.random.default_rng(0)
+    t0 = time.monotonic()
     for attempt in range(22):
+        if time.monotonic() - t0 > max_seconds:
+            break
         _clamp_movable_to_canvas(placement, benchmark)
         placement = _legalize_hard_macros_tensor(
             placement,
             benchmark,
-            max_pair_ops=900_000,
-            max_rounds=5000,
+            max_pair_ops=800_000,
+            max_rounds=4500,
             gap=1e-3,
             rng=rng,
+            idle_cap=30,
         )
         _clamp_movable_to_canvas(placement, benchmark)
         oc = int(compute_overlap_metrics(placement, benchmark)["overlap_count"])
@@ -145,11 +279,14 @@ def _legalize_hard_macros_tensor(
     max_rounds: int = 2500,
     gap: float = 1e-3,
     rng: Optional[np.random.Generator] = None,
+    idle_cap: int = 14,
+    max_seconds: Optional[float] = None,
 ) -> torch.Tensor:
     """
     Remove axis-aligned overlaps among all hard macros. Fixed macros act as obstacles.
     Uses shuffled pair order when *rng* is set to escape local jamming; stops when no strict
     overlaps remain, or budgets exhaust, or many idle rounds pass with overlaps left.
+    Optional *max_seconds* stops pathological long runs on dense designs (caller may retry).
     """
     num_h = benchmark.num_hard_macros
     if num_h <= 1:
@@ -187,7 +324,10 @@ def _legalize_hard_macros_tensor(
     ops = 0
     rounds = 0
     idle = 0
+    t0 = time.monotonic()
     while ops < max_pair_ops and rounds < max_rounds:
+        if max_seconds is not None and (time.monotonic() - t0) > max_seconds:
+            break
         rounds += 1
         moved_round = False
         pair_order = list(base_pairs)
@@ -244,7 +384,7 @@ def _legalize_hard_macros_tensor(
             if not any_overlap_fast():
                 break
             idle += 1
-            if idle >= 14:
+            if idle >= idle_cap:
                 break
         else:
             idle = 0
@@ -252,6 +392,58 @@ def _legalize_hard_macros_tensor(
     out[:num_h, 0] = torch.from_numpy(pos[:, 0]).to(out.device, dtype=out.dtype)
     out[:num_h, 1] = torch.from_numpy(pos[:, 1]).to(out.device, dtype=out.dtype)
     return out
+
+
+def _legality_sort_key(placement: torch.Tensor, benchmark: Benchmark) -> Tuple[int, int]:
+    """Lower is better: (overlap_pairs, 1 if any validate violation else 0)."""
+    oc = int(compute_overlap_metrics(placement, benchmark)["overlap_count"])
+    ok, _ = validate_placement(placement, benchmark, check_overlaps=True)
+    return oc, 0 if ok else 1
+
+
+def _legalize_hard_macros_multi_seed(
+    placement: torch.Tensor,
+    benchmark: Benchmark,
+    *,
+    num_seeds: int = 14,
+    max_pair_ops: int = 1_100_000,
+    max_rounds: int = 4000,
+    idle_cap: int = 40,
+    gap: float = 1e-3,
+    max_seconds: float = 34.0,
+) -> torch.Tensor:
+    """
+    Dense floorplans (e.g. NG45) often trap single-pass axis legalization in a local jam.
+    Re-run the same push heuristic with shuffled pair orders and larger budgets; keep the
+    best result by (overlap_count, validation). Cheap when the first pass is already legal.
+
+    *max_seconds* caps wall time so large macro counts cannot stall the placer for minutes.
+    """
+    best = placement.clone()
+    best_key = _legality_sort_key(best, benchmark)
+    if best_key == (0, 0):
+        return best
+    t0 = time.monotonic()
+    for seed in range(num_seeds):
+        if time.monotonic() - t0 > max_seconds:
+            break
+        rng = np.random.default_rng(seed)
+        cand = _legalize_hard_macros_tensor(
+            placement.clone(),
+            benchmark,
+            max_pair_ops=max_pair_ops,
+            max_rounds=max_rounds,
+            gap=gap,
+            rng=rng,
+            idle_cap=idle_cap,
+        )
+        _clamp_movable_to_canvas(cand, benchmark)
+        key = _legality_sort_key(cand, benchmark)
+        if key < best_key:
+            best, best_key = cand, key
+        if best_key == (0, 0):
+            break
+    return best
 
 
 def _legalize_centers(
@@ -412,6 +604,10 @@ class DccpPlacer:
         # True handoff from loader (may be epsilon-out-of-bounds / micro-overlapping vs strict Python checks).
         initial = benchmark.macro_positions.detach().clone()
         placement = initial.clone()
+        if _movable_bbox_exceeds_canvas(placement, benchmark):
+            _debug(f"{benchmark.name}: movable bbox exceeds canvas — shelf-packing hard macros")
+            _shelf_pack_movable_hard_macros(placement, benchmark)
+        _fit_all_macros_in_canvas(placement, benchmark)
         _clamp_movable_to_canvas(placement, benchmark)
         if _placement_needs_repair(placement, benchmark):
             _debug(
@@ -419,6 +615,12 @@ class DccpPlacer:
                 f"(overlap_pairs={int(compute_overlap_metrics(placement, benchmark)['overlap_count'])})"
             )
             placement = _repair_loaded_floorplan(placement, benchmark)
+        if _placement_needs_repair(placement, benchmark):
+            _debug(
+                f"{benchmark.name}: repair incomplete — multi-seed axis legalization "
+                f"(overlap_pairs={int(compute_overlap_metrics(placement, benchmark)['overlap_count'])})"
+            )
+            placement = _legalize_hard_macros_multi_seed(placement, benchmark)
 
         # Legal starting point for DCCP + safe fallback if refinement fails.
         baseline = placement.clone()
@@ -505,50 +707,39 @@ class DccpPlacer:
 
         # Float32 placement tensor can be epsilon-outside canvas after numpy→torch (validate fails
         # and we incorrectly revert to baseline).
-        movable_mask = ~fixed_mask
-        if movable_mask.any():
-            hw = benchmark.macro_sizes[:, 0] * 0.5
-            hh = benchmark.macro_sizes[:, 1] * 0.5
-            cw = float(benchmark.canvas_width)
-            ch = float(benchmark.canvas_height)
-            placement[:, 0] = torch.where(
-                movable_mask,
-                torch.clamp(placement[:, 0], hw, cw - hw),
-                placement[:, 0],
-            )
-            placement[:, 1] = torch.where(
-                movable_mask,
-                torch.clamp(placement[:, 1], hh, ch - hh),
-                placement[:, 1],
-            )
+        _clamp_movable_to_canvas(placement, benchmark)
 
         # Repair hard–hard overlaps including vs fixed obstacles (not in the DCCP subproblem).
-        placement = _legalize_hard_macros_tensor(placement, benchmark)
+        nh_leg = benchmark.num_hard_macros
+        placement = _legalize_hard_macros_tensor(
+            placement,
+            benchmark,
+            max_seconds=(52.0 if nh_leg > 90 else None),
+            idle_cap=(32 if nh_leg > 90 else 14),
+        )
 
-        movable_mask = ~benchmark.macro_fixed
-        if movable_mask.any():
-            hw = benchmark.macro_sizes[:, 0] * 0.5
-            hh = benchmark.macro_sizes[:, 1] * 0.5
-            cw = float(benchmark.canvas_width)
-            ch = float(benchmark.canvas_height)
-            placement[:, 0] = torch.where(
-                movable_mask,
-                torch.clamp(placement[:, 0], hw, cw - hw),
-                placement[:, 0],
-            )
-            placement[:, 1] = torch.where(
-                movable_mask,
-                torch.clamp(placement[:, 1], hh, ch - hh),
-                placement[:, 1],
-            )
+        _clamp_movable_to_canvas(placement, benchmark)
+
+        # NG45-scale density: single-pass legalization can stall; multi-seed only if still illegal.
+        if _placement_needs_repair(placement, benchmark):
+            placement = _legalize_hard_macros_multi_seed(placement, benchmark)
+            _clamp_movable_to_canvas(placement, benchmark)
 
         # Evaluator + harness validation (overlap geometry must match).
-        if compute_overlap_metrics(placement, benchmark)["overlap_count"] > 0:
+        if _placement_needs_repair(placement, benchmark):
+            repaired_baseline = _legalize_hard_macros_multi_seed(
+                baseline.clone(),
+                benchmark,
+                num_seeds=14,
+                max_pair_ops=1_400_000,
+                max_rounds=4500,
+                idle_cap=42,
+                max_seconds=42.0,
+            )
+            _clamp_movable_to_canvas(repaired_baseline, benchmark)
+            if not _placement_needs_repair(repaired_baseline, benchmark):
+                return repaired_baseline
             return baseline.clone()
-        ok, _ = validate_placement(placement, benchmark, check_overlaps=True)
-        if not ok:
-            return baseline.clone()
-
         return placement
 
     def _initial_pairs(self, centers: np.ndarray, radii: np.ndarray, n: int) -> Set[Tuple[int, int]]:
