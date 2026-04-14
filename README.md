@@ -41,11 +41,13 @@ We’re changing that.
 Partcl develops GPU-accelerated systems for physical design that run orders of magnitude faster than legacy tools. Our goal is simple: make iteration cheap enough that design space exploration becomes the default, not the exception.
 
 ## Background Papers
-[An Updated Assessment of Reinforcement Learning for Macro Placement](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=11300304)
+[1] [An Updated Assessment of Reinforcement Learning for Macro Placement](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=11300304)
 
-[Assessment of Reinforcement Learning for Macro Placement](https://vlsicad.ucsd.edu/Publications/Conferences/396/c396.pdf)
+[2] [Assessment of Reinforcement Learning for Macro Placement](https://vlsicad.ucsd.edu/Publications/Conferences/396/c396.pdf)
 
-[A graph placement methodology for fast chip design](https://www.nature.com/articles/s41586-021-03544-w.epdf?sharing_token=tYaxh2mR5EozfsSL0WHZLdRgN0jAjWel9jnR3ZoTv0PW0K0NmVrRsFPaMa9Y5We9O4Hqf_liatg-lvhiVcYpHL_YQpqkurA31sxqtmA-E1yNUWVMMVSBxWSp7ZFFIWawYQYnEXoBE4esRDSWqubhDFWUPyI5wK_5B_YIO-D_kS8%3D)
+[3] [Reevaluating Google's Reinforcement Learning for IC Macro Placement](https://cacm.acm.org/research/reevaluating-googles-reinforcement-learning-for-ic-macro-placement/)
+
+[4] [A graph placement methodology for fast chip design](https://www.nature.com/articles/s41586-021-03544-w.epdf?sharing_token=tYaxh2mR5EozfsSL0WHZLdRgN0jAjWel9jnR3ZoTv0PW0K0NmVrRsFPaMa9Y5We9O4Hqf_liatg-lvhiVcYpHL_YQpqkurA31sxqtmA-E1yNUWVMMVSBxWSp7ZFFIWawYQYnEXoBE4esRDSWqubhDFWUPyI5wK_5B_YIO-D_kS8%3D)
 
 ## 🏆 Prizes
 
@@ -65,7 +67,7 @@ Partcl develops GPU-accelerated systems for physical design that run orders of m
 - All teams may only submit one algorithm.
 - **All winning implementations must be made open-source under Apache 2.0 or GPL**
 - All submissions must be registered via this [Submission Link](https://forms.gle/YDRtYV5Vq68SZgKW9).
-- All submissions must be under 1 hour end-to-end runtime for the macro placement algorithm.
+- All submissions must be under 1 hour end-to-end runtime (per benchmark) for the macro placement algorithm.
 - All submissions will be evaluated on a AMD EPYC 9655P with 16 cores + 100GB of memory and an NVIDIA RTX 6000 Ada 48GB.
 
 ## Additional Rules
@@ -83,7 +85,7 @@ Partcl develops GPU-accelerated systems for physical design that run orders of m
 - Hardcoding solutions for specific benchmarks (must be general algorithm)
 - Using external/proprietary placement tools (must be open-source submission)
 - Exceeding runtime limits (1 hour per benchmark hard timeout)
-- Overlaps in resulting placement
+- Overlaps in resulting placement (strictly zero overlap between hard macros — no tolerance. Participants should add small gaps in their legalization to avoid float-precision edge cases.)
 
 ## Evaluation Details
 
@@ -218,16 +220,34 @@ Classical methods (SA, RePlAce) have been refined for decades but still have roo
 
 ## 🏅 Leaderboard
 
-Submissions are ranked by **average proxy cost** across all 18 IBM benchmarks (lower is better). Zero overlaps required on all benchmarks.
+Submissions are ranked by **average proxy cost** across all 17 IBM benchmarks (lower is better). Zero overlaps required on all benchmarks. Scores are unverified until confirmed by judges.
 
-| Rank | Team | Avg Proxy Cost | Best | Worst | Overlaps | Runtime |
-|------|------|---------------|------|-------|----------|---------|
-| — | RePlAce (baseline) | **1.4578** | 0.9976 | 1.8370 | 0 | — |
-| 1 | Will (Partcl) | **1.5338** | 1.1625 | 1.7965 | 0 | 35s |
-| — | SA (baseline) | 2.1251 | 1.3166 | 3.6726 | 0 | — |
-| — | Greedy Row (demo) | 2.2109 | 1.6728 | 2.7696 | 0 | 0.3s |
+| Rank | Team | Avg Proxy Cost | Best | Worst | Overlaps | Runtime | Verified | Notes |
+|------|------|---------------|------|-------|----------|---------|----------|-------|
+| 1 | "Mike Gao" (autoresearch) | **1.3255** | — | — | 0 | 16min/bench | | |
+| 2 | "MTK" (DreamPlace++) | **1.3622** | 1.0040 | 1.6710 | 0 | 112s/bench (GPU) | :white_check_mark: | Verified better than self-reported 1.3998; faster GPU on eval hardware |
+| 3 | "Electric Beatel" (ePlace-Lite) | **1.3913** | 0.9773 | 1.7253 | 0 | 155s/bench (GPU) | :white_check_mark: | |
+| 4 | "Varun's Parallel Worlds" (GRPlace) | **1.4017** | 1.0362 | 1.7298 | 0 | 27s/bench | :white_check_mark: | |
+| 5 | "UT Austin" - AS (DREAMPlace Analytical) | **1.4076** | — | — | 0 | 17s/bench | | |
+| 6 | "ByteDancer" (Incremental CD) | **1.4151** | 1.0236 | 1.7792 | 0 | 38min/bench | :white_check_mark: | |
+| 7 | "BakaBobo" (Spread+Refine) | **1.4403** | — | — | 0 | 212s/bench | | |
+| ~~—~~ | ~~"Convex Optimization" (UWaterloo Student)~~ | ~~1.4556~~ | — | — | **846** | — | :x: DQ | Verified 2.1224 avg, 846 overlaps |
+| 8 | "another Waterloo kid" (Batched Nesterov GP) | **1.4568** | — | — | 0 | 118s/bench | | |
+| — | RePlAce (baseline) | **1.4578** | 0.9976 | 1.8370 | 0 | — | :white_check_mark: | |
+| 9 | "UTAUSTIN-CT" (PLC-Exact Congestion-Aware SA) | **1.5062** | — | — | 0 | 35s/bench | | |
+| 10 | "oracleX" (Oracle) | **1.5130** | — | — | 0 | 3min/bench | | |
+| 11 | "CA" (congestion_aware) | **1.5238** | — | — | 0 | 13s/bench | | |
+| 12 | "#5 ubc cpen student" (Gene Pool Shuffle) | **1.5337** | 1.1411 | 1.8084 | 0 | 13s/bench | :white_check_mark: | |
+| 13 | Will Seed (Partcl) | **1.5338** | 1.1625 | 1.7965 | 0 | 35s total | :white_check_mark: | |
+| 14 | "Cezar" (CRISP) | **1.5781** | 1.1896 | 1.8520 | 0 | 4min/bench | :white_check_mark: | |
+| 15 | "UT Austin" - RH (DREAMPlace) | **1.6037** | — | — | 0 | 4.5s/bench | | |
+| 16 | "UT Austin" - CT (PROXYCost) | **1.8706** | — | — | 0 | 187s/bench | | |
+| — | SA (baseline) | 2.1251 | 1.3166 | 3.6726 | 0 | — | :white_check_mark: | |
+| — | Greedy Row (demo) | 2.2109 | 1.6728 | 2.7696 | 0 | 0.3s total | :white_check_mark: | |
+| — | "Binghamton" (feng shui) | pending | — | — | — | — | | |
+| — | "MacroBio" (Two-Opt Swap) | pending | — | — | — | — | | |
 
-*Submit your results to appear on the leaderboard!*
+*Submit your results via the [Submission Link](https://forms.gle/YDRtYV5Vq68SZgKW9)!*
 
 ## 🤔 FAQ
 
