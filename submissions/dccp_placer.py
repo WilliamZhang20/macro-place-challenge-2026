@@ -56,6 +56,25 @@ from macro_place.benchmark import Benchmark
 from macro_place.objective import compute_overlap_metrics
 from macro_place.utils import validate_placement
 
+# NG45 commercial flows use different .plc handoffs; IBM ICCAD04 matches dccp_old path.
+_NG45_NAMES = frozenset({"ariane133", "ariane136", "mempool_tile", "nvdla"})
+
+
+def _is_ng45_benchmark(benchmark: Benchmark) -> bool:
+    """
+    True for NanGate45 challenge handoffs.
+
+    ``load_benchmark(..., initial.plc)`` sets ``benchmark.name`` to the parent folder of
+    ``netlist.pb.txt`` (e.g. ``output_CT_Grouping``), not ``ariane133``. Detect that layout
+    id as well as canonical short names.
+    """
+    if benchmark.name in _NG45_NAMES:
+        return True
+    # MacroPlacement NG45 flow packages netlist under .../<design>/netlist/output_CT_Grouping/
+    if benchmark.name == "output_CT_Grouping":
+        return True
+    return False
+
 
 def _debug(msg: str) -> None:
     if os.environ.get("MACRO_PLACE_DEBUG_DCCP"):
@@ -180,7 +199,9 @@ def _fit_all_macros_in_canvas(placement: torch.Tensor, benchmark: Benchmark) -> 
     write_movable()
 
 
-def _clamp_movable_to_canvas(placement: torch.Tensor, benchmark: Benchmark) -> None:
+def _clamp_movable_to_canvas(
+    placement: torch.Tensor, benchmark: Benchmark, *, edge_inset: bool = True
+) -> None:
     """In-place clamp of every non-fixed macro center so its bbox stays inside the canvas."""
     movable = ~benchmark.macro_fixed
     if not movable.any():
@@ -189,8 +210,9 @@ def _clamp_movable_to_canvas(placement: torch.Tensor, benchmark: Benchmark) -> N
     hh = benchmark.macro_sizes[:, 1] * 0.5
     cw = float(benchmark.canvas_width)
     ch = float(benchmark.canvas_height)
-    # Tiny inset avoids float32 edge overflow that fails strict validate_placement (x_max > cw).
-    inset = 1e-3
+    # Tiny inset (NG45): avoids float32 edge overflow in strict validate_placement.
+    # ICCAD04 / IBM: match dccp_old — no inset so repair + DCCP see the same geometry.
+    inset = 1e-3 if edge_inset else 0.0
     placement[:, 0] = torch.where(
         movable,
         torch.clamp(placement[:, 0], hw + inset, cw - hw - inset),
@@ -214,29 +236,49 @@ def _repair_loaded_floorplan(
     placement: torch.Tensor,
     benchmark: Benchmark,
     *,
-    max_seconds: float = 72.0,
+    iccad04_style: bool = False,
+    max_seconds: Optional[float] = 72.0,
+    legalize_max_seconds: Optional[float] = None,
 ) -> torch.Tensor:
     """
     Some ICCAD04 .plc tensors are slightly illegal in Python (bounds epsilon, hard overlaps
     under PLC overlap threshold). Repair with clamp + shuffled axis legalization + rare jitter.
-    Bounded by *max_seconds* so dense NG45 floorplans cannot stall indefinitely.
+    Bounded by *max_seconds* when set so dense NG45 floorplans cannot stall indefinitely.
+    IBM benchmarks pass max_seconds=None and iccad04_style=True (match dccp_old).
+
+    *legalize_max_seconds* caps each axis-legalization call (NG45 must set this: otherwise one
+    pass can run to max_rounds on ~100+ macros and hang for many minutes while the outer loop
+    only checks time between attempts).
     """
     rng = np.random.default_rng(0)
     t0 = time.monotonic()
     for attempt in range(22):
-        if time.monotonic() - t0 > max_seconds:
+        if max_seconds is not None and (time.monotonic() - t0) > max_seconds:
             break
-        _clamp_movable_to_canvas(placement, benchmark)
-        placement = _legalize_hard_macros_tensor(
-            placement,
-            benchmark,
-            max_pair_ops=800_000,
-            max_rounds=4500,
-            gap=1e-3,
-            rng=rng,
-            idle_cap=30,
-        )
-        _clamp_movable_to_canvas(placement, benchmark)
+        _clamp_movable_to_canvas(placement, benchmark, edge_inset=not iccad04_style)
+        if iccad04_style:
+            placement = _legalize_hard_macros_tensor(
+                placement,
+                benchmark,
+                max_pair_ops=900_000,
+                max_rounds=5000,
+                gap=1e-3,
+                rng=rng,
+                idle_cap=14,
+                max_seconds=legalize_max_seconds,
+            )
+        else:
+            placement = _legalize_hard_macros_tensor(
+                placement,
+                benchmark,
+                max_pair_ops=800_000,
+                max_rounds=4500,
+                gap=1e-3,
+                rng=rng,
+                idle_cap=30,
+                max_seconds=legalize_max_seconds,
+            )
+        _clamp_movable_to_canvas(placement, benchmark, edge_inset=not iccad04_style)
         oc = int(compute_overlap_metrics(placement, benchmark)["overlap_count"])
         ok, viol = validate_placement(placement, benchmark, check_overlaps=True)
         _debug(
@@ -411,13 +453,16 @@ def _legalize_hard_macros_multi_seed(
     idle_cap: int = 40,
     gap: float = 1e-3,
     max_seconds: float = 34.0,
+    per_seed_legalize_seconds: float = 14.0,
+    edge_inset: bool = True,
 ) -> torch.Tensor:
     """
     Dense floorplans (e.g. NG45) often trap single-pass axis legalization in a local jam.
     Re-run the same push heuristic with shuffled pair orders and larger budgets; keep the
     best result by (overlap_count, validation). Cheap when the first pass is already legal.
 
-    *max_seconds* caps wall time so large macro counts cannot stall the placer for minutes.
+    *max_seconds* caps total wall time; *per_seed_legalize_seconds* caps each inner
+    legalization so one seed cannot block for tens of minutes on 100+ macros.
     """
     best = placement.clone()
     best_key = _legality_sort_key(best, benchmark)
@@ -428,6 +473,8 @@ def _legalize_hard_macros_multi_seed(
         if time.monotonic() - t0 > max_seconds:
             break
         rng = np.random.default_rng(seed)
+        remain = max_seconds - (time.monotonic() - t0)
+        inner_cap = min(per_seed_legalize_seconds, max(4.0, remain))
         cand = _legalize_hard_macros_tensor(
             placement.clone(),
             benchmark,
@@ -436,8 +483,9 @@ def _legalize_hard_macros_multi_seed(
             gap=gap,
             rng=rng,
             idle_cap=idle_cap,
+            max_seconds=inner_cap,
         )
-        _clamp_movable_to_canvas(cand, benchmark)
+        _clamp_movable_to_canvas(cand, benchmark, edge_inset=edge_inset)
         key = _legality_sort_key(cand, benchmark)
         if key < best_key:
             best, best_key = cand, key
@@ -602,20 +650,29 @@ class DccpPlacer:
 
     def place(self, benchmark: Benchmark) -> torch.Tensor:
         # True handoff from loader (may be epsilon-out-of-bounds / micro-overlapping vs strict Python checks).
+        ng45 = _is_ng45_benchmark(benchmark)
         initial = benchmark.macro_positions.detach().clone()
         placement = initial.clone()
-        if _movable_bbox_exceeds_canvas(placement, benchmark):
-            _debug(f"{benchmark.name}: movable bbox exceeds canvas — shelf-packing hard macros")
-            _shelf_pack_movable_hard_macros(placement, benchmark)
-        _fit_all_macros_in_canvas(placement, benchmark)
-        _clamp_movable_to_canvas(placement, benchmark)
+        # NG45-only: shelf + translate-to-fit (IBM handoffs are in-family for dccp_old; these steps can disturb legality).
+        if ng45:
+            if _movable_bbox_exceeds_canvas(placement, benchmark):
+                _debug(f"{benchmark.name}: movable bbox exceeds canvas — shelf-packing hard macros")
+                _shelf_pack_movable_hard_macros(placement, benchmark)
+            _fit_all_macros_in_canvas(placement, benchmark)
+        _clamp_movable_to_canvas(placement, benchmark, edge_inset=ng45)
         if _placement_needs_repair(placement, benchmark):
             _debug(
                 f"{benchmark.name}: loaded floorplan fails strict validation — running repair "
                 f"(overlap_pairs={int(compute_overlap_metrics(placement, benchmark)['overlap_count'])})"
             )
-            placement = _repair_loaded_floorplan(placement, benchmark)
-        if _placement_needs_repair(placement, benchmark):
+            placement = _repair_loaded_floorplan(
+                placement,
+                benchmark,
+                iccad04_style=not ng45,
+                max_seconds=(72.0 if ng45 else None),
+                legalize_max_seconds=(14.0 if ng45 else None),
+            )
+        if _placement_needs_repair(placement, benchmark) and ng45:
             _debug(
                 f"{benchmark.name}: repair incomplete — multi-seed axis legalization "
                 f"(overlap_pairs={int(compute_overlap_metrics(placement, benchmark)['overlap_count'])})"
@@ -707,38 +764,47 @@ class DccpPlacer:
 
         # Float32 placement tensor can be epsilon-outside canvas after numpy→torch (validate fails
         # and we incorrectly revert to baseline).
-        _clamp_movable_to_canvas(placement, benchmark)
+        _clamp_movable_to_canvas(placement, benchmark, edge_inset=ng45)
 
         # Repair hard–hard overlaps including vs fixed obstacles (not in the DCCP subproblem).
         nh_leg = benchmark.num_hard_macros
         placement = _legalize_hard_macros_tensor(
             placement,
             benchmark,
-            max_seconds=(52.0 if nh_leg > 90 else None),
-            idle_cap=(32 if nh_leg > 90 else 14),
+            max_seconds=(52.0 if (ng45 and nh_leg > 90) else None),
+            idle_cap=(32 if (ng45 and nh_leg > 90) else 14),
         )
 
-        _clamp_movable_to_canvas(placement, benchmark)
+        _clamp_movable_to_canvas(placement, benchmark, edge_inset=ng45)
 
         # NG45-scale density: single-pass legalization can stall; multi-seed only if still illegal.
-        if _placement_needs_repair(placement, benchmark):
-            placement = _legalize_hard_macros_multi_seed(placement, benchmark)
-            _clamp_movable_to_canvas(placement, benchmark)
+        if ng45 and _placement_needs_repair(placement, benchmark):
+            placement = _legalize_hard_macros_multi_seed(
+                placement,
+                benchmark,
+                max_seconds=48.0,
+                per_seed_legalize_seconds=14.0,
+                edge_inset=True,
+            )
+            _clamp_movable_to_canvas(placement, benchmark, edge_inset=True)
 
         # Evaluator + harness validation (overlap geometry must match).
         if _placement_needs_repair(placement, benchmark):
-            repaired_baseline = _legalize_hard_macros_multi_seed(
-                baseline.clone(),
-                benchmark,
-                num_seeds=14,
-                max_pair_ops=1_400_000,
-                max_rounds=4500,
-                idle_cap=42,
-                max_seconds=42.0,
-            )
-            _clamp_movable_to_canvas(repaired_baseline, benchmark)
-            if not _placement_needs_repair(repaired_baseline, benchmark):
-                return repaired_baseline
+            if ng45:
+                repaired_baseline = _legalize_hard_macros_multi_seed(
+                    baseline.clone(),
+                    benchmark,
+                    num_seeds=14,
+                    max_pair_ops=1_400_000,
+                    max_rounds=4500,
+                    idle_cap=42,
+                    max_seconds=48.0,
+                    per_seed_legalize_seconds=14.0,
+                    edge_inset=True,
+                )
+                _clamp_movable_to_canvas(repaired_baseline, benchmark, edge_inset=True)
+                if not _placement_needs_repair(repaired_baseline, benchmark):
+                    return repaired_baseline
             return baseline.clone()
         return placement
 

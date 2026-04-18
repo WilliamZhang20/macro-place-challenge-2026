@@ -1,8 +1,7 @@
 """
 Pure DCCP macro placement (control / experiment).
 
-Implements the slide formulation without circle packing or k-NN regularizers,
-plus lightweight greedy warm-start/post nudges for improved validity:
+Implements the slide formulation without circle packing or k-NN regularizers.
 
   * Variables: rectangle lower-left corners (equivalently centers; we use
     **shifted** centers so the canvas contains the origin and the centroid
@@ -14,6 +13,16 @@ plus lightweight greedy warm-start/post nudges for improved validity:
   * Non-overlap (DCCP): for every pair of relevant rectangles,
         min{ x_i+w_i-x_j, x_j+w_j-x_i, y_i+h_i-y_j, y_j+h_j-y_i } <= 0
     in physical lower-left coordinates (vectorized with one min per pair).
+
+**Warm start:** Uses the benchmark hand-off placement (README: initial floorplan
+as reference), clamped in-bounds and projected onto the centroid-zero affine
+subspace in shifted coordinates — not a greedy overlap heuristic.
+
+**Feasibility:** The ``dccp`` CCP attaches slack to non-DCP constraints and
+increases penalty each iteration via ``tau <- min(tau * mu, tau_max)`` (see
+``dccp.problem.dccp``). We tune ``tau``, ``mu``, ``tau_max``, and run a small
+number of **manual** restarts with jittered initial points. We do *not* use
+``ccp_times > 1``, which forces random initialization and discards the hand-off.
 
 Solver: Convex–concave procedure from the ``dccp`` package with Clarabel.
 
@@ -189,151 +198,117 @@ def _clamp_centers(
     return x, y
 
 
-def _greedy_nudge_hard_centers(
-    *,
-    x: np.ndarray,
-    y: np.ndarray,
+def _project_shifted_centroid(
+    cx: np.ndarray,
+    cy: np.ndarray,
     w: np.ndarray,
     h: np.ndarray,
     cw: float,
     ch: float,
-    fixed_x: np.ndarray,
-    fixed_y: np.ndarray,
-    fixed_w: np.ndarray,
-    fixed_h: np.ndarray,
-    rounds: int,
-    restarts: int,
-    seed: int,
-    gap: float,
     inset: float,
+    iters: int = 28,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Greedy axis pushes to reduce hard-macro overlaps before/after DCCP."""
-    x0 = np.asarray(x, dtype=np.float64)
-    y0 = np.asarray(y, dtype=np.float64)
-    n = int(x0.shape[0])
-    if n <= 1 or rounds <= 0:
-        return _clamp_centers(x0, y0, w, h, cw, ch, inset)
+    """
+    Project (cx, cy) onto box bounds in shifted coordinates while approximately
+    enforcing sum(cx)=sum(cy)=0 (required linear equalities in the DCCP problem).
+    """
+    half_w = w * 0.5
+    half_h = h * 0.5
+    lbx = -cw / 2.0 + half_w + inset
+    ubx = cw / 2.0 - half_w - inset
+    lby = -ch / 2.0 + half_h + inset
+    uby = ch / 2.0 - half_h - inset
+    x = np.asarray(cx, dtype=np.float64).copy()
+    y = np.asarray(cy, dtype=np.float64).copy()
+    for _ in range(iters):
+        x = np.minimum(np.maximum(x, lbx), ubx)
+        y = np.minimum(np.maximum(y, lby), uby)
+        x = x - float(np.mean(x))
+        y = y - float(np.mean(y))
+    x = np.minimum(np.maximum(x, lbx), ubx)
+    y = np.minimum(np.maximum(y, lby), uby)
+    return x, y
 
-    mm_pairs = [(i, j) for i in range(n) for j in range(i + 1, n)]
-    nf = int(fixed_x.shape[0])
 
-    def overlap_count(xx: np.ndarray, yy: np.ndarray) -> int:
-        c = 0
-        for i in range(n):
-            wi = float(w[i])
-            hi = float(h[i])
-            for j in range(i + 1, n):
-                dx = abs(xx[i] - xx[j])
-                dy = abs(yy[i] - yy[j])
-                if dx < 0.5 * (wi + float(w[j])) and dy < 0.5 * (hi + float(h[j])):
-                    c += 1
-            if nf > 0:
-                for j in range(nf):
-                    dx = abs(xx[i] - float(fixed_x[j]))
-                    dy = abs(yy[i] - float(fixed_y[j]))
-                    if dx < 0.5 * (wi + float(fixed_w[j])) and dy < 0.5 * (hi + float(fixed_h[j])):
-                        c += 1
-        return c
-
+def _run_dccp_with_recovery(
+    prob: cp.Problem,
+    cx: cp.Variable,
+    cy: cp.Variable,
+    *,
+    base_cx0: np.ndarray,
+    base_cy0: np.ndarray,
+    dccp_max_iter: int,
+    ep: float,
+    max_slack: float,
+    tau: float,
+    mu: float,
+    tau_max: float,
+    restarts: int,
+    restart_jitter: float,
+    seed: int,
+) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    """
+    Solve with DCCP slack-penalty schedule (tau, mu, tau_max). Manual restarts
+    with jitter preserve the hand-off as restart 0; ``ccp_times>1`` is avoided.
+    """
+    n = int(base_cx0.shape[0])
     rng = np.random.default_rng(int(seed))
-    best_x, best_y = _clamp_centers(x0, y0, w, h, cw, ch, inset)
-    best_count = overlap_count(best_x, best_y)
-    if best_count == 0:
-        return best_x, best_y
-
     restarts = max(1, int(restarts))
-    eps = 1e-12
+
+    # Tiered schedules: stronger slack weight helps feasibility recovery.
+    schedules: List[Tuple[float, float, float, int]] = [
+        (tau, mu, tau_max, dccp_max_iter),
+        (max(tau * 4.0, 0.02), max(mu, 1.25), max(tau_max, 1e9), max(dccp_max_iter, 96)),
+        (max(tau * 16.0, 0.08), max(mu * 1.05, 1.35), max(tau_max * 10.0, 1e10), max(dccp_max_iter, 120)),
+    ]
+
+    best_x: Optional[np.ndarray] = None
+    best_y: Optional[np.ndarray] = None
+    best_key: Optional[Tuple[int, float]] = None  # (converged: 0 better, cost)
+
     for r in range(restarts):
-        cur_x = best_x.copy() if r == 0 else x0.copy()
-        cur_y = best_y.copy() if r == 0 else y0.copy()
-        if r > 0:
-            jitter = 0.03
-            cur_x = cur_x + rng.normal(0.0, jitter, size=n)
-            cur_y = cur_y + rng.normal(0.0, jitter, size=n)
-        cur_x, cur_y = _clamp_centers(cur_x, cur_y, w, h, cw, ch, inset)
+        cx0 = np.asarray(base_cx0, dtype=np.float64).copy()
+        cy0 = np.asarray(base_cy0, dtype=np.float64).copy()
+        if r > 0 and restart_jitter > 0.0:
+            cx0 = cx0 + rng.normal(0.0, restart_jitter, size=n)
+            cy0 = cy0 + rng.normal(0.0, restart_jitter, size=n)
 
-        for _ in range(int(rounds)):
-            moved = False
+        for t_sched, m_sched, tmax_sched, mi_sched in schedules:
+            cx.value = cx0.copy()
+            cy.value = cy0.copy()
+            try:
+                dccp_ccp(
+                    prob,
+                    max_iter=int(mi_sched),
+                    solver=cp.CLARABEL,
+                    ep=ep,
+                    max_slack=max_slack,
+                    tau=float(t_sched),
+                    mu=float(m_sched),
+                    tau_max=float(tmax_sched),
+                    ccp_times=1,
+                )
+            except Exception:
+                continue
 
-            pair_order = list(mm_pairs)
-            rng.shuffle(pair_order)
-            for i, j in pair_order:
-                wi = float(w[i])
-                hi = float(h[i])
-                wj = float(w[j])
-                hj = float(h[j])
-                dx = cur_x[i] - cur_x[j]
-                dy = cur_y[i] - cur_y[j]
-                req_x = 0.5 * (wi + wj) + gap
-                req_y = 0.5 * (hi + hj) + gap
-                ox = req_x - abs(dx)
-                oy = req_y - abs(dy)
-                if ox <= 0.0 or oy <= 0.0:
-                    continue
+            if cx.value is None or cy.value is None:
+                continue
+            sx = np.asarray(cx.value, dtype=np.float64).ravel()
+            sy = np.asarray(cy.value, dtype=np.float64).ravel()
+            if sx.shape[0] != n or not np.all(np.isfinite(sx)) or not np.all(np.isfinite(sy)):
+                continue
 
-                moved = True
-                if ox <= oy:
-                    s = 1.0 if dx >= 0.0 else -1.0
-                    if abs(dx) < eps:
-                        s = 1.0 if ((i + j) & 1) == 0 else -1.0
-                    shift = 0.5 * ox
-                    cur_x[i] += s * shift
-                    cur_x[j] -= s * shift
-                else:
-                    s = 1.0 if dy >= 0.0 else -1.0
-                    if abs(dy) < eps:
-                        s = 1.0 if ((i + j) & 1) == 0 else -1.0
-                    shift = 0.5 * oy
-                    cur_y[i] += s * shift
-                    cur_y[j] -= s * shift
+            status = getattr(prob, "_status", "Not_converged")
+            converged = 1 if status == "Converged" else 0
+            cost = float(prob.value) if prob.value is not None else float("inf")
+            key = (-converged, cost)
+            if best_key is None or key < best_key:
+                best_key = key
+                best_x, best_y = sx.copy(), sy.copy()
+            if converged:
+                return best_x, best_y
 
-                xi, yi = _clamp_centers(cur_x[i : i + 1], cur_y[i : i + 1], w[i : i + 1], h[i : i + 1], cw, ch, inset)
-                xj, yj = _clamp_centers(cur_x[j : j + 1], cur_y[j : j + 1], w[j : j + 1], h[j : j + 1], cw, ch, inset)
-                cur_x[i], cur_y[i] = float(xi[0]), float(yi[0])
-                cur_x[j], cur_y[j] = float(xj[0]), float(yj[0])
-
-            if nf > 0:
-                macro_order = np.arange(n, dtype=np.int64)
-                rng.shuffle(macro_order)
-                fixed_order = np.arange(nf, dtype=np.int64)
-                for i in macro_order:
-                    wi = float(w[i])
-                    hi = float(h[i])
-                    rng.shuffle(fixed_order)
-                    for j in fixed_order:
-                        dx = cur_x[i] - float(fixed_x[j])
-                        dy = cur_y[i] - float(fixed_y[j])
-                        req_x = 0.5 * (wi + float(fixed_w[j])) + gap
-                        req_y = 0.5 * (hi + float(fixed_h[j])) + gap
-                        ox = req_x - abs(dx)
-                        oy = req_y - abs(dy)
-                        if ox <= 0.0 or oy <= 0.0:
-                            continue
-
-                        moved = True
-                        if ox <= oy:
-                            s = 1.0 if dx >= 0.0 else -1.0
-                            if abs(dx) < eps:
-                                s = 1.0 if ((i + int(j)) & 1) == 0 else -1.0
-                            cur_x[i] += s * ox
-                        else:
-                            s = 1.0 if dy >= 0.0 else -1.0
-                            if abs(dy) < eps:
-                                s = 1.0 if ((i + int(j)) & 1) == 0 else -1.0
-                            cur_y[i] += s * oy
-
-                        xi, yi = _clamp_centers(cur_x[i : i + 1], cur_y[i : i + 1], w[i : i + 1], h[i : i + 1], cw, ch, inset)
-                        cur_x[i], cur_y[i] = float(xi[0]), float(yi[0])
-
-            cur_count = overlap_count(cur_x, cur_y)
-            if cur_count < best_count:
-                best_x, best_y = cur_x.copy(), cur_y.copy()
-                best_count = cur_count
-                if best_count == 0:
-                    return best_x, best_y
-
-            if not moved:
-                break
+            cx0, cy0 = sx, sy
 
     return best_x, best_y
 
@@ -367,189 +342,6 @@ def _clamp_nonfixed_macros_to_canvas(
             placement[i, 1] = float(min(max(float(placement[i, 1].item()), yl), yh))
 
 
-def _legalize_hard_macros_tensor(
-    placement: torch.Tensor,
-    benchmark: Benchmark,
-    *,
-    max_pair_ops: int,
-    max_rounds: int,
-    gap: float,
-    rng: Optional[np.random.Generator],
-    idle_cap: int,
-) -> torch.Tensor:
-    """Greedy axis-push legalization among hard macros (fixed macros are obstacles)."""
-    num_h = benchmark.num_hard_macros
-    if num_h <= 1:
-        return placement
-
-    out = placement.clone()
-    pos = out[:num_h, :].detach().cpu().numpy().astype(np.float64).copy()
-    sizes = benchmark.macro_sizes[:num_h].detach().cpu().numpy().astype(np.float64)
-    movable = (~benchmark.macro_fixed[:num_h]).detach().cpu().numpy()
-    cw = float(benchmark.canvas_width)
-    ch = float(benchmark.canvas_height)
-    hw = sizes[:, 0] / 2.0
-    hh = sizes[:, 1] / 2.0
-
-    def clamp_i(i: int) -> None:
-        pos[i, 0] = float(np.clip(pos[i, 0], hw[i], cw - hw[i]))
-        pos[i, 1] = float(np.clip(pos[i, 1], hh[i], ch - hh[i]))
-
-    def strict_overlap(i: int, j: int) -> bool:
-        adx = abs(pos[i, 0] - pos[j, 0])
-        ady = abs(pos[i, 1] - pos[j, 1])
-        return adx < hw[i] + hw[j] and ady < hh[i] + hh[j]
-
-    pairs = [(i, j) for i in range(num_h) for j in range(i + 1, num_h)]
-    ops = 0
-    rounds = 0
-    idle = 0
-    while ops < max_pair_ops and rounds < max_rounds:
-        rounds += 1
-        moved_round = False
-        pair_order = list(pairs)
-        if rng is not None:
-            rng.shuffle(pair_order)
-
-        for i, j in pair_order:
-            if not strict_overlap(i, j):
-                continue
-            mi, mj = bool(movable[i]), bool(movable[j])
-            if not mi and not mj:
-                continue
-
-            dx = pos[i, 0] - pos[j, 0]
-            dy = pos[i, 1] - pos[j, 1]
-            sep_x = hw[i] + hw[j] + gap
-            sep_y = hh[i] + hh[j] + gap
-            ox = sep_x - abs(dx)
-            oy = sep_y - abs(dy)
-            if ox <= 0.0 or oy <= 0.0:
-                continue
-
-            moved_round = True
-            ops += 1
-            if mi and mj:
-                if ox <= oy:
-                    s = 1.0 if dx >= 0 else -1.0
-                    shift = ox / 2.0 + gap * 0.5
-                    pos[i, 0] += s * shift
-                    pos[j, 0] -= s * shift
-                else:
-                    s = 1.0 if dy >= 0 else -1.0
-                    shift = oy / 2.0 + gap * 0.5
-                    pos[i, 1] += s * shift
-                    pos[j, 1] -= s * shift
-                clamp_i(i)
-                clamp_i(j)
-            elif mi:
-                if ox <= oy:
-                    s = 1.0 if dx >= 0 else -1.0
-                    pos[i, 0] += s * (ox + gap * 0.5)
-                else:
-                    s = 1.0 if dy >= 0 else -1.0
-                    pos[i, 1] += s * (oy + gap * 0.5)
-                clamp_i(i)
-            else:
-                if ox <= oy:
-                    s = 1.0 if dx >= 0 else -1.0
-                    pos[j, 0] -= s * (ox + gap * 0.5)
-                else:
-                    s = 1.0 if dy >= 0 else -1.0
-                    pos[j, 1] -= s * (oy + gap * 0.5)
-                clamp_i(j)
-
-            if ops >= max_pair_ops:
-                break
-
-        if not moved_round:
-            idle += 1
-            if idle >= idle_cap:
-                break
-        else:
-            idle = 0
-
-    out[:num_h, 0] = torch.from_numpy(pos[:, 0]).to(out.device, dtype=out.dtype)
-    out[:num_h, 1] = torch.from_numpy(pos[:, 1]).to(out.device, dtype=out.dtype)
-    return out
-
-
-def _hard_overlap_count(placement: torch.Tensor, benchmark: Benchmark) -> int:
-    """Count strict overlaps among hard macros (same geometry as validate_placement)."""
-    num_h = benchmark.num_hard_macros
-    if num_h <= 1:
-        return 0
-    pos = placement[:num_h, :].detach().cpu().numpy().astype(np.float64)
-    sizes = benchmark.macro_sizes[:num_h, :].detach().cpu().numpy().astype(np.float64)
-    c = 0
-    for i in range(num_h):
-        lxi = pos[i, 0] - 0.5 * sizes[i, 0]
-        uxi = pos[i, 0] + 0.5 * sizes[i, 0]
-        lyi = pos[i, 1] - 0.5 * sizes[i, 1]
-        uyi = pos[i, 1] + 0.5 * sizes[i, 1]
-        for j in range(i + 1, num_h):
-            lxj = pos[j, 0] - 0.5 * sizes[j, 0]
-            uxj = pos[j, 0] + 0.5 * sizes[j, 0]
-            lyj = pos[j, 1] - 0.5 * sizes[j, 1]
-            uyj = pos[j, 1] + 0.5 * sizes[j, 1]
-            if not (lxi >= uxj or uxi <= lxj or lyi >= uyj or uyi <= lyj):
-                c += 1
-    return c
-
-
-def _legalize_hard_macros_multi_seed(
-    placement: torch.Tensor,
-    benchmark: Benchmark,
-    *,
-    num_seeds: int,
-    jitter_std: float,
-    boundary_inset: float,
-    max_pair_ops: int,
-    max_rounds: int,
-    gap: float,
-    idle_cap: int,
-    seed: int,
-) -> torch.Tensor:
-    """Run greedy legalization with jittered restarts; keep best (fewest hard overlaps)."""
-    num_seeds = max(1, int(num_seeds))
-    jitter_std = float(max(0.0, jitter_std))
-
-    best = placement.clone()
-    best_count = _hard_overlap_count(best, benchmark)
-    if best_count == 0:
-        return best
-
-    num_h = benchmark.num_hard_macros
-    for s in range(num_seeds):
-        trial = placement.clone()
-        if s > 0 and jitter_std > 0.0 and num_h > 0:
-            rng_j = np.random.default_rng(seed + 9973 * s)
-            for i in range(num_h):
-                if bool(benchmark.macro_fixed[i].item()):
-                    continue
-                trial[i, 0] = float(trial[i, 0].item()) + float(rng_j.normal(0.0, jitter_std))
-                trial[i, 1] = float(trial[i, 1].item()) + float(rng_j.normal(0.0, jitter_std))
-            _clamp_nonfixed_macros_to_canvas(trial, benchmark, boundary_inset)
-
-        trial = _legalize_hard_macros_tensor(
-            trial,
-            benchmark,
-            max_pair_ops=max_pair_ops,
-            max_rounds=max_rounds,
-            gap=gap,
-            rng=np.random.default_rng(seed + 131 * s),
-            idle_cap=idle_cap,
-        )
-        cnt = _hard_overlap_count(trial, benchmark)
-        if cnt < best_count:
-            best = trial
-            best_count = cnt
-            if best_count == 0:
-                return best
-
-    return best
-
-
 class DccpControlPlacer:
     """
     Pure slide DCCP placement on movable hard macros (no hybrid heuristics).
@@ -557,9 +349,13 @@ class DccpControlPlacer:
     Parameters
     ----------
     dccp_max_iter : int
-        Inner iterations passed to ``dccp.problem.dccp``.
+        Inner iterations passed to ``dccp.problem.dccp`` (first penalty tier).
     ep, max_slack : float
-        DCCP tolerances (see dccp package).
+        DCCP tolerances (see ``dccp.problem.dccp``).
+    tau, mu, tau_max : float
+        Slack penalty schedule: ``tau`` increases by ``mu`` each iteration up to ``tau_max``.
+    dccp_restarts : int
+        Manual restarts with ``restart_jitter`` on shifted centers (``ccp_times`` stays 1).
     """
 
     def __init__(
@@ -567,27 +363,21 @@ class DccpControlPlacer:
         dccp_max_iter: int = 80,
         ep: float = 1e-4,
         max_slack: float = 1e-2,
-        greedy_warm_start_rounds: int = 8,
-        greedy_post_rounds: int = 10,
-        greedy_restarts: int = 1,
-        post_legalize_rounds: int = 2500,
-        post_legalize_pair_ops: int = 900000,
-        post_legalize_seeds: int = 8,
-        post_legalize_jitter_std: float = 0.03,
-        greedy_gap: float = 1e-3,
+        tau: float = 0.005,
+        mu: float = 1.2,
+        tau_max: float = 1e8,
+        dccp_restarts: int = 3,
+        restart_jitter: float = 0.02,
         boundary_inset: float = 1e-3,
     ):
         self.dccp_max_iter = dccp_max_iter
         self.ep = ep
         self.max_slack = max_slack
-        self.greedy_warm_start_rounds = max(0, int(greedy_warm_start_rounds))
-        self.greedy_post_rounds = max(0, int(greedy_post_rounds))
-        self.greedy_restarts = max(1, int(greedy_restarts))
-        self.post_legalize_rounds = max(0, int(post_legalize_rounds))
-        self.post_legalize_pair_ops = max(0, int(post_legalize_pair_ops))
-        self.post_legalize_seeds = max(1, int(post_legalize_seeds))
-        self.post_legalize_jitter_std = float(max(0.0, post_legalize_jitter_std))
-        self.greedy_gap = float(max(0.0, greedy_gap))
+        self.tau = float(tau)
+        self.mu = float(mu)
+        self.tau_max = float(tau_max)
+        self.dccp_restarts = max(1, int(dccp_restarts))
+        self.restart_jitter = float(max(0.0, restart_jitter))
         self.boundary_inset = float(max(0.0, boundary_inset))
 
     def place(self, benchmark: Benchmark) -> torch.Tensor:
@@ -612,49 +402,18 @@ class DccpControlPlacer:
             for fi in range(nh)
             if bool(benchmark.macro_fixed[fi].item()) and fi not in global_set
         ]
-        fixed_x = (
-            benchmark.macro_positions[fixed_idx, 0].detach().cpu().numpy().astype(np.float64)
-            if fixed_idx
-            else np.zeros(0, dtype=np.float64)
-        )
-        fixed_y = (
-            benchmark.macro_positions[fixed_idx, 1].detach().cpu().numpy().astype(np.float64)
-            if fixed_idx
-            else np.zeros(0, dtype=np.float64)
-        )
-        fixed_w = (
-            benchmark.macro_sizes[fixed_idx, 0].detach().cpu().numpy().astype(np.float64)
-            if fixed_idx
-            else np.zeros(0, dtype=np.float64)
-        )
-        fixed_h = (
-            benchmark.macro_sizes[fixed_idx, 1].detach().cpu().numpy().astype(np.float64)
-            if fixed_idx
-            else np.zeros(0, dtype=np.float64)
-        )
 
-        # Greedy warm start in physical coordinates, then shift to DCCP frame.
+        # Benchmark hand-off (README initial floorplan): clamp, then shifted coords + centroid.
         warm_x, warm_y = _clamp_centers(pc[:, 0], pc[:, 1], w, h, cw, ch, self.boundary_inset)
-        if self.greedy_warm_start_rounds > 0:
-            warm_x, warm_y = _greedy_nudge_hard_centers(
-                x=warm_x,
-                y=warm_y,
-                w=w,
-                h=h,
-                cw=cw,
-                ch=ch,
-                fixed_x=fixed_x,
-                fixed_y=fixed_y,
-                fixed_w=fixed_w,
-                fixed_h=fixed_h,
-                rounds=self.greedy_warm_start_rounds,
-                restarts=self.greedy_restarts,
-                seed=0,
-                gap=self.greedy_gap,
-                inset=self.boundary_inset,
-            )
-        cx0 = warm_x - cw / 2.0
-        cy0 = warm_y - ch / 2.0
+        cx0, cy0 = _project_shifted_centroid(
+            warm_x - cw / 2.0,
+            warm_y - ch / 2.0,
+            w,
+            h,
+            cw,
+            ch,
+            self.boundary_inset,
+        )
 
         edges = _net_macro_pairs(benchmark, idx_list)
 
@@ -707,25 +466,23 @@ class DccpControlPlacer:
         if not is_dccp(prob):
             return placement
 
-        cx.value = np.asarray(cx0, dtype=np.float64)
-        cy.value = np.asarray(cy0, dtype=np.float64)
-
-        try:
-            dccp_ccp(
-                prob,
-                max_iter=self.dccp_max_iter,
-                solver=cp.CLARABEL,
-                ep=self.ep,
-                max_slack=self.max_slack,
-            )
-        except Exception:
-            return placement
-
-        if cx.value is None or cy.value is None:
-            return placement
-        solx = np.asarray(cx.value, dtype=np.float64).ravel()
-        soly = np.asarray(cy.value, dtype=np.float64).ravel()
-        if solx.shape[0] != n or not np.all(np.isfinite(solx)) or not np.all(np.isfinite(soly)):
+        solx, soly = _run_dccp_with_recovery(
+            prob,
+            cx,
+            cy,
+            base_cx0=cx0,
+            base_cy0=cy0,
+            dccp_max_iter=self.dccp_max_iter,
+            ep=self.ep,
+            max_slack=self.max_slack,
+            tau=self.tau,
+            mu=self.mu,
+            tau_max=self.tau_max,
+            restarts=self.dccp_restarts,
+            restart_jitter=self.restart_jitter,
+            seed=0,
+        )
+        if solx is None or soly is None:
             return placement
 
         # Physical centers from DCCP candidate.
@@ -733,42 +490,9 @@ class DccpControlPlacer:
         phys_y = soly + ch / 2.0
         phys_x, phys_y = _clamp_centers(phys_x, phys_y, w, h, cw, ch, self.boundary_inset)
 
-        if self.greedy_post_rounds > 0:
-            phys_x, phys_y = _greedy_nudge_hard_centers(
-                x=phys_x,
-                y=phys_y,
-                w=w,
-                h=h,
-                cw=cw,
-                ch=ch,
-                fixed_x=fixed_x,
-                fixed_y=fixed_y,
-                fixed_w=fixed_w,
-                fixed_h=fixed_h,
-                rounds=self.greedy_post_rounds,
-                restarts=self.greedy_restarts,
-                seed=13,
-                gap=self.greedy_gap,
-                inset=self.boundary_inset,
-            )
-
         for k, g in enumerate(idx_list):
             placement[g, 0] = float(phys_x[k])
             placement[g, 1] = float(phys_y[k])
-
-        if self.post_legalize_rounds > 0 and self.post_legalize_pair_ops > 0:
-            placement = _legalize_hard_macros_multi_seed(
-                placement,
-                benchmark,
-                num_seeds=self.post_legalize_seeds,
-                jitter_std=self.post_legalize_jitter_std,
-                boundary_inset=self.boundary_inset,
-                max_pair_ops=self.post_legalize_pair_ops,
-                max_rounds=self.post_legalize_rounds,
-                gap=self.greedy_gap,
-                idle_cap=28,
-                seed=7,
-            )
 
         # Soft macros are not optimized by DCCP; clamp them to avoid strict OOB invalidations.
         _clamp_nonfixed_macros_to_canvas(placement, benchmark, self.boundary_inset)
