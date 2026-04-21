@@ -8,32 +8,17 @@ cvxpy ``Problem``, after ``is_dccp`` validation.  Optimization is in
 on top of the legal input placement.
 
 Circle packing is only a **relaxation** for rectangles; after DCCP we run a
-light axis push legalization. Dense handoffs (e.g. NG45) may need **multi-seed**
-restarts of that push with larger budgets so pair order does not deadlock; this
-runs only when strict validation still fails (IBM cases that are already legal
-stay on the fast path).
-
-Some ``.plc`` handoffs are slightly illegal under strict Python geometry (bounds
-epsilon, hard overlaps that PLC tolerates under its overlap threshold). In that
-case we **clamp and repair** hard macros before DCCP. If refinement still fails,
-we fall back to the last **repaired** legal floorplan (not the raw loader tensor).
+light axis push legalization.
 
 Debug: ``MACRO_PLACE_DEBUG_DCCP=1`` logs repair progress on stderr.
 
 DCCP program (per solve, variables ``dx, dy``):
-  minimize    ||dx||^2 + ||dy||^2 + lam * ||A dx||^2 + lam * ||A dy||^2
+    minimize    ||dx||^2 + ||dy||^2 + lam * ||A dx||^2 + lam * ||A dy||^2
+                            + mu * ||A (p0+dx)||^2 + mu * ||A (p0+dy)||^2
   subject to  (r_i+r_j)^2 - ||(p0+dp)_i - (p0+dp)_j||^2 <= 0   (concave)
               centers stay inside canvas (linear in dx, dy)
 
-Usage:
-    source ~/myenv/bin/activate   # dependencies (or: uv run …); time out long runs, e.g. timeout 300 …
-    python -m macro_place.evaluate submissions/dccp_placer.py -b ibm01
-    python -m macro_place.evaluate submissions/dccp_placer.py --all
-
-    # Standalone (from repo root): load ibm01, validate, print proxy cost
-    python submissions/dccp_placer.py
-    python submissions/dccp_placer.py -b ibm03
-    python submissions/dccp_placer.py --verify   # compare vs initial placement
+Usage: see README.md
 """
 
 from __future__ import annotations
@@ -104,7 +89,7 @@ def _movable_bbox_exceeds_canvas(
     span_x = max_ux - min_lx
     span_y = max_uy - min_ly
     # Strictly larger than canvas (float noise on ibm01: span_y ≈ ch triggers false shelf).
-    tol = 1e-3
+    tol = 1e-3 + max(0.0, float(margin))
     return span_x > cw + tol or span_y > ch + tol
 
 
@@ -145,12 +130,12 @@ def _shelf_pack_movable_hard_macros(placement: torch.Tensor, benchmark: Benchmar
 
 def _fit_all_macros_in_canvas(placement: torch.Tensor, benchmark: Benchmark) -> None:
     """
-    In-place translate / uniform scale so **movable** macro bboxes fit inside the canvas.
+    In-place translation so **movable** macro bboxes fit inside the canvas.
 
     NanGate45 ``initial.plc`` handoffs are often strictly overlap-free but slightly
     out of bounds. Clamping centers directly then piles macros on the border and
-    creates massive overlaps. This preserves relative layout when only a shift (or
-    rare scale-down) is needed; designs already in-bounds are unchanged. Fixed macros
+    creates massive overlaps. This preserves relative layout when only a shift is
+    needed; designs already in-bounds are unchanged. Fixed macros
     are not moved (IBM handoffs).
     """
     n = benchmark.num_macros
@@ -255,29 +240,26 @@ def _repair_loaded_floorplan(
     for attempt in range(22):
         if max_seconds is not None and (time.monotonic() - t0) > max_seconds:
             break
+        nh = benchmark.num_hard_macros
+        oc_hint = int(compute_overlap_metrics(placement, benchmark)["overlap_count"])
+        denom = max(1, nh * (nh - 1) // 2)
+        overlap_density = float(oc_hint) / float(denom)
+        pair_ops, max_rounds, idle_cap = _adaptive_legalize_budget(
+            nh,
+            overlap_density,
+            iccad04_style=iccad04_style,
+        )
         _clamp_movable_to_canvas(placement, benchmark, edge_inset=not iccad04_style)
-        if iccad04_style:
-            placement = _legalize_hard_macros_tensor(
-                placement,
-                benchmark,
-                max_pair_ops=900_000,
-                max_rounds=5000,
-                gap=1e-3,
-                rng=rng,
-                idle_cap=14,
-                max_seconds=legalize_max_seconds,
-            )
-        else:
-            placement = _legalize_hard_macros_tensor(
-                placement,
-                benchmark,
-                max_pair_ops=800_000,
-                max_rounds=4500,
-                gap=1e-3,
-                rng=rng,
-                idle_cap=30,
-                max_seconds=legalize_max_seconds,
-            )
+        placement = _legalize_hard_macros_tensor(
+            placement,
+            benchmark,
+            max_pair_ops=pair_ops,
+            max_rounds=max_rounds,
+            gap=1e-3,
+            rng=rng,
+            idle_cap=idle_cap,
+            max_seconds=legalize_max_seconds,
+        )
         _clamp_movable_to_canvas(placement, benchmark, edge_inset=not iccad04_style)
         oc = int(compute_overlap_metrics(placement, benchmark)["overlap_count"])
         ok, viol = validate_placement(placement, benchmark, check_overlaps=True)
@@ -287,7 +269,6 @@ def _repair_loaded_floorplan(
         )
         if oc == 0 and ok:
             return placement
-        nh = benchmark.num_hard_macros
         for i in range(nh):
             if bool(benchmark.macro_fixed[i].item()):
                 continue
@@ -312,6 +293,248 @@ def _inject_movable_centers(
         out[tensor_i, 0] = float(centers[k, 0])
         out[tensor_i, 1] = float(centers[k, 1])
     return out
+
+
+def _edge_quadratic_cost(centers: np.ndarray, edges: Sequence[Tuple[int, int]]) -> float:
+    """Light wirelength surrogate over local edges."""
+    if not edges:
+        return 0.0
+    cost = 0.0
+    for i, j in edges:
+        dx = float(centers[i, 0] - centers[j, 0])
+        dy = float(centers[i, 1] - centers[j, 1])
+        cost += dx * dx + dy * dy
+    return cost
+
+
+def _weighted_edge_quadratic_cost(
+    centers: np.ndarray,
+    edges: Sequence[Tuple[int, int]],
+    weights: np.ndarray,
+) -> float:
+    """Weighted quadratic edge span (wire surrogate)."""
+    if not edges:
+        return 0.0
+    if weights.shape[0] != len(edges):
+        return _edge_quadratic_cost(centers, edges)
+    cost = 0.0
+    for k, (i, j) in enumerate(edges):
+        dx = float(centers[i, 0] - centers[j, 0])
+        dy = float(centers[i, 1] - centers[j, 1])
+        cost += float(weights[k]) * (dx * dx + dy * dy)
+    return cost
+
+
+def _net_objective_edges(
+    benchmark: Benchmark,
+    idx_list: Sequence[int],
+    centers: np.ndarray,
+    max_neighbors: int = 10,
+) -> Tuple[List[Tuple[int, int]], np.ndarray]:
+    """
+    Build sparse weighted macro-macro edges from net co-occurrence.
+
+    Uses pairwise expansion for small nets and centroid-anchored sparse links for
+    large nets to keep objective size bounded.
+    """
+    n = len(idx_list)
+    if n <= 1 or benchmark.num_nets <= 0:
+        return [], np.zeros(0, dtype=np.float64)
+
+    g2l = {int(g): i for i, g in enumerate(idx_list)}
+    pair_weight: dict[Tuple[int, int], float] = {}
+
+    for net_id, net in enumerate(benchmark.net_nodes):
+        nodes = net.detach().cpu().tolist() if hasattr(net, "detach") else list(net)
+        locals_in_net = [g2l[int(u)] for u in nodes if int(u) in g2l]
+        m = len(locals_in_net)
+        if m <= 1:
+            continue
+        net_w = float(benchmark.net_weights[net_id].item()) if benchmark.num_nets > net_id else 1.0
+        base_w = max(1e-4, net_w / float(max(1, m - 1)))
+
+        if m <= 10:
+            for a in range(m):
+                ia = locals_in_net[a]
+                for b in range(a + 1, m):
+                    ib = locals_in_net[b]
+                    p = (ia, ib) if ia < ib else (ib, ia)
+                    pair_weight[p] = pair_weight.get(p, 0.0) + base_w
+            continue
+
+        local_arr = np.asarray(locals_in_net, dtype=np.int64)
+        pts = centers[local_arr]
+        centroid = np.mean(pts, axis=0)
+        d2c = np.sum((pts - centroid) ** 2, axis=1)
+        anchor = int(local_arr[int(np.argmin(d2c))])
+        for v in local_arr:
+            iv = int(v)
+            if iv == anchor:
+                continue
+            p = (anchor, iv) if anchor < iv else (iv, anchor)
+            pair_weight[p] = pair_weight.get(p, 0.0) + 0.7 * base_w
+
+        # Local ring by x-order keeps large nets connected with few edges.
+        order = np.argsort(pts[:, 0])
+        for t in range(m - 1):
+            ia = int(local_arr[int(order[t])])
+            ib = int(local_arr[int(order[t + 1])])
+            p = (ia, ib) if ia < ib else (ib, ia)
+            pair_weight[p] = pair_weight.get(p, 0.0) + 0.3 * base_w
+
+    if not pair_weight:
+        return [], np.zeros(0, dtype=np.float64)
+
+    # Per-node top-k pruning prevents huge dense objectives.
+    incident: List[List[Tuple[float, int, int]]] = [[] for _ in range(n)]
+    for (i, j), w in pair_weight.items():
+        incident[i].append((w, i, j))
+        incident[j].append((w, i, j))
+
+    keep: Set[Tuple[int, int]] = set()
+    for i in range(n):
+        if not incident[i]:
+            continue
+        incident[i].sort(key=lambda t: t[0], reverse=True)
+        for w, a, b in incident[i][: max(1, max_neighbors)]:
+            if w <= 0:
+                continue
+            keep.add((a, b))
+
+    edges = sorted(keep)
+    weights = np.asarray([pair_weight[e] for e in edges], dtype=np.float64)
+    if weights.size > 0:
+        w_mean = float(np.mean(weights))
+        if w_mean > 0:
+            weights = weights / w_mean
+    return edges, weights
+
+
+def _rms_displacement(curr: np.ndarray, base: np.ndarray) -> float:
+    if curr.size == 0:
+        return 0.0
+    d2 = np.sum((curr - base) ** 2, axis=1)
+    return float(np.sqrt(np.mean(d2)))
+
+
+def _adaptive_refinement_policy(
+    n: int,
+    pair_density: float,
+    ng45: bool,
+    base_outer: int,
+    base_dccp_iter: int,
+    canvas_diag: float,
+) -> Tuple[int, int, float, int]:
+    """Adaptive refinement caps from size and current overlap-constraint density."""
+    if n <= 1:
+        return 0, base_dccp_iter, 0.0, 800
+    if n >= 190:
+        trust = max(0.25, 0.08 * canvas_diag / math.sqrt(float(n)))
+        return 0, min(base_dccp_iter, 20), trust, 700
+
+    size_scale = 1.0 / (1.0 + max(0.0, float(n - 48)) / 58.0)
+    dens_scale = 1.0 / (1.0 + 2.2 * max(0.0, pair_density - 0.10))
+    ng_scale = 0.84 if ng45 else 1.0
+    scale = size_scale * dens_scale * ng_scale
+
+    outer_cap = max(1, int(round(base_outer * scale)))
+    dccp_iter = max(18, int(round(base_dccp_iter * max(0.36, scale))))
+    if n > 130:
+        outer_cap = min(outer_cap, 2)
+        dccp_iter = min(dccp_iter, 28)
+
+    trust = max(0.25, 0.12 * canvas_diag / math.sqrt(float(n)))
+    if ng45:
+        trust *= 1.15
+
+    legalize_iters = int(min(6000, max(900, 700 + 24 * n * (1.0 + 0.6 * pair_density))))
+    return outer_cap, dccp_iter, trust, legalize_iters
+
+
+def _adaptive_legalize_budget(
+    num_hard: int,
+    overlap_density: float,
+    *,
+    iccad04_style: bool,
+) -> Tuple[int, int, int]:
+    """Adaptive legalizer budgets from macro count and observed overlap density."""
+    density_boost = 1.0 + 2.0 * max(0.0, overlap_density)
+    pair_ops = int((420_000 + 6500 * num_hard) * density_boost)
+    max_rounds = int((1100 + 19 * num_hard) * density_boost)
+    idle_cap = 14 if iccad04_style else 24
+    if overlap_density > 0.06:
+        idle_cap += 10
+    pair_ops = max(160_000, min(pair_ops, 1_800_000))
+    max_rounds = max(700, min(max_rounds, 7200))
+    return pair_ops, max_rounds, idle_cap
+
+
+def _spatial_candidate_pairs(
+    centers: np.ndarray,
+    half_w: np.ndarray,
+    half_h: np.ndarray,
+    *,
+    dense_fallback_n: int = 32,
+) -> List[Tuple[int, int]]:
+    """Candidate overlap pairs from a conservative bbox grid index."""
+    n = centers.shape[0]
+    if n <= 1:
+        return []
+    if n <= dense_fallback_n:
+        return [(i, j) for i in range(n) for j in range(i + 1, n)]
+
+    widths = 2.0 * half_w
+    heights = 2.0 * half_h
+    cell_x = float(max(1e-3, np.percentile(widths, 75)))
+    cell_y = float(max(1e-3, np.percentile(heights, 75)))
+
+    lx = centers[:, 0] - half_w
+    ux = centers[:, 0] + half_w
+    ly = centers[:, 1] - half_h
+    uy = centers[:, 1] + half_h
+    gx0 = np.floor(lx / cell_x).astype(np.int64)
+    gx1 = np.floor(ux / cell_x).astype(np.int64)
+    gy0 = np.floor(ly / cell_y).astype(np.int64)
+    gy1 = np.floor(uy / cell_y).astype(np.int64)
+
+    buckets: dict[Tuple[int, int], List[int]] = {}
+    total_slots = 0
+    max_slots = max(2000, 24 * n)
+    for i in range(n):
+        nx = int(gx1[i] - gx0[i] + 1)
+        ny = int(gy1[i] - gy0[i] + 1)
+        slots = nx * ny
+        total_slots += slots
+        if total_slots > max_slots:
+            return [(a, b) for a in range(n) for b in range(a + 1, n)]
+        for gx in range(int(gx0[i]), int(gx1[i]) + 1):
+            for gy in range(int(gy0[i]), int(gy1[i]) + 1):
+                buckets.setdefault((gx, gy), []).append(i)
+
+    pairs: Set[Tuple[int, int]] = set()
+    for members in buckets.values():
+        m = len(members)
+        if m <= 1:
+            continue
+        for a in range(m):
+            ia = members[a]
+            for b in range(a + 1, m):
+                ib = members[b]
+                if ia < ib:
+                    pairs.add((ia, ib))
+                else:
+                    pairs.add((ib, ia))
+    return list(pairs)
+
+
+def _placement_knn_wire_proxy(placement: torch.Tensor, benchmark: Benchmark, k: int = 4) -> float:
+    """Proxy-like tie-breaker for legalizer seeds: lower local edge span is better."""
+    nh = benchmark.num_hard_macros
+    if nh <= 1:
+        return 0.0
+    pos = placement[:nh, :].detach().cpu().numpy().astype(np.float64)
+    edges = _knn_edges(pos, k=min(k, nh - 1))
+    return _edge_quadratic_cost(pos, edges)
 
 
 def _legalize_hard_macros_tensor(
@@ -352,17 +575,25 @@ def _legalize_hard_macros_tensor(
         ady = abs(pos[i, 1] - pos[j, 1])
         return adx < hw[i] + hw[j] and ady < hh[i] + hh[j]
 
+    all_pairs = [(i, j) for i in range(num_h) for j in range(i + 1, num_h)]
+
+    def candidate_pairs() -> List[Tuple[int, int]]:
+        cand = _spatial_candidate_pairs(pos, hw, hh)
+        if not cand:
+            return []
+        if len(cand) > int(0.92 * len(all_pairs)):
+            return all_pairs
+        return cand
+
     def any_overlap_fast() -> bool:
-        for ii in range(num_h):
-            for jj in range(ii + 1, num_h):
-                if strict_overlap(ii, jj):
-                    return True
+        for ii, jj in candidate_pairs():
+            if strict_overlap(ii, jj):
+                return True
         return False
 
     if not any_overlap_fast():
         return placement
 
-    base_pairs = [(i, j) for i in range(num_h) for j in range(i + 1, num_h)]
     ops = 0
     rounds = 0
     idle = 0
@@ -372,7 +603,9 @@ def _legalize_hard_macros_tensor(
             break
         rounds += 1
         moved_round = False
-        pair_order = list(base_pairs)
+        pair_order = candidate_pairs()
+        if not pair_order:
+            break
         if rng is not None:
             rng.shuffle(pair_order)
         for i, j in pair_order:
@@ -454,6 +687,7 @@ def _legalize_hard_macros_multi_seed(
     gap: float = 1e-3,
     max_seconds: float = 34.0,
     per_seed_legalize_seconds: float = 14.0,
+    elite_k: int = 3,
     edge_inset: bool = True,
 ) -> torch.Tensor:
     """
@@ -464,10 +698,20 @@ def _legalize_hard_macros_multi_seed(
     *max_seconds* caps total wall time; *per_seed_legalize_seconds* caps each inner
     legalization so one seed cannot block for tens of minutes on 100+ macros.
     """
-    best = placement.clone()
-    best_key = _legality_sort_key(best, benchmark)
-    if best_key == (0, 0):
-        return best
+    seed0 = placement.clone()
+    seed0_key = _legality_sort_key(seed0, benchmark)
+    if seed0_key == (0, 0):
+        return seed0
+
+    elites: List[Tuple[Tuple[int, int, float], torch.Tensor]] = []
+
+    def keep_elite(key: Tuple[int, int, float], cand: torch.Tensor) -> None:
+        elites.append((key, cand.clone()))
+        elites.sort(key=lambda x: x[0])
+        if len(elites) > max(1, elite_k):
+            elites.pop()
+
+    keep_elite((seed0_key[0], seed0_key[1], _placement_knn_wire_proxy(seed0, benchmark)), seed0)
     t0 = time.monotonic()
     for seed in range(num_seeds):
         if time.monotonic() - t0 > max_seconds:
@@ -487,11 +731,12 @@ def _legalize_hard_macros_multi_seed(
         )
         _clamp_movable_to_canvas(cand, benchmark, edge_inset=edge_inset)
         key = _legality_sort_key(cand, benchmark)
-        if key < best_key:
-            best, best_key = cand, key
-        if best_key == (0, 0):
+        proxy = _placement_knn_wire_proxy(cand, benchmark)
+        keep_elite((key[0], key[1], proxy), cand)
+        if elites and elites[0][0][0] == 0 and elites[0][0][1] == 0 and len(elites) >= max(1, elite_k):
             break
-    return best
+
+    return elites[0][1]
 
 
 def _legalize_centers(
@@ -519,30 +764,32 @@ def _legalize_centers(
 
     for _ in range(max_iters):
         moved = False
-        for i in range(n):
-            for j in range(i + 1, n):
-                dx = c[i, 0] - c[j, 0]
-                dy = c[i, 1] - c[j, 1]
-                sep_x = hw[i] + hw[j] + gap
-                sep_y = hh[i] + hh[j] + gap
-                ox = sep_x - abs(dx)
-                oy = sep_y - abs(dy)
-                if ox <= 0 or oy <= 0:
-                    continue
-                moved = True
-                # Separate along the axis that needs less total motion
-                if ox <= oy:
-                    s = 1.0 if dx >= 0 else -1.0
-                    shift = ox / 2.0 + gap * 0.5
-                    c[i, 0] += s * shift
-                    c[j, 0] -= s * shift
-                else:
-                    s = 1.0 if dy >= 0 else -1.0
-                    shift = oy / 2.0 + gap * 0.5
-                    c[i, 1] += s * shift
-                    c[j, 1] -= s * shift
-                clamp_one(i)
-                clamp_one(j)
+        pair_order = _spatial_candidate_pairs(c, hw, hh)
+        if not pair_order:
+            break
+        for i, j in pair_order:
+            dx = c[i, 0] - c[j, 0]
+            dy = c[i, 1] - c[j, 1]
+            sep_x = hw[i] + hw[j] + gap
+            sep_y = hh[i] + hh[j] + gap
+            ox = sep_x - abs(dx)
+            oy = sep_y - abs(dy)
+            if ox <= 0 or oy <= 0:
+                continue
+            moved = True
+            # Separate along the axis that needs less total motion.
+            if ox <= oy:
+                s = 1.0 if dx >= 0 else -1.0
+                shift = ox / 2.0 + gap * 0.5
+                c[i, 0] += s * shift
+                c[j, 0] -= s * shift
+            else:
+                s = 1.0 if dy >= 0 else -1.0
+                shift = oy / 2.0 + gap * 0.5
+                c[i, 1] += s * shift
+                c[j, 1] -= s * shift
+            clamp_one(i)
+            clamp_one(j)
         if not moved:
             break
     return c
@@ -574,7 +821,9 @@ def _build_circle_packing_dccp_problem(
     cw: float,
     ch: float,
     pairs: Sequence[Tuple[int, int]],
-    edges: Sequence[Tuple[int, int]],
+    reg_edges: Sequence[Tuple[int, int]],
+    wire_edges: Sequence[Tuple[int, int]],
+    wire_weights: np.ndarray | None = None,
 ) -> Tuple[cp.Problem, cp.Variable, cp.Variable, np.ndarray, np.ndarray]:
     """
     DCCP on displacements dx, dy from baseline p0: x = p0_x + dx, y = p0_y + dy.
@@ -590,13 +839,30 @@ def _build_circle_packing_dccp_problem(
     y = py + dy
 
     obj = cp.sum_squares(dx) + cp.sum_squares(dy)
-    lam = 0.15
-    if edges:
-        A_e = np.zeros((len(edges), n), dtype=np.float64)
-        for k, (i, j) in enumerate(edges):
+    edge_density = min(1.0, float(len(reg_edges)) / float(max(1, n)))
+    wire_density = min(1.0, float(len(wire_edges)) / float(max(1, n)))
+    lam = 0.09 + 0.08 * edge_density
+    mu = 0.018 + 0.040 * wire_density
+
+    if reg_edges:
+        A_e = np.zeros((len(reg_edges), n), dtype=np.float64)
+        for k, (i, j) in enumerate(reg_edges):
             A_e[k, i] = 1.0
             A_e[k, j] = -1.0
         obj += lam * cp.sum_squares(A_e @ dx) + lam * cp.sum_squares(A_e @ dy)
+
+    if wire_edges:
+        A_w = np.zeros((len(wire_edges), n), dtype=np.float64)
+        for k, (i, j) in enumerate(wire_edges):
+            A_w[k, i] = 1.0
+            A_w[k, j] = -1.0
+        if wire_weights is not None and wire_weights.shape[0] == len(wire_edges):
+            sw = np.sqrt(np.maximum(wire_weights, 1e-6)).astype(np.float64)
+            Awx = cp.multiply(sw, A_w @ x)
+            Awy = cp.multiply(sw, A_w @ y)
+            obj += mu * cp.sum_squares(Awx) + mu * cp.sum_squares(Awy)
+        else:
+            obj += mu * cp.sum_squares(A_w @ x) + mu * cp.sum_squares(A_w @ y)
 
     cons: List = [
         x >= half_w,
@@ -642,11 +908,15 @@ class DccpPlacer:
         dccp_max_iter: int = 80,
         knn_k: int = 6,
         circle_shrink: float = 0.92,
+        trust_region_scale: float = 1.0,
+        surrogate_tolerance: float = 0.03,
     ):
         self.max_outer_iters = max_outer_iters
         self.dccp_max_iter = dccp_max_iter
         self.knn_k = knn_k
         self.circle_shrink = circle_shrink
+        self.trust_region_scale = trust_region_scale
+        self.surrogate_tolerance = surrogate_tolerance
 
     def place(self, benchmark: Benchmark) -> torch.Tensor:
         # True handoff from loader (may be epsilon-out-of-bounds / micro-overlapping vs strict Python checks).
@@ -659,7 +929,9 @@ class DccpPlacer:
                 _debug(f"{benchmark.name}: movable bbox exceeds canvas — shelf-packing hard macros")
                 _shelf_pack_movable_hard_macros(placement, benchmark)
             _fit_all_macros_in_canvas(placement, benchmark)
+
         _clamp_movable_to_canvas(placement, benchmark, edge_inset=ng45)
+
         if _placement_needs_repair(placement, benchmark):
             _debug(
                 f"{benchmark.name}: loaded floorplan fails strict validation — running repair "
@@ -695,65 +967,118 @@ class DccpPlacer:
         half_w = sizes[:, 0] / 2.0
         half_h = sizes[:, 1] / 2.0
 
-        radii = np.array(
-            [_inscribed_radius(float(sizes[i, 0]), float(sizes[i, 1]), self.circle_shrink) for i in range(n)],
-            dtype=np.float64,
-        )
+        raw_radii = 0.5 * np.minimum(sizes[:, 0], sizes[:, 1])
+        radii = self.circle_shrink * raw_radii
 
         # Baseline centers (legal initial placement from benchmark)
         centers = p0.copy()
         pair_set: Set[Tuple[int, int]] = self._initial_pairs(centers, radii, n)
-        edges = _knn_edges(p0, self.knn_k)
+        reg_edges = _knn_edges(p0, self.knn_k)
+        wire_edges, wire_weights = _net_objective_edges(benchmark, idx_list, p0, max_neighbors=max(8, self.knn_k + 2))
+        if not wire_edges:
+            wire_edges = reg_edges
+            wire_weights = np.ones(len(wire_edges), dtype=np.float64)
 
-        # Large movable counts: DCCP + dense pair growth is slow and often illegal after circle relax;
-        # skip refinement and keep legal baseline (general size rule, not per-benchmark).
-        outer_cap = self.max_outer_iters
-        dccp_mi = self.dccp_max_iter
-        if n > 130:
-            outer_cap = 0
-        elif n > 95:
-            outer_cap = min(outer_cap, 3)
-            dccp_mi = min(dccp_mi, 28)
+        pair_count_max = max(1, n * (n - 1) // 2)
+        pair_density = float(len(pair_set)) / float(pair_count_max)
+        outer_cap, dccp_mi, trust_radius, legalize_iters = _adaptive_refinement_policy(
+            n,
+            pair_density,
+            ng45,
+            self.max_outer_iters,
+            self.dccp_max_iter,
+            math.hypot(cw, ch),
+        )
+        trust_radius *= max(0.5, self.trust_region_scale)
 
-        for _outer in range(outer_cap):
+        current_overlap = int(
+            compute_overlap_metrics(_inject_movable_centers(baseline, idx_list, centers), benchmark)["overlap_count"]
+        )
+        current_surrogate = _weighted_edge_quadratic_cost(centers, wire_edges, wire_weights)
+        stagnant_rounds = 0
+
+        for outer in range(outer_cap):
+            shrink_iter = min(0.985, self.circle_shrink + 0.012 * float(outer))
+            radii_iter = raw_radii * shrink_iter
             x_sol, y_sol = self._solve_dccp(
                 p0=p0,
                 half_w=half_w,
                 half_h=half_h,
-                radii=radii,
+                radii=radii_iter,
                 cw=cw,
                 ch=ch,
                 pairs=sorted(pair_set),
-                edges=edges,
+                reg_edges=reg_edges,
+                wire_edges=wire_edges,
+                wire_weights=wire_weights,
                 n=n,
                 dccp_max_iter=dccp_mi,
+                x_init=centers[:, 0],
+                y_init=centers[:, 1],
             )
             if x_sol is None or y_sol is None:
                 break
 
-            centers[:, 0] = x_sol
-            centers[:, 1] = y_sol
+            cand_centers = np.empty_like(centers)
+            cand_centers[:, 0] = x_sol
+            cand_centers[:, 1] = y_sol
             # DCCP uses a circle relaxation; axis push often clears rectangle overlaps here.
             # Must check *after* legalization: pre-legalize overlap can be large while a single
             # legalize pass fixes everything — otherwise we keep adding DCCP pairs, later solves
             # get worse, and the final iterate may not legalize within max_iters.
-            centers = _legalize_centers(centers, sizes, cw, ch)
+            cand_centers = _legalize_centers(cand_centers, sizes, cw, ch, max_iters=legalize_iters)
 
             # Movable-only pair check misses movable–fixed overlaps; match the evaluator.
-            tentative = _inject_movable_centers(baseline, idx_list, centers)
-            if compute_overlap_metrics(tentative, benchmark)["overlap_count"] == 0:
-                break
+            tentative = _inject_movable_centers(baseline, idx_list, cand_centers)
+            cand_overlap = int(compute_overlap_metrics(tentative, benchmark)["overlap_count"])
+            cand_surrogate = _weighted_edge_quadratic_cost(cand_centers, wire_edges, wire_weights)
+            cand_disp = _rms_displacement(cand_centers, p0)
 
-            viol = self._overlapping_pairs(centers, sizes, margin=1e-3)
+            trust_ok = cand_disp <= trust_radius
+            overlap_ok = cand_overlap <= current_overlap
+            surrogate_ok = cand_surrogate <= current_surrogate * (1.0 + self.surrogate_tolerance)
+            accepted = False
+            if trust_ok and overlap_ok and (cand_overlap < current_overlap or surrogate_ok):
+                centers = cand_centers
+                current_overlap = cand_overlap
+                current_surrogate = cand_surrogate
+                accepted = True
+
+            viol = self._overlapping_pairs(cand_centers, sizes, margin=1e-3)
             if not viol:
                 # May still be illegal vs fixed hard macros; final _legalize_hard_macros_tensor repairs.
+                if current_overlap == 0:
+                    break
                 break
+            prev_pair_count = len(pair_set)
             for i, j in viol:
                 a, b = (i, j) if i < j else (j, i)
                 pair_set.add((a, b))
+            pair_density = float(len(pair_set)) / float(pair_count_max)
+            _, _, trust_radius_new, legalize_iters = _adaptive_refinement_policy(
+                n,
+                pair_density,
+                ng45,
+                self.max_outer_iters,
+                self.dccp_max_iter,
+                math.hypot(cw, ch),
+            )
+            trust_radius = trust_radius_new * max(0.5, self.trust_region_scale)
+
+            if accepted:
+                stagnant_rounds = 0
+            elif len(pair_set) == prev_pair_count and cand_overlap >= current_overlap:
+                stagnant_rounds += 1
+            else:
+                stagnant_rounds = 0
+
+            if len(pair_set) == prev_pair_count and current_overlap == 0:
+                break
+            if stagnant_rounds >= 2:
+                break
 
         # Final pass (noop if already legal); cheap insurance if the last outer iter broke early.
-        centers = _legalize_centers(centers, sizes, cw, ch)
+        centers = _legalize_centers(centers, sizes, cw, ch, max_iters=max(700, legalize_iters // 2))
 
         for k, tensor_i in enumerate(idx_list):
             placement[tensor_i, 0] = float(centers[k, 0])
@@ -768,13 +1093,22 @@ class DccpPlacer:
 
         # Repair hard–hard overlaps including vs fixed obstacles (not in the DCCP subproblem).
         nh_leg = benchmark.num_hard_macros
+        oc_hint = int(compute_overlap_metrics(placement, benchmark)["overlap_count"])
+        denom = max(1, nh_leg * (nh_leg - 1) // 2)
+        overlap_density = float(oc_hint) / float(denom)
+        pair_ops, max_rounds, idle_cap = _adaptive_legalize_budget(
+            nh_leg,
+            overlap_density,
+            iccad04_style=not ng45,
+        )
         placement = _legalize_hard_macros_tensor(
             placement,
             benchmark,
+            max_pair_ops=pair_ops,
+            max_rounds=max_rounds,
             max_seconds=(52.0 if (ng45 and nh_leg > 90) else None),
-            idle_cap=(32 if (ng45 and nh_leg > 90) else 14),
+            idle_cap=(max(idle_cap, 32) if (ng45 and nh_leg > 90) else idle_cap),
         )
-
         _clamp_movable_to_canvas(placement, benchmark, edge_inset=ng45)
 
         # NG45-scale density: single-pass legalization can stall; multi-seed only if still illegal.
@@ -834,9 +1168,13 @@ class DccpPlacer:
         cw: float,
         ch: float,
         pairs: Sequence[Tuple[int, int]],
-        edges: Sequence[Tuple[int, int]],
+        reg_edges: Sequence[Tuple[int, int]],
+        wire_edges: Sequence[Tuple[int, int]],
+        wire_weights: np.ndarray | None,
         n: int,
         dccp_max_iter: int | None = None,
+        x_init: np.ndarray | None = None,
+        y_init: np.ndarray | None = None,
     ) -> Tuple[np.ndarray | None, np.ndarray | None]:
         prob, dx, dy, px, py = _build_circle_packing_dccp_problem(
             n=n,
@@ -847,15 +1185,26 @@ class DccpPlacer:
             cw=cw,
             ch=ch,
             pairs=pairs,
-            edges=edges,
+            reg_edges=reg_edges,
+            wire_edges=wire_edges,
+            wire_weights=wire_weights,
         )
 
         if not is_dccp(prob):
             return None, None
 
-        # CCP: start from baseline (zero displacement).
-        dx.value = np.zeros(n, dtype=np.float64)
-        dy.value = np.zeros(n, dtype=np.float64)
+        # CCP warm-start: use provided centers when available, else baseline (zero displacement).
+        if (
+            x_init is not None
+            and y_init is not None
+            and np.shape(x_init)[0] == n
+            and np.shape(y_init)[0] == n
+        ):
+            dx.value = np.asarray(x_init, dtype=np.float64).ravel() - px
+            dy.value = np.asarray(y_init, dtype=np.float64).ravel() - py
+        else:
+            dx.value = np.zeros(n, dtype=np.float64)
+            dy.value = np.zeros(n, dtype=np.float64)
 
         try:
             dccp_ccp(
@@ -881,20 +1230,20 @@ class DccpPlacer:
         self, centers: np.ndarray, sizes: np.ndarray, margin: float
     ) -> List[Tuple[int, int]]:
         """Axis-aligned rectangle overlap (local indices)."""
-        n = centers.shape[0]
         out: List[Tuple[int, int]] = []
-        for i in range(n):
+        hw = sizes[:, 0] / 2.0
+        hh = sizes[:, 1] / 2.0
+        for i, j in _spatial_candidate_pairs(centers, hw, hh):
             xi, yi = centers[i]
+            xj, yj = centers[j]
             wi, hi = sizes[i, 0], sizes[i, 1]
-            for j in range(i + 1, n):
-                xj, yj = centers[j]
-                wj, hj = sizes[j, 0], sizes[j, 1]
-                dx = abs(xi - xj)
-                dy = abs(yi - yj)
-                sep_x = (wi + wj) / 2.0 + margin
-                sep_y = (hi + hj) / 2.0 + margin
-                if dx < sep_x and dy < sep_y:
-                    out.append((i, j))
+            wj, hj = sizes[j, 0], sizes[j, 1]
+            dx = abs(xi - xj)
+            dy = abs(yi - yj)
+            sep_x = (wi + wj) / 2.0 + margin
+            sep_y = (hi + hj) / 2.0 + margin
+            if dx < sep_x and dy < sep_y:
+                out.append((i, j))
         return out
 
 
