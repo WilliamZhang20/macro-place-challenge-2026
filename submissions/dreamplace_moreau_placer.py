@@ -12,6 +12,7 @@ Design:
 from __future__ import annotations
 
 from typing import List
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -31,14 +32,17 @@ class DreamplaceMoreauPlacer:
     def __init__(
         self,
         seed: int = 7,
-        base_iters: int = 48,
-        max_iters: int = 96,
+        base_iters: int = 0,
+        max_iters: int = 0,
         smoothing_t: float = 0.08,
         step_size: float | None = None,
         anchor_weight: float = 0.010,
-        spread_weight: float = 0.030,
+        spread_weight: float = 0.0,
         overlap_gap: float = 1e-3,
         legalize_rounds: int = 260,
+        oracle_refine_steps: int = 48,
+        oracle_radius_scale: float = 0.14,
+        oracle_temperature: float = 0.004,
     ):
         self.seed = seed
         self.base_iters = base_iters
@@ -49,6 +53,9 @@ class DreamplaceMoreauPlacer:
         self.spread_weight = spread_weight
         self.overlap_gap = overlap_gap
         self.legalize_rounds = legalize_rounds
+        self.oracle_refine_steps = oracle_refine_steps
+        self.oracle_radius_scale = oracle_radius_scale
+        self.oracle_temperature = oracle_temperature
 
     def place(self, benchmark: Benchmark) -> torch.Tensor:
         np.random.seed(self.seed)
@@ -64,10 +71,6 @@ class DreamplaceMoreauPlacer:
         if not movable_indices:
             return placement
 
-        nets = self._build_nets(benchmark, movable_indices)
-        if not nets:
-            return self._legalize_hard(placement, benchmark)
-
         sizes = benchmark.macro_sizes.cpu().numpy().astype(np.float64)
         movable_sizes = sizes[movable_indices]
 
@@ -82,37 +85,39 @@ class DreamplaceMoreauPlacer:
         y_lo = half_h
         y_hi = float(benchmark.canvas_height) - half_h
 
-        t = self.smoothing_t
-        lr = self.step_size if self.step_size is not None else t
-
         n_mov = len(movable_indices)
         extra = int(0.12 * np.sqrt(float(n_mov)))
         iters = min(self.max_iters, self.base_iters + extra)
 
-        spread_scale = max(1e-3, float(np.mean(np.maximum(movable_sizes[:, 0], movable_sizes[:, 1]))))
+        if iters > 0:
+            nets = self._build_nets(benchmark, movable_indices)
+            if nets:
+                t = self.smoothing_t
+                lr = self.step_size if self.step_size is not None else t
+                spread_scale = max(1e-3, float(np.mean(np.maximum(movable_sizes[:, 0], movable_sizes[:, 1]))))
 
-        for k in range(1, iters + 1):
-            grad = self._moreau_hpwl_grad(y, nets, t)
+                for k in range(1, iters + 1):
+                    grad = self._moreau_hpwl_grad(y, nets, t)
 
-            if self.anchor_weight > 0.0:
-                grad += self.anchor_weight * (y - x0)
+                    if self.anchor_weight > 0.0:
+                        grad += self.anchor_weight * (y - x0)
 
-            if self.spread_weight > 0.0:
-                grad += self.spread_weight * self._spread_grad(y, movable_sizes, spread_scale)
+                    if self.spread_weight > 0.0:
+                        grad += self.spread_weight * self._spread_grad(y, movable_sizes, spread_scale)
 
-            # Light gradient clipping improves stability on very high-degree nets.
-            gnorm = np.linalg.norm(grad, axis=1, keepdims=True)
-            grad = grad / np.maximum(1.0, gnorm / 3.5)
+                    # Light gradient clipping improves stability on very high-degree nets.
+                    gnorm = np.linalg.norm(grad, axis=1, keepdims=True)
+                    grad = grad / np.maximum(1.0, gnorm / 3.5)
 
-            x_new = y - lr * grad
-            x_new[:, 0] = np.clip(x_new[:, 0], x_lo, x_hi)
-            x_new[:, 1] = np.clip(x_new[:, 1], y_lo, y_hi)
+                    x_new = y - lr * grad
+                    x_new[:, 0] = np.clip(x_new[:, 0], x_lo, x_hi)
+                    x_new[:, 1] = np.clip(x_new[:, 1], y_lo, y_hi)
 
-            beta = (k - 1.0) / (k + 2.0)
-            y = x_new + beta * (x_new - x_prev)
-            y[:, 0] = np.clip(y[:, 0], x_lo, x_hi)
-            y[:, 1] = np.clip(y[:, 1], y_lo, y_hi)
-            x_prev = x_new
+                    beta = (k - 1.0) / (k + 2.0)
+                    y = x_new + beta * (x_new - x_prev)
+                    y[:, 0] = np.clip(y[:, 0], x_lo, x_hi)
+                    y[:, 1] = np.clip(y[:, 1], y_lo, y_hi)
+                    x_prev = x_new
 
         placement[movable_indices] = torch.tensor(x_prev, dtype=placement.dtype)
 
@@ -121,6 +126,10 @@ class DreamplaceMoreauPlacer:
             placement[fixed] = benchmark.macro_positions[fixed]
 
         placement = self._legalize_hard(placement, benchmark)
+
+        if self.oracle_refine_steps > 0:
+            placement = self._oracle_refine(placement, benchmark)
+
         return placement
 
     def _build_nets(self, benchmark: Benchmark, movable_indices: List[int]) -> List[_NetData]:
@@ -296,7 +305,6 @@ class DreamplaceMoreauPlacer:
         half_w = 0.5 * sizes[:, 0]
         half_h = 0.5 * sizes[:, 1]
         movable = (~benchmark.macro_fixed[:num_hard]).cpu().numpy()
-        movable_f = movable.astype(np.float64)
         cw = float(benchmark.canvas_width)
         ch = float(benchmark.canvas_height)
         gap = self.overlap_gap
@@ -442,6 +450,219 @@ class DreamplaceMoreauPlacer:
         if benchmark.macro_fixed.any():
             out[benchmark.macro_fixed] = benchmark.macro_positions[benchmark.macro_fixed]
         return out
+
+    def _oracle_refine(self, placement: torch.Tensor, benchmark: Benchmark) -> torch.Tensor:
+        """
+        Direct local search on true proxy cost using legal hard-macro moves.
+
+        This is intentionally lightweight: a few dozen accepted/rejected proposals,
+        each guaranteed legal before evaluating exact proxy.
+        """
+        plc = self._load_plc_for_benchmark(benchmark)
+        if plc is None:
+            return placement
+
+        try:
+            from macro_place.objective import compute_proxy_cost
+        except Exception:
+            return placement
+
+        num_hard = benchmark.num_hard_macros
+        if num_hard <= 1:
+            return placement
+
+        movable = benchmark.get_movable_mask() & benchmark.get_hard_macro_mask()
+        movable_indices = torch.where(movable)[0].tolist()
+        if not movable_indices:
+            return placement
+
+        sizes = benchmark.macro_sizes[:num_hard].cpu().numpy().astype(np.float64)
+        half_w = 0.5 * sizes[:, 0]
+        half_h = 0.5 * sizes[:, 1]
+        cw = float(benchmark.canvas_width)
+        ch = float(benchmark.canvas_height)
+        gap = self.overlap_gap
+
+        current = placement.clone()
+        best = current.clone()
+        try:
+            best_cost = float(compute_proxy_cost(current, benchmark, plc)["proxy_cost"])
+        except Exception:
+            return placement
+
+        current_cost = best_cost
+        pos = current[:num_hard].cpu().numpy().astype(np.float64)
+
+        adjacency = self._build_macro_adjacency(benchmark, num_hard)
+        canvas_scale = max(cw, ch)
+        r0 = max(0.02, self.oracle_radius_scale * canvas_scale)
+        temp0 = max(1e-6, self.oracle_temperature)
+        rng = np.random.default_rng(self.seed + 97)
+
+        steps = max(0, int(self.oracle_refine_steps))
+        if steps == 0:
+            return current
+
+        for step in range(steps):
+            frac = step / max(1, steps - 1)
+            radius = r0 * (1.0 - 0.85 * frac)
+            temp = temp0 * (1.0 - 0.75 * frac)
+
+            idx = int(rng.choice(movable_indices))
+            old_x = float(pos[idx, 0])
+            old_y = float(pos[idx, 1])
+
+            tx, ty = self._anchor_target(idx, current, benchmark, adjacency[idx])
+            cand_x = old_x + 0.38 * (tx - old_x) + float(rng.normal(0.0, radius))
+            cand_y = old_y + 0.38 * (ty - old_y) + float(rng.normal(0.0, radius))
+
+            cand_x = float(np.clip(cand_x, half_w[idx], cw - half_w[idx]))
+            cand_y = float(np.clip(cand_y, half_h[idx], ch - half_h[idx]))
+
+            if self._overlaps_hard(pos, sizes, idx, cand_x, cand_y, gap):
+                accepted_probe = False
+                for _ in range(6):
+                    ang = float(rng.uniform(0.0, 2.0 * np.pi))
+                    rx = old_x + radius * np.cos(ang)
+                    ry = old_y + radius * np.sin(ang)
+                    rx = float(np.clip(rx, half_w[idx], cw - half_w[idx]))
+                    ry = float(np.clip(ry, half_h[idx], ch - half_h[idx]))
+                    if not self._overlaps_hard(pos, sizes, idx, rx, ry, gap):
+                        cand_x, cand_y = rx, ry
+                        accepted_probe = True
+                        break
+                if not accepted_probe:
+                    continue
+
+            pos[idx, 0] = cand_x
+            pos[idx, 1] = cand_y
+            current[idx, 0] = cand_x
+            current[idx, 1] = cand_y
+
+            try:
+                cand_cost = float(compute_proxy_cost(current, benchmark, plc)["proxy_cost"])
+            except Exception:
+                cand_cost = float("inf")
+
+            delta = cand_cost - current_cost
+            accept = delta <= 0.0
+            if not accept and temp > 0.0:
+                accept = rng.uniform(0.0, 1.0) < np.exp(-delta / temp)
+
+            if accept:
+                current_cost = cand_cost
+                if cand_cost < best_cost:
+                    best_cost = cand_cost
+                    best = current.clone()
+            else:
+                pos[idx, 0] = old_x
+                pos[idx, 1] = old_y
+                current[idx, 0] = old_x
+                current[idx, 1] = old_y
+
+        return best
+
+    def _load_plc_for_benchmark(self, benchmark: Benchmark):
+        """Load PlacementCost for exact proxy refinement when benchmark path is known."""
+        try:
+            from macro_place.loader import load_benchmark_from_dir, load_benchmark
+        except Exception:
+            return None
+
+        root = Path("external/MacroPlacement/Testcases/ICCAD04") / benchmark.name
+        if root.exists():
+            try:
+                _, plc = load_benchmark_from_dir(str(root))
+                return plc
+            except Exception:
+                return None
+
+        ng45_map = {
+            "ariane133": "ariane133",
+            "ariane136": "ariane136",
+            "mempool_tile": "mempool_tile",
+            "nvdla": "nvdla",
+        }
+        design = ng45_map.get(benchmark.name)
+        if design is None:
+            return None
+
+        ng45_dir = Path("external/MacroPlacement/Flows/NanGate45") / design / "netlist" / "output_CT_Grouping"
+        netlist_file = ng45_dir / "netlist.pb.txt"
+        plc_file = ng45_dir / "initial.plc"
+        if not netlist_file.exists() or not plc_file.exists():
+            return None
+
+        try:
+            _, plc = load_benchmark(str(netlist_file), str(plc_file), name=benchmark.name)
+            return plc
+        except Exception:
+            return None
+
+    def _build_macro_adjacency(self, benchmark: Benchmark, num_hard: int) -> List[List[int]]:
+        """Adjacency list over all net nodes for each hard macro index."""
+        adjacency: List[List[int]] = [[] for _ in range(num_hard)]
+        for nodes_t in benchmark.net_nodes:
+            nodes = nodes_t.tolist()
+            if len(nodes) <= 1:
+                continue
+            for node in nodes:
+                if 0 <= node < num_hard:
+                    adjacency[node].extend([other for other in nodes if other != node])
+        return adjacency
+
+    def _anchor_target(
+        self,
+        hard_idx: int,
+        placement: torch.Tensor,
+        benchmark: Benchmark,
+        neighbors: List[int],
+    ) -> tuple[float, float]:
+        """Weighted median-like target from connected nodes; fallback to current position."""
+        if not neighbors:
+            return float(placement[hard_idx, 0].item()), float(placement[hard_idx, 1].item())
+
+        xs: List[float] = []
+        ys: List[float] = []
+        for n in neighbors:
+            if n < benchmark.num_macros:
+                xs.append(float(placement[n, 0].item()))
+                ys.append(float(placement[n, 1].item()))
+            else:
+                port_idx = n - benchmark.num_macros
+                if 0 <= port_idx < benchmark.port_positions.shape[0]:
+                    xs.append(float(benchmark.port_positions[port_idx, 0].item()))
+                    ys.append(float(benchmark.port_positions[port_idx, 1].item()))
+
+        if not xs:
+            return float(placement[hard_idx, 0].item()), float(placement[hard_idx, 1].item())
+
+        tx = float(np.median(np.asarray(xs, dtype=np.float64)))
+        ty = float(np.median(np.asarray(ys, dtype=np.float64)))
+        return tx, ty
+
+    def _overlaps_hard(
+        self,
+        hard_pos: np.ndarray,
+        sizes: np.ndarray,
+        idx: int,
+        cand_x: float,
+        cand_y: float,
+        gap: float,
+    ) -> bool:
+        """Check if moving one hard macro causes hard-hard overlap."""
+        hw_i = 0.5 * sizes[idx, 0]
+        hh_i = 0.5 * sizes[idx, 1]
+        n = hard_pos.shape[0]
+
+        for j in range(n):
+            if j == idx:
+                continue
+            sep_x = hw_i + 0.5 * sizes[j, 0] + gap
+            sep_y = hh_i + 0.5 * sizes[j, 1] + gap
+            if abs(cand_x - hard_pos[j, 0]) < sep_x and abs(cand_y - hard_pos[j, 1]) < sep_y:
+                return True
+        return False
 
     def _collect_overlapping_macros(self, pos: np.ndarray, sizes: np.ndarray) -> List[int]:
         n = pos.shape[0]

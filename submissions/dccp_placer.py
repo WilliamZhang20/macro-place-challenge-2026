@@ -295,6 +295,18 @@ def _inject_movable_centers(
     return out
 
 
+def _extract_movable_centers(
+    placement: torch.Tensor,
+    idx_list: Sequence[int],
+) -> np.ndarray:
+    """Extract movable centers in local order from a full placement tensor."""
+    out = np.zeros((len(idx_list), 2), dtype=np.float64)
+    for k, tensor_i in enumerate(idx_list):
+        out[k, 0] = float(placement[tensor_i, 0].item())
+        out[k, 1] = float(placement[tensor_i, 1].item())
+    return out
+
+
 def _edge_quadratic_cost(centers: np.ndarray, edges: Sequence[Tuple[int, int]]) -> float:
     """Light wirelength surrogate over local edges."""
     if not edges:
@@ -428,20 +440,23 @@ def _adaptive_refinement_policy(
     """Adaptive refinement caps from size and current overlap-constraint density."""
     if n <= 1:
         return 0, base_dccp_iter, 0.0, 800
-    if n >= 190:
+    if n >= 210:
         trust = max(0.25, 0.08 * canvas_diag / math.sqrt(float(n)))
-        return 0, min(base_dccp_iter, 20), trust, 700
+        return 0, min(base_dccp_iter, 22), trust, 700
 
     size_scale = 1.0 / (1.0 + max(0.0, float(n - 48)) / 58.0)
     dens_scale = 1.0 / (1.0 + 2.2 * max(0.0, pair_density - 0.10))
     ng_scale = 0.84 if ng45 else 1.0
     scale = size_scale * dens_scale * ng_scale
 
-    outer_cap = max(1, int(round(base_outer * scale)))
-    dccp_iter = max(18, int(round(base_dccp_iter * max(0.36, scale))))
+    outer_cap = max(1, int(round(base_outer * max(0.55, scale))))
+    dccp_iter = max(24, int(round(base_dccp_iter * max(0.44, scale))))
     if n > 130:
-        outer_cap = min(outer_cap, 2)
-        dccp_iter = min(dccp_iter, 28)
+        outer_cap = min(outer_cap, 3)
+        dccp_iter = min(dccp_iter, 34)
+    elif n > 95:
+        outer_cap = min(outer_cap + 1, 4)
+        dccp_iter = min(max(dccp_iter, 32), 42)
 
     trust = max(0.25, 0.12 * canvas_diag / math.sqrt(float(n)))
     if ng45:
@@ -838,7 +853,8 @@ def _build_circle_packing_dccp_problem(
     x = px + dx
     y = py + dy
 
-    obj = cp.sum_squares(dx) + cp.sum_squares(dy)
+    disp_w = 0.26 + 0.16 * (1.0 - min(1.0, float(len(pairs)) / float(max(1, n * (n - 1) // 2))))
+    obj = disp_w * (cp.sum_squares(dx) + cp.sum_squares(dy))
     edge_density = min(1.0, float(len(reg_edges)) / float(max(1, n)))
     wire_density = min(1.0, float(len(wire_edges)) / float(max(1, n)))
     lam = 0.09 + 0.08 * edge_density
@@ -996,49 +1012,85 @@ class DccpPlacer:
         )
         current_surrogate = _weighted_edge_quadratic_cost(centers, wire_edges, wire_weights)
         stagnant_rounds = 0
+        seed_env = os.environ.get("MACRO_PLACE_DCCP_SEED")
+        seed_outer = int(seed_env) if seed_env is not None else (123 + sum(ord(c) for c in benchmark.name) % 997)
+        rng_outer = np.random.default_rng(seed_outer)
 
         for outer in range(outer_cap):
             shrink_iter = min(0.985, self.circle_shrink + 0.012 * float(outer))
             radii_iter = raw_radii * shrink_iter
-            x_sol, y_sol = self._solve_dccp(
-                p0=p0,
-                half_w=half_w,
-                half_h=half_h,
-                radii=radii_iter,
-                cw=cw,
-                ch=ch,
-                pairs=sorted(pair_set),
-                reg_edges=reg_edges,
-                wire_edges=wire_edges,
-                wire_weights=wire_weights,
-                n=n,
-                dccp_max_iter=dccp_mi,
-                x_init=centers[:, 0],
-                y_init=centers[:, 1],
-            )
-            if x_sol is None or y_sol is None:
+            init_list: List[np.ndarray] = [centers.copy()]
+            if n <= 95 and outer <= 1:
+                sigma = 0.012 * float(np.mean(np.minimum(sizes[:, 0], sizes[:, 1])))
+                for _k in range(2):
+                    init_list.append(centers + rng_outer.normal(0.0, sigma, size=centers.shape))
+
+            best_cand_centers: np.ndarray | None = None
+            best_tentative: torch.Tensor | None = None
+            best_score: Tuple[int, float] | None = None
+
+            for init in init_list:
+                x_sol, y_sol = self._solve_dccp(
+                    p0=p0,
+                    half_w=half_w,
+                    half_h=half_h,
+                    radii=radii_iter,
+                    cw=cw,
+                    ch=ch,
+                    pairs=sorted(pair_set),
+                    reg_edges=reg_edges,
+                    wire_edges=wire_edges,
+                    wire_weights=wire_weights,
+                    n=n,
+                    dccp_max_iter=dccp_mi,
+                    x_init=init[:, 0],
+                    y_init=init[:, 1],
+                )
+                if x_sol is None or y_sol is None:
+                    continue
+
+                cand_centers = np.empty_like(centers)
+                cand_centers[:, 0] = x_sol
+                cand_centers[:, 1] = y_sol
+                cand_centers = _legalize_centers(cand_centers, sizes, cw, ch, max_iters=legalize_iters)
+
+                tentative = _inject_movable_centers(baseline, idx_list, cand_centers)
+                if compute_overlap_metrics(tentative, benchmark)["overlap_count"] > 0:
+                    tentative = _legalize_hard_macros_tensor(
+                        tentative,
+                        benchmark,
+                        max_pair_ops=140_000,
+                        max_rounds=850,
+                        idle_cap=18,
+                        max_seconds=2.0,
+                    )
+                    _clamp_movable_to_canvas(tentative, benchmark, edge_inset=ng45)
+                    cand_centers = _extract_movable_centers(tentative, idx_list)
+
+                cand_overlap_k = int(compute_overlap_metrics(tentative, benchmark)["overlap_count"])
+                cand_surrogate_k = _weighted_edge_quadratic_cost(cand_centers, wire_edges, wire_weights)
+                score = (cand_overlap_k, cand_surrogate_k)
+                if best_score is None or score < best_score:
+                    best_score = score
+                    best_cand_centers = cand_centers
+                    best_tentative = tentative
+
+            if best_cand_centers is None or best_tentative is None:
                 break
 
-            cand_centers = np.empty_like(centers)
-            cand_centers[:, 0] = x_sol
-            cand_centers[:, 1] = y_sol
-            # DCCP uses a circle relaxation; axis push often clears rectangle overlaps here.
-            # Must check *after* legalization: pre-legalize overlap can be large while a single
-            # legalize pass fixes everything — otherwise we keep adding DCCP pairs, later solves
-            # get worse, and the final iterate may not legalize within max_iters.
-            cand_centers = _legalize_centers(cand_centers, sizes, cw, ch, max_iters=legalize_iters)
-
-            # Movable-only pair check misses movable–fixed overlaps; match the evaluator.
-            tentative = _inject_movable_centers(baseline, idx_list, cand_centers)
+            cand_centers = best_cand_centers
+            tentative = best_tentative
             cand_overlap = int(compute_overlap_metrics(tentative, benchmark)["overlap_count"])
             cand_surrogate = _weighted_edge_quadratic_cost(cand_centers, wire_edges, wire_weights)
             cand_disp = _rms_displacement(cand_centers, p0)
 
             trust_ok = cand_disp <= trust_radius
-            overlap_ok = cand_overlap <= current_overlap
+            overlap_slack = max(1, int(0.015 * n))
+            overlap_ok = cand_overlap <= current_overlap + overlap_slack
+            strong_surrogate = cand_surrogate <= current_surrogate * 0.987
             surrogate_ok = cand_surrogate <= current_surrogate * (1.0 + self.surrogate_tolerance)
             accepted = False
-            if trust_ok and overlap_ok and (cand_overlap < current_overlap or surrogate_ok):
+            if trust_ok and ((cand_overlap <= current_overlap and surrogate_ok) or (overlap_ok and strong_surrogate)):
                 centers = cand_centers
                 current_overlap = cand_overlap
                 current_surrogate = cand_surrogate
