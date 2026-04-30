@@ -58,6 +58,8 @@ Partcl develops GPU-accelerated systems for physical design that run orders of m
 - **Swag:** Every valid submission gets HRT swag!
 - **Note:** An additional score adjustment will be applied based on human-expert analysis of the resulting placement.
 
+For full Grand Prize scoring rules, feasibility gate, tie-breaking, and ORFS-failure handling, see [`SCORING.md`](SCORING.md).
+
 ## Submission Format
 
 - All submissions will be via google form. Submissions may be made public or private before the end of judging.
@@ -78,6 +80,7 @@ Partcl develops GPU-accelerated systems for physical design that run orders of m
 - **Any framework**: PyTorch, TensorFlow, JAX, or pure Python/C++
 - **Any optimization technique**: Gradient descent, evolutionary algorithms, local search, etc.
 - **Training on public benchmarks**: You can learn from the IBM benchmark data
+- **Hard-macro orientation flips** (Klein-4 only: `N`, `FN`, `FS`, `S`) — carried to Tier 2 via an optional `orientations.pt` sidecar
 
 ### Not Allowed
 
@@ -86,6 +89,8 @@ Partcl develops GPU-accelerated systems for physical design that run orders of m
 - Using external/proprietary placement tools (must be open-source submission)
 - Exceeding runtime limits (1 hour per benchmark hard timeout)
 - Overlaps in resulting placement (strictly zero overlap between hard macros — no tolerance. Participants should add small gaps in their legalization to avoid float-precision edge cases.)
+- 90° rotations of hard macros (`R90`, `R270`, `FE`, `FW`) — the fakeram45 SRAMs in our benchmarks aren't designed for rotation (pin access and internal metal direction assume a fixed orientation)
+- Resizing soft macros — soft-macro size is a proxy-only concept for density/congestion that doesn't translate to Tier 2; sizes are locked to the initial `.plc` values on every `compute_proxy_cost` call
 
 ## Evaluation Details
 
@@ -103,9 +108,10 @@ Baseline numbers are from: [An Updated Assessment of Reinforcement Learning for 
 
 The top 7 submissions by proxy score will be evaluated through the full **OpenROAD flow** on NG45 designs to measure real PnR outcomes: **WNS, TNS, and Area**.
 
-- The **Grand Prize ($20K)** is awarded based on best OpenROAD results among these top submissions.
-- To qualify, you must surpass the SA and RePlAce baselines for WNS, TNS, and Area.
+- The **Grand Prize ($20K)** is awarded to the highest-scoring submission using a **geometric mean of improvement ratios** across WNS, TNS, and Area vs. the average SA/RePlAce baseline.
+- To qualify, submissions must pass a **feasibility gate** — timing (WNS, TNS) cannot regress below both baselines on any design.
 - To avoid overfitting, we will also evaluate on 1-2 hidden NG45 designs.
+- **Full scoring rules: [`SCORING.md`](SCORING.md)**
 
 ## 🚀 Quick Start
 
@@ -224,28 +230,43 @@ Submissions are ranked by **average proxy cost** across all 17 IBM benchmarks (l
 
 | Rank | Team | Avg Proxy Cost | Best | Worst | Overlaps | Runtime | Verified | Notes |
 |------|------|---------------|------|-------|----------|---------|----------|-------|
-| 1 | "Mike Gao" (autoresearch) | **1.3255** | — | — | 0 | 16min/bench | | |
-| 2 | "MTK" (DreamPlace++) | **1.3622** | 1.0040 | 1.6710 | 0 | 112s/bench (GPU) | :white_check_mark: | Verified better than self-reported 1.3998; faster GPU on eval hardware |
-| 3 | "Electric Beatel" (ePlace-Lite) | **1.3913** | 0.9773 | 1.7253 | 0 | 155s/bench (GPU) | :white_check_mark: | |
-| 4 | "Varun's Parallel Worlds" (GRPlace) | **1.4017** | 1.0362 | 1.7298 | 0 | 27s/bench | :white_check_mark: | |
-| 5 | "UT Austin" - AS (DREAMPlace Analytical) | **1.4076** | — | — | 0 | 17s/bench | | |
-| 6 | "ByteDancer" (Incremental CD) | **1.4151** | 1.0236 | 1.7792 | 0 | 38min/bench | :white_check_mark: | |
-| 7 | "BakaBobo" (Spread+Refine) | **1.4403** | — | — | 0 | 212s/bench | | |
-| ~~—~~ | ~~"Convex Optimization" (UWaterloo Student)~~ | ~~1.4556~~ | — | — | **846** | — | :x: DQ | Verified 2.1224 avg, 846 overlaps |
-| 8 | "another Waterloo kid" (Batched Nesterov GP) | **1.4568** | — | — | 0 | 118s/bench | | |
+| 1 | "Cezar" (ReFine) | **1.2224** | 0.8843 | 1.5115 | 0 | 5min/bench | :white_check_mark: | Verified 1.2224 vs self-reported 1.0666; beats RePlAce by 16.2%, SA by 42.5%; resubmitted 4/25, contesting result — re-verification pending |
+| 2 | "MTK" (DreamPlace++) | **1.2818** | 0.9073 | 1.6529 | 0 | 37s/bench (GPU) | :white_check_mark: | Verified better than self-reported 1.317; beats RePlAce on all 17 benchmarks |
+| 3 | "RoRa" (RipPlace) | **1.3241** | — | — | 0 | 694s/bench | | |
+| 4 | "UToronto Analytical" (MOSAIC) | **1.3323** | 0.9371 | 1.6545 | 0 | 24min total | :white_check_mark: | Verified 1.3323 (self-reported 1.3325 — exact match); gradient-based with smooth surrogates, hard+soft |
+| 5 | "Shoom" (MultiDREAMPlace) | **1.3381** | — | — | 0 | 350s/bench | | New 4/27; multi-start DREAMPlace + min-displacement legalization + SA |
+| 6 | "V5" (TierPlace) | **1.3382** | — | — | 0 | 850s/bench | | New 4/23; GPU-based, multi-density-formulation pilot + phased optimization |
+| 7 | "Archgen" (AutoDMP++) | **1.3479** | — | — | 0 | 2404s total | | New 4/24; multi-start + fast proxy screening + bounded refinement |
+| 8 | "Electric Beatel" (ePlace-Lite) | **1.3913** | 0.9773 | 1.7253 | 0 | 155s/bench (GPU) | :white_check_mark: | |
+| 9 | "Varun's Parallel Worlds" (GRPlace) | **1.4017** | 1.0362 | 1.7298 | 0 | 27s/bench | :white_check_mark: | |
+| 10 | "UT Austin" - AS (DREAMPlace Analytical) | **1.4076** | — | — | 0 | 17s/bench | | |
+| 11 | "ByteDancer" (Incremental CD) | **1.4151** | 1.0236 | 1.7792 | 0 | 38min/bench | :white_check_mark: | |
+| 12 | "vmallela" (Incremental CD+LNS) | **1.4152** | 1.0236 | 1.7817 | 0 | 12h total | :white_check_mark: | Verified 1.4152 (self-reported 1.1172 — 27% worse on our hardware); pure Python+numpy, single-threaded |
+| 13 | "TAISPlAce" (ALNS + Thompson Sampling) | **1.4321** | — | — | 0 | 28min/bench | | |
+| 14 | "ArzunPD" (HyperPlace SA+LNS) | **1.4421** | 1.0323 | 1.7851 | 0 | 6h total | :white_check_mark: | Verified 1.4421 (self-reported 1.4174); Stage 5 LNS disabled — missing `networkit` dep, fell back to Stage 4 across all benchmarks |
+| 15 | "Pragnay" (SweepingBellPlacement) | **1.4427** | — | — | 0 | 632s/bench | | |
+| 16 | "Convex Optimization" (UWaterloo Student) | **1.4556** | 1.0432 | 1.7867 | 0 | 11s/bench | :white_check_mark: | Resubmitted 4/13; fixed from DQ (was 846 overlaps) |
+| 17 | "another Waterloo kid" (Batched Nesterov GP) | **1.4568** | — | — | 0 | 118s/bench | | |
 | — | RePlAce (baseline) | **1.4578** | 0.9976 | 1.8370 | 0 | — | :white_check_mark: | |
-| 9 | "UTAUSTIN-CT" (PLC-Exact Congestion-Aware SA) | **1.5062** | — | — | 0 | 35s/bench | | |
-| 10 | "oracleX" (Oracle) | **1.5130** | — | — | 0 | 3min/bench | | |
-| 11 | "CA" (congestion_aware) | **1.5238** | — | — | 0 | 13s/bench | | |
-| 12 | "#5 ubc cpen student" (Gene Pool Shuffle) | **1.5337** | 1.1411 | 1.8084 | 0 | 13s/bench | :white_check_mark: | |
-| 13 | Will Seed (Partcl) | **1.5338** | 1.1625 | 1.7965 | 0 | 35s total | :white_check_mark: | |
-| 14 | "Cezar" (CRISP) | **1.5781** | 1.1896 | 1.8520 | 0 | 4min/bench | :white_check_mark: | |
-| 15 | "UT Austin" - RH (DREAMPlace) | **1.6037** | — | — | 0 | 4.5s/bench | | |
-| 16 | "UT Austin" - CT (PROXYCost) | **1.8706** | — | — | 0 | 187s/bench | | |
+| 18 | "W3 Solutions" (GRACE) | **1.4824** | — | — | 0 | 90s/bench | | |
+| 19 | "Jiangban Ya" (Spectral-Seed + Adaptive Legalizer) | **1.4943** | 1.0891 | 1.8099 | 0 | 49s/bench | :white_check_mark: | |
+| 20 | "UTAUSTIN-CT" (PLC-Exact Congestion-Aware SA) | **1.5062** | 1.1363 | 1.7941 | 0 | 6s/bench | :white_check_mark: | |
+| 21 | "oracleX" (Oracle) | **1.5130** | 1.1340 | 1.7937 | 0 | 11s/bench | :white_check_mark: | |
+| 22 | "SEVmakers" (Hybrid Legalization + SA) | **1.5200** | — | — | 0 | 200s/bench | | Private repo — pending judge access |
+| 23 | "CA" (congestion_aware) | **1.5247** | 1.2226 | 1.7945 | 0 | 2s/bench | :white_check_mark: | Verified 1.5247 vs self-reported 1.5238 |
+| 24 | "#5 ubc cpen student" (Gene Pool Shuffle) | **1.5337** | 1.1411 | 1.8084 | 0 | 13s/bench | :white_check_mark: | |
+| 25 | Will Seed (Partcl) | **1.5338** | 1.1625 | 1.7965 | 0 | 35s total | :white_check_mark: | |
+| 26 | "UT Austin" - RH (DREAMPlace) | **1.6037** | — | — | 0 | 4.5s/bench | | |
+| 27 | "UT Austin" - CT (PROXYCost) | **1.8706** | — | — | 0 | 187s/bench | | |
+| 28 | "AS" (Shelf Stacker) | **1.9121** | 1.4614 | 2.3508 | 0 | 0.16s total | :white_check_mark: | |
+| 29 | "Adi's Team" (GNN-ePlace Hybrid) | **2.0025** | — | — | 0 | 3726s/bench | | |
+| 30 | "Sharc #1" (Auction Placer) | **2.0433** | 1.5143 | 2.4336 | 0 | 96s/bench | :white_check_mark: | |
 | — | SA (baseline) | 2.1251 | 1.3166 | 3.6726 | 0 | — | :white_check_mark: | |
 | — | Greedy Row (demo) | 2.2109 | 1.6728 | 2.7696 | 0 | 0.3s total | :white_check_mark: | |
 | — | "Binghamton" (feng shui) | pending | — | — | — | — | | |
 | — | "MacroBio" (Two-Opt Swap) | pending | — | — | — | — | | |
+| DQ | "Mike Gao" (autoresearch) | self-reported 1.3255 | — | — | 1939 | 16min/bench | | DREAMPlace silently fails in eval environment, returns unlegalized placements (47–189 overlaps per benchmark) |
+| DQ | "BakaBobo" (Global Relocation Sweep) | self-reported 1.4044 | — | — | — | 282s/bench | | Imports `macro_place.fast_proxy` which isn't bundled and isn't part of the evaluator — code won't run |
 
 *Submit your results via the [Submission Link](https://forms.gle/YDRtYV5Vq68SZgKW9)!*
 
