@@ -1,0 +1,5 @@
+timestamp,placer,benchmark,status,exit_code,runtime_seconds,proxy,wirelength,density,congestion,overlaps,log
+2026-04-30T22:22:22-04:00,submissions/casadi_placer.py,ibm01,ok,0,7,1.0385,0.064,0.812,1.137,0,sweep_logs/20260430_222215/submissions__casadi_placer__ibm01.log
+2026-04-30T22:22:28-04:00,submissions/casadi_placer.py,ibm02,ok,0,6,1.5658,0.075,0.729,2.254,0,sweep_logs/20260430_222215/submissions__casadi_placer__ibm02.log
+2026-04-30T22:23:55-04:00,submissions/casadi_placer.py,ibm03,ok,0,87,1.3202,0.080,0.724,1.758,0,sweep_logs/20260430_222215/submissions__casadi_placer__ibm03.log
+2026-04-30T22:24:03-04:00,submissions/casadi_placer.py,ibm04,ok,0,8,1.3134,0.071,0.782,1.704,0,sweep_logs/20260430_222215/submissions__casadi_placer__ibm04.log

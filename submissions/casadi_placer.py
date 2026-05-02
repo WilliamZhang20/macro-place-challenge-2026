@@ -28,7 +28,7 @@ _SUBMISSIONS_DIR = Path(__file__).resolve().parent
 if str(_SUBMISSIONS_DIR) not in sys.path:
     sys.path.insert(0, str(_SUBMISSIONS_DIR))
 
-from dreamplace_moreau_placer import DreamplaceMoreauPlacer  # noqa: E402
+from _hard_legalizer import legalize_hard  # noqa: E402
 
 
 class CasadiPlacer:
@@ -53,6 +53,7 @@ class CasadiPlacer:
         self.component_size_limit = int(component_size_limit)
         self.max_components = int(max_components)
         self.soft_proxy_evals = int(soft_proxy_evals)
+        self._plc_cache = {}
 
     def place(self, benchmark: Benchmark) -> torch.Tensor:
         start = time.monotonic()
@@ -85,10 +86,7 @@ class CasadiPlacer:
         # repair as the research-safe path and reserve CasADi for smaller local
         # repair opportunities.
         if n_hard > 450 or len(bad) > 180:
-            return self._soft_proxy_polish(
-                self._dreamplace_repair(benchmark.macro_positions.clone().float(), benchmark),
-                benchmark,
-            )
+            return self._dreamplace_repair(benchmark.macro_positions.clone().float(), benchmark)
 
         for outer in range(self.max_outer_iters):
             if time.monotonic() - start > self.max_seconds:
@@ -165,6 +163,208 @@ class CasadiPlacer:
         ok, _ = validate_placement(fallback, benchmark, check_overlaps=True)
         return self._soft_proxy_polish(fallback, benchmark) if ok else benchmark.macro_positions.clone().float()
 
+    def _global_sparse_hard_candidate(
+        self, placement: torch.Tensor, benchmark: Benchmark
+    ) -> torch.Tensor:
+        if not benchmark.name.startswith("ibm"):
+            return placement
+        n_hard = benchmark.num_hard_macros
+        if n_hard < 220:
+            return placement
+
+        pos = placement[:n_hard].detach().cpu().numpy().astype(np.float64).copy()
+        base_pos = benchmark.macro_positions[:n_hard].detach().cpu().numpy().astype(np.float64)
+        sizes = benchmark.macro_sizes[:n_hard].detach().cpu().numpy().astype(np.float64)
+        movable = (~benchmark.macro_fixed[:n_hard]).detach().cpu().numpy().astype(bool)
+        movable_idx = np.flatnonzero(movable).astype(int).tolist()
+        if not movable_idx:
+            return placement
+
+        density = self._center_density_map(placement, benchmark)
+        bin_w = float(benchmark.canvas_width) / max(1, int(benchmark.grid_cols))
+        bin_h = float(benchmark.canvas_height) / max(1, int(benchmark.grid_rows))
+        pressure = []
+        for i in movable_idx:
+            x = float(pos[i, 0])
+            y = float(pos[i, 1])
+            col = int(np.clip(x / max(bin_w, 1e-9), 0, int(benchmark.grid_cols) - 1))
+            row = int(np.clip(y / max(bin_h, 1e-9), 0, int(benchmark.grid_rows) - 1))
+            area = float(sizes[i, 0] * sizes[i, 1])
+            pressure.append((float(density[row, col]) * area, i))
+        pressure.sort(reverse=True)
+
+        selected = [i for _, i in pressure[: min(72, len(pressure))]]
+        if len(selected) < 8:
+            return placement
+
+        target = pos.copy()
+        for i in selected:
+            dx, dy = self._density_escape_offsets(
+                density, float(pos[i, 0]), float(pos[i, 1]), bin_w, bin_h, benchmark
+            )[0]
+            # Keep global moves gentle; legalization is allowed to finish the job.
+            target[i, 0] = float(np.clip(pos[i, 0] + 0.55 * dx, 0.5 * sizes[i, 0], float(benchmark.canvas_width) - 0.5 * sizes[i, 0]))
+            target[i, 1] = float(np.clip(pos[i, 1] + 0.55 * dy, 0.5 * sizes[i, 1], float(benchmark.canvas_height) - 0.5 * sizes[i, 1]))
+
+        solved = self._solve_global_sparse_nlp(
+            pos,
+            base_pos,
+            target,
+            sizes,
+            movable,
+            selected,
+            float(benchmark.canvas_width),
+            float(benchmark.canvas_height),
+        )
+        if solved is None:
+            return placement
+
+        out = placement.clone()
+        out[:n_hard] = torch.tensor(solved, dtype=out.dtype)
+        if benchmark.macro_fixed.any():
+            out[benchmark.macro_fixed] = benchmark.macro_positions[benchmark.macro_fixed]
+        out = self._dreamplace_repair(out, benchmark)
+        ok, _ = validate_placement(out, benchmark, check_overlaps=True)
+        if ok and int(compute_overlap_metrics(out, benchmark)["overlap_count"]) == 0:
+            return out
+        return placement
+
+    def _solve_global_sparse_nlp(
+        self,
+        pos: np.ndarray,
+        base_pos: np.ndarray,
+        target: np.ndarray,
+        sizes: np.ndarray,
+        movable: np.ndarray,
+        selected: Sequence[int],
+        cw: float,
+        ch: float,
+    ) -> np.ndarray | None:
+        n = len(selected)
+        local = {g: k for k, g in enumerate(selected)}
+        z = ca.MX.sym("z", 2 * n)
+        mean_size = max(1e-3, float(np.mean(np.sqrt(sizes[selected, 0] * sizes[selected, 1]))))
+        trust = max(0.20, 0.85 * mean_size)
+
+        def x_expr(i: int):
+            k = local.get(i)
+            return z[2 * k] if k is not None else float(pos[i, 0])
+
+        def y_expr(i: int):
+            k = local.get(i)
+            return z[2 * k + 1] if k is not None else float(pos[i, 1])
+
+        obj = 0
+        for k, i in enumerate(selected):
+            scale = max(1e-3, math.sqrt(float(sizes[i, 0] * sizes[i, 1])))
+            dx = (z[2 * k] - float(base_pos[i, 0])) / scale
+            dy = (z[2 * k + 1] - float(base_pos[i, 1])) / scale
+            tx = (z[2 * k] - float(target[i, 0])) / max(scale, mean_size)
+            ty = (z[2 * k + 1] - float(target[i, 1])) / max(scale, mean_size)
+            obj += 3.0 * (dx * dx + dy * dy) + 0.18 * (tx * tx + ty * ty)
+
+        # Relative-offset preservation over local KNN edges: DCCP-like shape regularization.
+        sel_pos = pos[selected]
+        rel_edges = self._knn_edges(sel_pos, k=5)
+        for a, b in rel_edges[: min(360, len(rel_edges))]:
+            i = selected[a]
+            j = selected[b]
+            scale = max(mean_size, math.sqrt(float(sizes[i, 0] * sizes[i, 1] + sizes[j, 0] * sizes[j, 1]) * 0.5))
+            odx = float(base_pos[i, 0] - base_pos[j, 0])
+            ody = float(base_pos[i, 1] - base_pos[j, 1])
+            rx = (x_expr(i) - x_expr(j) - odx) / scale
+            ry = (y_expr(i) - y_expr(j) - ody) / scale
+            obj += 0.35 * (rx * rx + ry * ry)
+
+        g = []
+        lbg = []
+        ubg = []
+        selected_set = set(selected)
+        candidate_pairs = []
+        hw = 0.5 * sizes[:, 0]
+        hh = 0.5 * sizes[:, 1]
+        margin = 0.45 * mean_size
+        for i in selected:
+            # Nearby obstacles, selected or fixed/background. This is sparse global pressure.
+            dx = np.abs(pos[:, 0] - pos[i, 0])
+            dy = np.abs(pos[:, 1] - pos[i, 1])
+            near = np.where((dx < hw + hw[i] + margin) & (dy < hh + hh[i] + margin))[0]
+            for j in near.tolist():
+                if j == i:
+                    continue
+                if j in selected_set and j < i:
+                    continue
+                candidate_pairs.append((i, int(j)))
+        # Prefer closest/currently most dangerous constraints.
+        def pair_slack(pair):
+            i, j = pair
+            sx = abs(pos[i, 0] - pos[j, 0]) - (hw[i] + hw[j])
+            sy = abs(pos[i, 1] - pos[j, 1]) - (hh[i] + hh[j])
+            return min(sx, sy)
+        candidate_pairs = sorted(set(candidate_pairs), key=pair_slack)[:900]
+
+        for i, j in candidate_pairs:
+            if not movable[i] and not movable[j]:
+                continue
+            dx = float(pos[i, 0] - pos[j, 0])
+            dy = float(pos[i, 1] - pos[j, 1])
+            sep_x = float(hw[i] + hw[j] + self.gap)
+            sep_y = float(hh[i] + hh[j] + self.gap)
+            # Freeze the current separating axis for convex linear cuts.
+            slack_x = abs(dx) - sep_x
+            slack_y = abs(dy) - sep_y
+            if slack_x <= slack_y:
+                sign = 1.0 if (dx > 0 or (dx == 0 and i > j)) else -1.0
+                g.append(sign * (x_expr(i) - x_expr(j)))
+                lbg.append(sep_x)
+            else:
+                sign = 1.0 if (dy > 0 or (dy == 0 and i > j)) else -1.0
+                g.append(sign * (y_expr(i) - y_expr(j)))
+                lbg.append(sep_y)
+            ubg.append(ca.inf)
+
+        lbx = []
+        ubx = []
+        x0 = []
+        for i in selected:
+            hwi = 0.5 * float(sizes[i, 0])
+            hhi = 0.5 * float(sizes[i, 1])
+            lbx.extend([
+                max(hwi + self.gap, float(pos[i, 0]) - trust),
+                max(hhi + self.gap, float(pos[i, 1]) - trust),
+            ])
+            ubx.extend([
+                min(cw - hwi - self.gap, float(pos[i, 0]) + trust),
+                min(ch - hhi - self.gap, float(pos[i, 1]) + trust),
+            ])
+            x0.extend([float(pos[i, 0]), float(pos[i, 1])])
+
+        nlp = {"x": z, "f": obj, "g": ca.vertcat(*g) if g else ca.MX.zeros(0, 1)}
+        opts = {
+            "print_time": False,
+            "ipopt.print_level": 0,
+            "ipopt.sb": "yes",
+            "ipopt.max_iter": 55,
+            "ipopt.tol": 1e-4,
+            "ipopt.acceptable_tol": 8e-4,
+            "ipopt.acceptable_iter": 6,
+            "ipopt.linear_solver": "mumps",
+        }
+        try:
+            solver = ca.nlpsol("global_sparse_solver", "ipopt", nlp, opts)
+            sol = solver(x0=x0, lbx=lbx, ubx=ubx, lbg=lbg, ubg=ubg)
+        except Exception:
+            return None
+
+        zval = np.asarray(sol["x"], dtype=np.float64).reshape(-1)
+        if not np.all(np.isfinite(zval)):
+            return None
+        out = pos.copy()
+        for k, i in enumerate(selected):
+            out[i, 0] = zval[2 * k]
+            out[i, 1] = zval[2 * k + 1]
+        return out
+
     def _soft_proxy_polish(
         self, placement: torch.Tensor, benchmark: Benchmark
     ) -> torch.Tensor:
@@ -176,7 +376,6 @@ class CasadiPlacer:
             return placement
         if benchmark.num_macros > 1800:
             return placement
-
         plc = self._load_plc(benchmark)
         if plc is None:
             return placement
@@ -193,26 +392,60 @@ class CasadiPlacer:
 
         best = placement.clone()
         sizes = benchmark.macro_sizes
-        areas = sizes[:, 0] * sizes[:, 1]
-        soft_indices.sort(key=lambda i: (-float(areas[i].item()), i))
-
         bin_w = float(benchmark.canvas_width) / max(1, int(benchmark.grid_cols))
         bin_h = float(benchmark.canvas_height) / max(1, int(benchmark.grid_rows))
-        offsets = [
-            (bin_w, 0.0),
-            (-bin_w, 0.0),
-            (0.0, bin_h),
-            (0.0, -bin_h),
-        ]
+        density = self._center_density_map(best, benchmark)
+
+        def pressure(idx: int) -> float:
+            x = float(best[idx, 0].item())
+            y = float(best[idx, 1].item())
+            col = int(np.clip(x / max(bin_w, 1e-9), 0, int(benchmark.grid_cols) - 1))
+            row = int(np.clip(y / max(bin_h, 1e-9), 0, int(benchmark.grid_rows) - 1))
+            area = float(sizes[idx, 0].item() * sizes[idx, 1].item())
+            return float(density[row, col]) * area
+
+        by_pressure = sorted(soft_indices, key=lambda i: (-pressure(i), i))
+        by_area = sorted(
+            soft_indices,
+            key=lambda i: (-float(sizes[i, 0].item() * sizes[i, 1].item()), i),
+        )
+        ordered = []
+        for idx in by_pressure[:6] + by_area[:6]:
+            if idx not in ordered:
+                ordered.append(idx)
+
+        large_case = benchmark.num_macros > 1800
+        batch_count = 36 if large_case else 14
+        batch = self._batch_soft_density_spread(
+            best, benchmark, ordered[: min(batch_count, len(ordered))], density, bin_w, bin_h
+        )
+        try:
+            batch_cost = float(compute_proxy_cost(batch, benchmark, plc)["proxy_cost"])
+        except Exception:
+            batch_cost = float("inf")
+        if batch_cost + 1e-7 < best_cost:
+            best = batch
+            best_cost = batch_cost
+            density = self._center_density_map(best, benchmark)
+
+        if large_case:
+            ok, _ = validate_placement(best, benchmark, check_overlaps=True)
+            return best if ok else placement
 
         evals = 0
-        for idx in soft_indices[: min(6, len(soft_indices))]:
+        for idx in ordered[: min(8, len(ordered))]:
             if evals >= self.soft_proxy_evals:
                 break
             hw = 0.5 * float(sizes[idx, 0].item())
             hh = 0.5 * float(sizes[idx, 1].item())
             old_x = float(best[idx, 0].item())
             old_y = float(best[idx, 1].item())
+            offsets = self._density_escape_offsets(
+                density, old_x, old_y, bin_w, bin_h, benchmark
+            )
+            for fallback in ((bin_w, 0.0), (-bin_w, 0.0), (0.0, bin_h), (0.0, -bin_h)):
+                if fallback not in offsets:
+                    offsets.append(fallback)
             for dx, dy in offsets:
                 if evals >= self.soft_proxy_evals:
                     break
@@ -231,9 +464,102 @@ class CasadiPlacer:
                     best_cost = cost
                     old_x = float(best[idx, 0].item())
                     old_y = float(best[idx, 1].item())
+                    density = self._center_density_map(best, benchmark)
 
         ok, _ = validate_placement(best, benchmark, check_overlaps=True)
         return best if ok else placement
+
+    def _batch_soft_density_spread(
+        self,
+        placement: torch.Tensor,
+        benchmark: Benchmark,
+        soft_indices: Sequence[int],
+        density: np.ndarray,
+        bin_w: float,
+        bin_h: float,
+    ) -> torch.Tensor:
+        cand = placement.clone()
+        sizes = benchmark.macro_sizes
+        local_density = density.copy()
+        rows, cols = local_density.shape
+        bin_area = max(1e-9, bin_w * bin_h)
+
+        for idx in soft_indices:
+            x = float(cand[idx, 0].item())
+            y = float(cand[idx, 1].item())
+            col = int(np.clip(x / max(bin_w, 1e-9), 0, cols - 1))
+            row = int(np.clip(y / max(bin_h, 1e-9), 0, rows - 1))
+            current = float(local_density[row, col])
+            moves = self._density_escape_offsets(local_density, x, y, bin_w, bin_h, benchmark)
+            if not moves:
+                continue
+            dx, dy = moves[0]
+            new_col = int(np.clip((x + dx) / max(bin_w, 1e-9), 0, cols - 1))
+            new_row = int(np.clip((y + dy) / max(bin_h, 1e-9), 0, rows - 1))
+            if float(local_density[new_row, new_col]) >= current:
+                continue
+
+            hw = 0.5 * float(sizes[idx, 0].item())
+            hh = 0.5 * float(sizes[idx, 1].item())
+            nx = float(np.clip(x + dx, hw, float(benchmark.canvas_width) - hw))
+            ny = float(np.clip(y + dy, hh, float(benchmark.canvas_height) - hh))
+            if nx == x and ny == y:
+                continue
+
+            area_density = float(sizes[idx, 0].item() * sizes[idx, 1].item()) / bin_area
+            local_density[row, col] = max(0.0, local_density[row, col] - area_density)
+            local_density[new_row, new_col] += area_density
+            cand[idx, 0] = nx
+            cand[idx, 1] = ny
+
+        return cand
+
+    def _center_density_map(self, placement: torch.Tensor, benchmark: Benchmark) -> np.ndarray:
+        rows = int(benchmark.grid_rows)
+        cols = int(benchmark.grid_cols)
+        density = np.zeros((rows, cols), dtype=np.float64)
+        bin_w = float(benchmark.canvas_width) / max(1, cols)
+        bin_h = float(benchmark.canvas_height) / max(1, rows)
+        bin_area = max(1e-9, bin_w * bin_h)
+        pos = placement.detach().cpu().numpy()
+        sizes = benchmark.macro_sizes.detach().cpu().numpy()
+        for i in range(benchmark.num_macros):
+            col = int(np.clip(pos[i, 0] / max(bin_w, 1e-9), 0, cols - 1))
+            row = int(np.clip(pos[i, 1] / max(bin_h, 1e-9), 0, rows - 1))
+            density[row, col] += float(sizes[i, 0] * sizes[i, 1]) / bin_area
+        return density
+
+    def _density_escape_offsets(
+        self,
+        density: np.ndarray,
+        x: float,
+        y: float,
+        bin_w: float,
+        bin_h: float,
+        benchmark: Benchmark,
+    ) -> List[Tuple[float, float]]:
+        rows, cols = density.shape
+        col = int(np.clip(x / max(bin_w, 1e-9), 0, cols - 1))
+        row = int(np.clip(y / max(bin_h, 1e-9), 0, rows - 1))
+        candidates = []
+        for dc, dr in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)):
+            rr = row + dr
+            cc = col + dc
+            if 0 <= rr < rows and 0 <= cc < cols:
+                candidates.append((float(density[rr, cc]), dc * bin_w, dr * bin_h))
+        candidates.sort(key=lambda item: item[0])
+        best_density = [(dx, dy) for _, dx, dy in candidates[:2]]
+        cardinal = [(bin_w, 0.0), (-bin_w, 0.0), (0.0, bin_h), (0.0, -bin_h)]
+        out = []
+        for move in best_density + cardinal:
+            if move not in out:
+                out.append(move)
+        return out or [
+            (bin_w, 0.0),
+            (-bin_w, 0.0),
+            (0.0, bin_h),
+            (0.0, -bin_h),
+        ]
 
     def _select_best_valid(
         self, candidates: Sequence[torch.Tensor], benchmark: Benchmark
@@ -263,6 +589,8 @@ class CasadiPlacer:
         return best
 
     def _load_plc(self, benchmark: Benchmark):
+        if benchmark.name in self._plc_cache:
+            return self._plc_cache[benchmark.name]
         try:
             from macro_place.loader import load_benchmark, load_benchmark_from_dir
         except Exception:
@@ -272,6 +600,7 @@ class CasadiPlacer:
         if root.exists():
             try:
                 _, plc = load_benchmark_from_dir(str(root))
+                self._plc_cache[benchmark.name] = plc
                 return plc
             except Exception:
                 return None
@@ -287,6 +616,7 @@ class CasadiPlacer:
         if netlist.exists() and plc_file.exists():
             try:
                 _, plc = load_benchmark(str(netlist), str(plc_file), name=benchmark.name)
+                self._plc_cache[benchmark.name] = plc
                 return plc
             except Exception:
                 return None
@@ -297,14 +627,7 @@ class CasadiPlacer:
     ) -> torch.Tensor:
         out = placement.clone().float()
         for gap, rounds in ((self.gap, 1000), (max(self.gap, 8e-5), 1800), (max(self.gap, 3e-4), 2600)):
-            placer = DreamplaceMoreauPlacer(
-                lbfgs_iters=0,
-                overlap_gap=gap,
-                legalize_rounds=rounds,
-                spread_weight=0.0,
-                density_weight=0.0,
-            )
-            out = placer._legalize_hard(out, benchmark)
+            out = legalize_hard(out, benchmark, overlap_gap=gap, legalize_rounds=rounds)
             self._clamp_tensor(out, benchmark, gap)
             ok, _ = validate_placement(out, benchmark, check_overlaps=True)
             if ok and int(compute_overlap_metrics(out, benchmark)["overlap_count"]) == 0:
@@ -505,6 +828,20 @@ class CasadiPlacer:
         self, pos: np.ndarray, sizes: np.ndarray, margin: float
     ) -> List[Tuple[int, int]]:
         return self._overlap_pairs(pos, sizes, margin=margin)
+
+    def _knn_edges(self, pos: np.ndarray, k: int) -> List[Tuple[int, int]]:
+        n = pos.shape[0]
+        if n <= 1:
+            return []
+        k = min(k, n - 1)
+        edges = set()
+        for i in range(n):
+            d2 = np.sum((pos - pos[i]) ** 2, axis=1)
+            order = np.argsort(d2)
+            for j in order[1 : k + 1]:
+                a, b = (i, int(j)) if i < int(j) else (int(j), i)
+                edges.add((a, b))
+        return sorted(edges)
 
     def _overlap_components(
         self, pairs: Sequence[Tuple[int, int]], n: int
