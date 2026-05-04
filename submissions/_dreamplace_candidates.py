@@ -12,7 +12,7 @@ from typing import Callable, List, Optional, Sequence, Tuple
 import torch
 
 from macro_place.benchmark import Benchmark
-from macro_place.objective import compute_overlap_metrics
+from macro_place.objective import compute_overlap_metrics, compute_proxy_cost
 
 _SUBMISSIONS_DIR = Path(__file__).resolve().parent
 if str(_SUBMISSIONS_DIR) not in sys.path:
@@ -40,6 +40,10 @@ class DreamPlaceCandidate:
     final_overlap_count: int = 0
     legalizer_max_displacement: float = 0.0
     legalizer_mean_displacement: float = 0.0
+    raw_proxy_cost: float | None = None
+    raw_wirelength: float | None = None
+    raw_density: float | None = None
+    raw_congestion: float | None = None
 
 
 @dataclass(frozen=True)
@@ -66,6 +70,7 @@ def generate_dreamplace_candidates(
     soft_macro_mode: str = "preserve",
     soft_macro_row_cap_mult: float = 12.0,
     blend_alphas: Sequence[float] = (),
+    full_blend_alphas: Sequence[float] = (),
     blend_hard_only: bool = True,
     legalize_imported: bool = True,
     legalize_rounds: int = 1800,
@@ -75,6 +80,8 @@ def generate_dreamplace_candidates(
     legalize_iterative_cycles: int = 1,
     legalize_refine_fn: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
     use_partial_results: bool = True,
+    collect_raw_proxy_metrics: bool = False,
+    include_route: bool = False,
 ) -> DreamPlaceCandidateBatch:
     """Export ``benchmark``, run DREAMPlace configs, and import placements."""
 
@@ -89,7 +96,7 @@ def generate_dreamplace_candidates(
         work_root / "ETC" / bs_name,
         bookshelf_name=bs_name,
         scale=scale,
-        include_route=False,
+        include_route=bool(include_route),
         include_shapes=False,
         soft_macro_mode=soft_macro_mode,
         soft_macro_row_cap_mult=soft_macro_row_cap_mult,
@@ -166,6 +173,7 @@ def generate_dreamplace_candidates(
                 blended = raw_placement.clone()
                 if blend_hard_only:
                     nh = benchmark.num_hard_macros
+                    blended = initial_placement.clone().to(raw_placement.dtype)
                     blended[:nh] = (1.0 - alpha_f) * initial_placement[:nh].to(
                         blended.dtype
                     ) + alpha_f * raw_placement[:nh].to(blended.dtype)
@@ -175,9 +183,23 @@ def generate_dreamplace_candidates(
                     ) + alpha_f * raw_placement
                 suffix = "_blend" + _label_float(alpha_f)
                 candidate_inputs.append((blended, f"{base_label}{suffix}"))
+            for alpha in full_blend_alphas:
+                alpha_f = float(alpha)
+                if not (0.0 < alpha_f < 1.0):
+                    raise ValueError("full_blend_alphas must be in (0, 1)")
+                blended = (1.0 - alpha_f) * initial_placement.to(
+                    raw_placement.dtype
+                ) + alpha_f * raw_placement
+                suffix = "_fullblend" + _label_float(alpha_f)
+                candidate_inputs.append((blended, f"{base_label}{suffix}"))
 
         for raw_candidate, label in candidate_inputs:
             raw_overlap_count = _overlap_count(raw_candidate, benchmark)
+            raw_metrics = (
+                _proxy_components(raw_candidate, benchmark, plc)
+                if collect_raw_proxy_metrics
+                else None
+            )
             placement = raw_candidate
             if legalize_imported:
                 n_cycles = max(1, int(legalize_iterative_cycles))
@@ -209,6 +231,18 @@ def generate_dreamplace_candidates(
                     final_overlap_count=final_overlap_count,
                     legalizer_max_displacement=max_disp,
                     legalizer_mean_displacement=mean_disp,
+                    raw_proxy_cost=raw_metrics["proxy_cost"]
+                    if raw_metrics is not None
+                    else None,
+                    raw_wirelength=raw_metrics["wirelength"]
+                    if raw_metrics is not None
+                    else None,
+                    raw_density=raw_metrics["density"]
+                    if raw_metrics is not None
+                    else None,
+                    raw_congestion=raw_metrics["congestion"]
+                    if raw_metrics is not None
+                    else None,
                 )
             )
 
@@ -246,6 +280,16 @@ def _placement_is_reasonable(t: torch.Tensor, benchmark: Benchmark) -> bool:
 
 def _overlap_count(placement: torch.Tensor, benchmark: Benchmark) -> int:
     return int(compute_overlap_metrics(placement, benchmark)["overlap_count"])
+
+
+def _proxy_components(placement: torch.Tensor, benchmark: Benchmark, plc) -> dict[str, float]:
+    costs = compute_proxy_cost(placement, benchmark, plc)
+    return {
+        "proxy_cost": float(costs["proxy_cost"]),
+        "wirelength": float(costs["wirelength_cost"]),
+        "density": float(costs["density_cost"]),
+        "congestion": float(costs["congestion_cost"]),
+    }
 
 
 def _candidate_label(pl_path: Path, run_result: DreamPlaceRunResult) -> str:

@@ -434,20 +434,30 @@ def finalize_hard_legalization(
     *,
     grid_div: int,
     overlap_gap: float = 1.2e-3,
+    legalize_rounds: int = 320,
+    snap_grid: bool = True,
+    grid_max_candidates: Optional[int] = None,
 ) -> torch.Tensor:
-    """Coarse grid snap then overlap repair (bounded displacement)."""
+    """Coarse grid snap (optional) + overlap repair."""
     from _hard_legalizer import legalize_hard
 
     nh = benchmark.num_hard_macros
     max_cand = min(20000, 3000 + 50 * nh)
-    out = legalize_min_displacement_grid(
-        placement,
-        benchmark,
-        grid_div=grid_div,
-        overlap_gap=overlap_gap,
-        max_candidates=max_cand,
+    if grid_max_candidates is not None:
+        max_cand = min(max_cand, int(grid_max_candidates))
+    if snap_grid:
+        out = legalize_min_displacement_grid(
+            placement,
+            benchmark,
+            grid_div=grid_div,
+            overlap_gap=overlap_gap,
+            max_candidates=max_cand,
+        )
+    else:
+        out = placement.clone()
+    return legalize_hard(
+        out, benchmark, overlap_gap=overlap_gap, legalize_rounds=int(legalize_rounds)
     )
-    return legalize_hard(out, benchmark, overlap_gap=overlap_gap, legalize_rounds=320)
 
 
 def legal_grid_div_heuristic(benchmark: Benchmark) -> int:

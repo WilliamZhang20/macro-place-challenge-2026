@@ -3,8 +3,16 @@ Unified analytical descent placer: smooth HPWL + FFT density + soft Rudy,
 Lloyd alternation with legalization, adaptive multi-start (true-proxy selector),
 LNS with periodic HPWL-only polish, and a final anchored refinement pass.
 
-Tuning is derived only from benchmark features (macro/net counts, utilization,
-canvas size). No benchmark-name rules.
+Runtime is dominated by (multistart) × (many Adam steps) × (legalize: grid snap +
+overlap repair). LNS inner steps use lighter legalization (fewer repair rounds,
+capped grid search) than Lloyd outers.
+
+Incremental proxy/runtime A/B (use --quick for fast trends):
+
+  python scripts/descent_stage_profile.py -b ibm01
+  python scripts/descent_stage_profile.py -b ibm01 --quick --max-phase 4
+
+Tuning uses benchmark features only (macro/net counts, utilization, canvas).
 
 Usage:
   evaluate submissions/descent_pipeline_placer.py -b ibm01
@@ -70,6 +78,10 @@ class PipelineConfig(NamedTuple):
     final_lr: float
     final_mu: float
     noise_frac: float
+    legal_lloyd_rounds: int
+    legal_lns_rounds: int
+    legal_lns_grid_cap: int
+    legal_final_rounds: int
 
 
 def derive_config(benchmark: Benchmark) -> PipelineConfig:
@@ -79,21 +91,23 @@ def derive_config(benchmark: Benchmark) -> PipelineConfig:
 
     est = 95.0 + 0.41 * nh + 0.0010 * nn + 195.0 * max(0.0, util - 0.43)
     est *= 1.05 + 0.35 * max(0.0, util - 0.50)
-    # Stay under ~50 min/bench including final polish + multistart (1h contest cap).
-    target = 2850.0
-    ns = int(np.clip(target / max(est, 72.0), 2.0, 8.0))
-    if nh > 495:
+    # Target ~22–35 min typical bench; multistart × heavy legalize dominates runtime.
+    target = 1420.0
+    ns = int(np.clip(target / max(est, 72.0), 2.0, 4.0))
+    if nh > 480:
+        ns = min(ns, 3)
+    elif nh > 400:
         ns = min(ns, 4)
-    elif nh > 430:
-        ns = min(ns, 5)
-    elif nh < 265:
-        ns = max(ns, 6)
-    while ns * est > 2700.0 and ns > 2:
+    elif nh < 270:
+        ns = max(ns, 3)
+    while ns * est > 1880.0 and ns > 2:
         ns -= 1
 
-    outer = 5 if util > 0.486 else 4
-    inner0 = int(500 + 55 * max(0.0, util - 0.45) + 0.04 * max(0, nh - 320))
-    inner1 = int(348 + 40 * max(0.0, util - 0.46))
+    outer = 4
+    inner0 = int(320 + 45 * max(0.0, util - 0.45) + 0.03 * max(0, nh - 320))
+    inner0 = min(inner0, 420)
+    inner1 = int(255 + 32 * max(0.0, util - 0.46))
+    inner1 = min(inner1, 320)
 
     lam_end = 0.245 + 0.20 * max(0.0, util - 0.415)
     lam_end = float(np.clip(lam_end, 0.22, 0.48))
@@ -101,13 +115,13 @@ def derive_config(benchmark: Benchmark) -> PipelineConfig:
     cong_w = 0.305 + 0.26 * max(0.0, util - 0.415)
     cong_w = float(np.clip(cong_w, 0.28, 0.48))
 
-    lns_scale = 0.88 + 0.34 * (0.53 - util)
-    lns_scale = float(np.clip(lns_scale, 0.74, 1.32))
+    lns_scale = 0.52 + 0.28 * (0.53 - util)
+    lns_scale = float(np.clip(lns_scale, 0.42, 0.95))
 
     lr = float(np.clip(0.0465 - 0.0048 * max(0.0, util - 0.46), 0.038, 0.048))
     lr_end = lr * 0.52
 
-    lns_iters = int(np.clip(108 + 0.05 * nh, 100, 155))
+    lns_iters = int(np.clip(82 + 0.04 * nh, 72, 118))
     noise = float(np.clip(0.0078 + 0.006 * max(0.0, 0.50 - util), 0.0065, 0.014))
 
     return PipelineConfig(
@@ -126,14 +140,18 @@ def derive_config(benchmark: Benchmark) -> PipelineConfig:
         lns_lr=0.051,
         lns_lam_end=float(np.clip(0.21 + 0.12 * max(0.0, util - 0.44), 0.19, 0.34)),
         lns_cong=float(np.clip(0.19 + 0.14 * max(0.0, util - 0.43), 0.16, 0.34)),
-        polish_every=3,
-        polish_iters=95,
+        polish_every=5,
+        polish_iters=68,
         polish_lr=0.036,
         final_pass=True,
-        final_iters=int(295 + 0.22 * nh),
+        final_iters=int(min(220, 175 + 0.14 * nh)),
         final_lr=0.032,
         final_mu=float(np.clip(0.11 + 0.35 * max(0.0, util - 0.44), 0.09, 0.55)),
         noise_frac=noise,
+        legal_lloyd_rounds=255,
+        legal_lns_rounds=195,
+        legal_lns_grid_cap=7200,
+        legal_final_rounds=265,
     )
 
 
@@ -192,13 +210,18 @@ def _run_single_start(
             cong_cols=cc,
         )
         cur = finalize_hard_legalization(
-            cur.cpu(), benchmark, grid_div=grid_div
+            cur.cpu(),
+            benchmark,
+            grid_div=grid_div,
+            legalize_rounds=cfg.legal_lloyd_rounds,
         ).to(device)
 
     rng = np.random.default_rng(rng_seed + len(free_idx))
     budget = lns_time_budget_sec(benchmark) * cfg.lns_budget_scale
     if lns_cap_sec is not None:
         budget = min(budget, lns_cap_sec)
+    if lns_cap_sec is not None and lns_cap_sec <= 0:
+        return cur.cpu()
     t0 = time.time()
     nh = len(free_idx)
     rnd = 0
@@ -235,7 +258,11 @@ def _run_single_start(
             cong_cols=cc,
         )
         cur = finalize_hard_legalization(
-            cur.cpu(), benchmark, grid_div=grid_div
+            cur.cpu(),
+            benchmark,
+            grid_div=grid_div,
+            legalize_rounds=cfg.legal_lns_rounds,
+            grid_max_candidates=cfg.legal_lns_grid_cap,
         ).to(device)
 
         rnd += 1
@@ -260,7 +287,11 @@ def _run_single_start(
                 cong_cols=cc,
             )
             cur = finalize_hard_legalization(
-                cur.cpu(), benchmark, grid_div=grid_div
+                cur.cpu(),
+                benchmark,
+                grid_div=grid_div,
+                legalize_rounds=cfg.legal_lns_rounds,
+                grid_max_candidates=cfg.legal_lns_grid_cap,
             ).to(device)
 
     return cur.cpu()
@@ -306,7 +337,12 @@ def _final_anchor_polish(
         cong_rows=cr,
         cong_cols=cc,
     )
-    return finalize_hard_legalization(cur.cpu(), benchmark, grid_div=grid_div)
+    return finalize_hard_legalization(
+        cur.cpu(),
+        benchmark,
+        grid_div=grid_div,
+        legalize_rounds=cfg.legal_final_rounds,
+    )
 
 
 class DescentPipelinePlacer:
@@ -314,7 +350,7 @@ class DescentPipelinePlacer:
 
     def place(self, benchmark: Benchmark) -> torch.Tensor:
         t_wall0 = time.time()
-        wall_limit = 3480.0
+        wall_limit = 3180.0
         deadline = t_wall0 + wall_limit
 
         cfg = derive_config(benchmark)
@@ -324,12 +360,12 @@ class DescentPipelinePlacer:
         canvas = float(max(benchmark.canvas_width, benchmark.canvas_height))
         noise_scale = cfg.noise_frac * canvas
 
-        per_start_lns = (wall_limit - 420.0 - cfg.final_iters * 0.12) / max(
+        per_start_lns = (wall_limit - 380.0 - cfg.final_iters * 0.10) / max(
             cfg.num_starts, 1
         )
-        per_start_lns = float(np.clip(per_start_lns, 28.0, 420.0))
+        per_start_lns = float(np.clip(per_start_lns, 22.0, 280.0))
 
-        best: torch.Tensor | None = None
+        best: Optional[torch.Tensor] = None
         best_cost = float("inf")
 
         for s in range(cfg.num_starts):

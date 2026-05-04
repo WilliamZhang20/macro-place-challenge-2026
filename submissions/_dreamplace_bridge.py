@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from macro_place.benchmark import Benchmark
 
 from _benchmark_features import benchmark_features
@@ -16,9 +18,11 @@ def _clamp01(x: float) -> float:
 def utilization_density_triplet(macro_area_utilization: float) -> tuple[float, float, float]:
     """Three target_density values from low→high as utilization increases.
 
-    Low-util designs tolerate aggressive under-target density during global place;
-    packed designs need targets in the 0.85+ range so post-import legalization
-    does not destroy the global solution.
+    Low-util designs tolerate softer targets; packed designs need 0.85+ on the
+    high corner.  We then **blend toward utilization-anchored targets** as
+    macro fill rises: asking DREAMPlace for ~0.60 effective density when the
+    floorplan is ~0.5 macro fill makes the global solution incompatible with the
+    challenge proxy density after import/legalization (CLAUDE.md bridge gap).
     """
     u = _clamp01(macro_area_utilization)
     t = _clamp01((u - 0.32) / 0.38)
@@ -28,7 +32,29 @@ def utilization_density_triplet(macro_area_utilization: float) -> tuple[float, f
     if u >= 0.55:
         d_hi = max(d_hi, 0.85)
         d_mid = max(d_mid, 0.78)
+
+    mix = _clamp01((u - 0.44) / 0.30)
+    u_lo = max(0.58, min(0.88, u + 0.06 + 0.04 * (1.0 - u)))
+    u_mid = max(0.64, min(0.91, u + 0.11 + 0.05 * (1.0 - u)))
+    u_hi = max(0.70, min(0.96, u + 0.17 + 0.06 * (1.0 - u)))
+    d_lo = d_lo * (1.0 - mix) + u_lo * mix
+    d_mid = d_mid * (1.0 - mix) + u_mid * mix
+    d_hi = d_hi * (1.0 - mix) + u_hi * mix
     return (d_lo, d_mid, d_hi)
+
+
+def _bridge_extra_params(preset: str) -> dict:
+    """Bookshelf-safe defaults; optional IBM macro knobs (can destabilize some builds)."""
+
+    out = dict(dreamplace_preset_params(preset))
+    if os.environ.get("MACRO_PLACE_DP_MACRO", "").lower() in ("1", "true", "yes"):
+        out.update(
+            {
+                "macro_place_flag": 1,
+                "two_stage_density_scaler": 1000,
+            }
+        )
+    return out
 
 
 def bridge_dreamplace_configs(
@@ -43,7 +69,7 @@ def bridge_dreamplace_configs(
 
     util = float(benchmark_features(benchmark)["macro_area_utilization"])
     d_lo, d_mid, d_hi = utilization_density_triplet(util)
-    extra = dreamplace_preset_params(preset)
+    extra = _bridge_extra_params(preset)
     gammas = (5e-5, 8e-5, 1.2e-4)
     triples: list[tuple[float, int, float]] = [
         (d_lo, 64, gammas[0]),
@@ -75,15 +101,38 @@ def light_bridge_dreamplace_configs(
     iterations: int = 170,
     gpu: bool = False,
 ) -> list[DreamPlaceConfig]:
-    """Two DP points (low- and high-density corners of the six-grid).
+    """Two standard DP corners (utilization-anchor, fine high-density).
 
-    Keeps bin/gamma diversity while respecting a tight per-benchmark budget
-    (competition limit is 1h/bench; README #2 DreamPlace++ ~37s/bench on GPU).
+    Avoid ``legalize_flag:0`` here: global-only outputs often import poorly into
+    the challenge legalizer/proxy. Diversity comes from the placer using two
+    Bookshelf seeds (see ``dreamplace_bridge_placer``).
     """
 
+    util = float(benchmark_features(benchmark)["macro_area_utilization"])
+    extra = _bridge_extra_params(preset)
+    util_anchor = DreamPlaceConfig(
+        target_density=max(0.66, min(0.86, util)),
+        num_bins_x=64,
+        num_bins_y=64,
+        iterations=int(iterations),
+        learning_rate=0.01,
+        density_weight=5e-5,
+        gpu=bool(gpu),
+        extra_params=dict(extra),
+    )
+    spread_anchor = DreamPlaceConfig(
+        target_density=max(0.74, min(0.92, util + 0.12)),
+        num_bins_x=128,
+        num_bins_y=128,
+        iterations=min(int(iterations), 130),
+        learning_rate=0.01,
+        density_weight=1.2e-4,
+        gpu=bool(gpu),
+        extra_params=dict(extra),
+    )
     full = bridge_dreamplace_configs(
         benchmark, preset=preset, iterations=iterations, gpu=gpu
     )
     if len(full) < 6:
-        return full
-    return [full[i] for i in (0, 5)]
+        return [util_anchor, spread_anchor, *full]
+    return [util_anchor, spread_anchor]

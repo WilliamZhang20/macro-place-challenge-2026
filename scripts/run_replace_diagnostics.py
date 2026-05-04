@@ -40,7 +40,6 @@ def main() -> int:
         binary_path=args.binary,
         timeout_seconds=args.timeout,
         scale=args.scale,
-        soft_macro_mode=args.soft_macro_mode,
     )
     result = pipeline.run(benchmark)
     ok, violations = validate_placement(result.placement, benchmark)
@@ -98,11 +97,6 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, default=Path("replace_diagnostics.json"))
     parser.add_argument("--timeout", type=float, default=120.0)
     parser.add_argument("--scale", type=int, default=1000)
-    parser.add_argument(
-        "--soft-macro-mode",
-        choices=("row_height", "preserve"),
-        default="row_height",
-    )
     return parser.parse_args()
 
 
@@ -143,12 +137,6 @@ def _parse_extra_args(raw: str) -> list[str]:
     if not raw:
         return args
     for item in raw.split(","):
-        if "=" not in item:
-            key = item.strip()
-            if not key:
-                raise ValueError
-            args.append(f"-{key}")
-            continue
         key, value = item.split("=", 1)
         key = key.strip()
         value = value.strip()

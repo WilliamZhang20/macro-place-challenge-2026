@@ -55,7 +55,6 @@ def write_bookshelf(
     include_route: bool = True,
     include_shapes: bool = True,
     soft_macro_mode: str = "row_height",
-    soft_macro_row_cap_mult: float = 12.0,
     initial_placement=None,
 ) -> BookshelfExport:
     """Write an ISPD Bookshelf testcase for ``benchmark``.
@@ -76,12 +75,8 @@ def write_bookshelf(
     output.mkdir(parents=True, exist_ok=True)
     bs_name = _safe_name(bookshelf_name or benchmark.name)
 
-    if soft_macro_mode not in {"row_height", "preserve", "aspect_cap"}:
-        raise ValueError(
-            "soft_macro_mode must be 'row_height', 'preserve', or 'aspect_cap'"
-        )
-    if soft_macro_row_cap_mult <= 0:
-        raise ValueError("soft_macro_row_cap_mult must be positive")
+    if soft_macro_mode not in {"row_height", "preserve"}:
+        raise ValueError("soft_macro_mode must be 'row_height' or 'preserve'")
 
     rows = _build_rows(benchmark, scale)
     row_height = rows[0]["height"]
@@ -91,7 +86,6 @@ def write_bookshelf(
         scale,
         soft_cell_height=row_height,
         soft_macro_mode=soft_macro_mode,
-        soft_macro_row_cap_mult=float(soft_macro_row_cap_mult),
         initial_placement=initial_placement,
     )
     net_records = _build_net_records(plc, node_records.name_to_bs, scale)
@@ -167,7 +161,6 @@ def _build_node_records(
     *,
     soft_cell_height: int,
     soft_macro_mode: str,
-    soft_macro_row_cap_mult: float = 12.0,
     initial_placement=None,
 ) -> _NodeRecords:
     name_to_bs: Dict[str, str] = {}
@@ -211,19 +204,6 @@ def _build_node_records(
             area = max(1, original_w * original_h)
             export_h = max(1, int(soft_cell_height))
             export_w = max(1, int(round(area / export_h)))
-        elif kind == "soft" and not fixed and soft_macro_mode == "aspect_cap":
-            # Middle ground: preserve aspect ratio but cap the long side so
-            # density bins stay well-conditioned while retaining most of the
-            # soft-macro footprint used by the proxy density term.
-            cap = max(1, int(round(soft_macro_row_cap_mult * float(soft_cell_height))))
-            long_side = max(original_w, original_h)
-            if long_side > cap:
-                scale_f = cap / float(long_side)
-                export_w = max(1, int(round(original_w * scale_f)))
-                export_h = max(1, int(round(original_h * scale_f)))
-            else:
-                export_w = original_w
-                export_h = original_h
         cx = _q(x, scale)
         cy = _q(y, scale)
         llx = _clamp_int(cx - export_w // 2, 0, max(0, canvas_w - export_w))

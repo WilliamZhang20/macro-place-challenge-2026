@@ -70,6 +70,8 @@ def main() -> int:
         legalize_displacement_budget_frac=args.legalize_displacement_budget_frac,
         legalize_rounds=args.legalize_rounds,
         legalize_iterative_cycles=args.legalize_iterative_cycles,
+        collect_raw_proxy_metrics=True,
+        include_route=args.include_route,
     )
     selection = select_best_true_proxy(
         baseline,
@@ -111,6 +113,10 @@ def main() -> int:
                 "run_target_density": float(candidate.run_result.config.target_density),
                 "run_iterations": int(candidate.run_result.config.iterations),
                 "raw_overlap_count": int(candidate.raw_overlap_count),
+                "raw_proxy_cost": candidate.raw_proxy_cost,
+                "raw_wirelength": candidate.raw_wirelength,
+                "raw_density": candidate.raw_density,
+                "raw_congestion": candidate.raw_congestion,
                 "final_overlap_count": int(candidate.final_overlap_count),
                 "legalizer_max_displacement": float(
                     candidate.legalizer_max_displacement
@@ -196,6 +202,11 @@ def _parse_args() -> argparse.Namespace:
         type=float,
         default=12.0,
         help="For aspect_cap mode: max soft-macro long side as multiple of row height.",
+    )
+    parser.add_argument(
+        "--include-route",
+        action="store_true",
+        help="Include Bookshelf .route so DREAMPlace routability settings see capacities.",
     )
     parser.add_argument(
         "--blend-alpha",

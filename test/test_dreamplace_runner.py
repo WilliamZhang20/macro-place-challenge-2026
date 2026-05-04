@@ -13,6 +13,7 @@ from submissions._dreamplace_runner import (  # noqa: E402
     dreamplace_available,
     run_dreamplace,
 )
+from submissions._dreamplace_bridge import utilization_density_triplet  # noqa: E402
 from submissions._dreamplace_candidates import generate_dreamplace_candidates  # noqa: E402
 from submissions._replace_bookshelf import write_bookshelf  # noqa: E402
 
@@ -65,6 +66,16 @@ def test_dreamplace_available_reports_missing_configure(tmp_path: Path):
 
     assert not ok
     assert "configure.py" in reason
+
+
+def test_utilization_density_triplet_anchors_packed_designs():
+    lo, mid, hi = utilization_density_triplet(0.62)
+    assert hi >= 0.82
+    assert mid >= lo
+    assert hi >= mid
+    lo2, _, _ = utilization_density_triplet(0.35)
+    lo1, _, _ = utilization_density_triplet(0.62)
+    assert lo2 <= lo1
 
 
 def test_generate_dreamplace_candidates_imports_and_legalizes(tmp_path: Path):
