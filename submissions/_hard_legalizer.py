@@ -21,8 +21,16 @@ def legalize_hard(
     *,
     overlap_gap: float = 1e-3,
     legalize_rounds: int = 260,
+    outer_passes: int = 1,
+    displacement_budget_frac: float | None = None,
+    step_fraction: float = 0.35,
 ) -> torch.Tensor:
-    """Repair hard-macro overlaps with bounded displacement."""
+    """Repair hard-macro overlaps with bounded displacement.
+
+    When ``outer_passes`` > 1 and/or ``displacement_budget_frac`` is set, each
+    outer pass clamps cumulative movement (per macro, L∞ from the start of that
+    pass) so legalization can iterate without a single pass shattering density.
+    """
     num_hard = benchmark.num_hard_macros
     if num_hard <= 1:
         return placement
@@ -37,6 +45,9 @@ def legalize_hard(
     cw = float(benchmark.canvas_width)
     ch = float(benchmark.canvas_height)
     gap = float(overlap_gap)
+    sf = float(step_fraction)
+    if sf <= 0.0:
+        raise ValueError("step_fraction must be positive")
 
     sep_x = half_w[:, None] + half_w[None, :] + gap
     sep_y = half_h[:, None] + half_h[None, :] + gap
@@ -46,124 +57,185 @@ def legalize_hard(
         pos[i, 0] = np.clip(pos[i, 0], half_w[i], cw - half_w[i])
         pos[i, 1] = np.clip(pos[i, 1], half_h[i], ch - half_h[i])
 
-    for _ in range(int(legalize_rounds)):
-        dx = pos[:, 0][:, None] - pos[:, 0][None, :]
-        dy = pos[:, 1][:, None] - pos[:, 1][None, :]
-        ovx = sep_x - np.abs(dx)
-        ovy = sep_y - np.abs(dy)
-        overlap = (ovx > 0.0) & (ovy > 0.0) & tri_mask
-        if not np.any(overlap):
-            break
+    n_outer = max(1, int(outer_passes))
+    for _outer in range(n_outer):
+        pass_start = pos.copy()
+        caps = None
+        if displacement_budget_frac is not None:
+            bf = float(displacement_budget_frac)
+            if bf <= 0.0:
+                raise ValueError("displacement_budget_frac must be positive when set")
+            caps = bf * np.minimum(sizes[:, 0], sizes[:, 1])
 
-        ii, jj = np.where(overlap)
-        ox = ovx[ii, jj]
-        oy = ovy[ii, jj]
-        dxp = dx[ii, jj]
-        dyp = dy[ii, jj]
-        choose_x = ox <= oy
+        for _ in range(int(legalize_rounds)):
+            dx = pos[:, 0][:, None] - pos[:, 0][None, :]
+            dy = pos[:, 1][:, None] - pos[:, 1][None, :]
+            ovx = sep_x - np.abs(dx)
+            ovy = sep_y - np.abs(dy)
+            overlap = (ovx > 0.0) & (ovy > 0.0) & tri_mask
+            if not np.any(overlap):
+                break
 
-        mi = movable[ii]
-        mj = movable[jj]
-        active = mi | mj
-        if not np.any(active):
-            break
+            ii, jj = np.where(overlap)
+            ox = ovx[ii, jj]
+            oy = ovy[ii, jj]
+            dxp = dx[ii, jj]
+            dyp = dy[ii, jj]
+            choose_x = ox <= oy
 
-        ii = ii[active]
-        jj = jj[active]
-        ox = ox[active]
-        oy = oy[active]
-        dxp = dxp[active]
-        dyp = dyp[active]
-        choose_x = choose_x[active]
-        mi = mi[active]
-        mj = mj[active]
+            mi = movable[ii]
+            mj = movable[jj]
+            active = mi | mj
+            if not np.any(active):
+                break
 
-        sx = np.where(dxp >= 0.0, 1.0, -1.0)
-        sy = np.where(dyp >= 0.0, 1.0, -1.0)
-        px = ox + gap
-        py = oy + gap
+            ii = ii[active]
+            jj = jj[active]
+            ox = ox[active]
+            oy = oy[active]
+            dxp = dxp[active]
+            dyp = dyp[active]
+            choose_x = choose_x[active]
+            mi = mi[active]
+            mj = mj[active]
 
-        both = mi & mj
-        only_i = mi & (~mj)
-        only_j = (~mi) & mj
+            sx = np.where(dxp >= 0.0, 1.0, -1.0)
+            sy = np.where(dyp >= 0.0, 1.0, -1.0)
+            px = ox + gap
+            py = oy + gap
 
-        dix = np.zeros_like(px)
-        diy = np.zeros_like(py)
-        djx = np.zeros_like(px)
-        djy = np.zeros_like(py)
+            both = mi & mj
+            only_i = mi & (~mj)
+            only_j = (~mi) & mj
 
-        m = both & choose_x
-        dix[m] = 0.5 * sx[m] * px[m]
-        djx[m] = -0.5 * sx[m] * px[m]
-        m = both & ~choose_x
-        diy[m] = 0.5 * sy[m] * py[m]
-        djy[m] = -0.5 * sy[m] * py[m]
-        m = only_i & choose_x
-        dix[m] = sx[m] * px[m]
-        m = only_i & ~choose_x
-        diy[m] = sy[m] * py[m]
-        m = only_j & choose_x
-        djx[m] = -sx[m] * px[m]
-        m = only_j & ~choose_x
-        djy[m] = -sy[m] * py[m]
+            dix = np.zeros_like(px)
+            diy = np.zeros_like(py)
+            djx = np.zeros_like(px)
+            djy = np.zeros_like(py)
 
-        moves = np.zeros_like(pos)
-        np.add.at(moves[:, 0], ii, dix)
-        np.add.at(moves[:, 1], ii, diy)
-        np.add.at(moves[:, 0], jj, djx)
-        np.add.at(moves[:, 1], jj, djy)
+            m = both & choose_x
+            dix[m] = 0.5 * sx[m] * px[m]
+            djx[m] = -0.5 * sx[m] * px[m]
+            m = both & ~choose_x
+            diy[m] = 0.5 * sy[m] * py[m]
+            djy[m] = -0.5 * sy[m] * py[m]
+            m = only_i & choose_x
+            dix[m] = sx[m] * px[m]
+            m = only_i & ~choose_x
+            diy[m] = sy[m] * py[m]
+            m = only_j & choose_x
+            djx[m] = -sx[m] * px[m]
+            m = only_j & ~choose_x
+            djy[m] = -sy[m] * py[m]
 
-        moved_norm = 0.0
-        for i in range(num_hard):
-            if not movable[i]:
-                continue
-            dx_i = float(np.clip(moves[i, 0], -0.35 * sizes[i, 0], 0.35 * sizes[i, 0]))
-            dy_i = float(np.clip(moves[i, 1], -0.35 * sizes[i, 1], 0.35 * sizes[i, 1]))
-            pos[i, 0] = np.clip(pos[i, 0] + dx_i, half_w[i], cw - half_w[i])
-            pos[i, 1] = np.clip(pos[i, 1] + dy_i, half_h[i], ch - half_h[i])
-            moved_norm += abs(dx_i) + abs(dy_i)
+            moves = np.zeros_like(pos)
+            np.add.at(moves[:, 0], ii, dix)
+            np.add.at(moves[:, 1], ii, diy)
+            np.add.at(moves[:, 0], jj, djx)
+            np.add.at(moves[:, 1], jj, djy)
 
-        if moved_norm < 1e-8:
-            break
+            moved_norm = 0.0
+            for i in range(num_hard):
+                if not movable[i]:
+                    continue
+                dx_i = float(
+                    np.clip(moves[i, 0], -sf * sizes[i, 0], sf * sizes[i, 0])
+                )
+                dy_i = float(
+                    np.clip(moves[i, 1], -sf * sizes[i, 1], sf * sizes[i, 1])
+                )
+                pos[i, 0] = np.clip(pos[i, 0] + dx_i, half_w[i], cw - half_w[i])
+                pos[i, 1] = np.clip(pos[i, 1] + dy_i, half_h[i], ch - half_h[i])
+                moved_norm += abs(dx_i) + abs(dy_i)
 
-    remaining = _collect_overlapping_macros(pos, sizes)
-    if remaining:
-        for i in remaining:
-            if movable[i]:
-                _reinsert_one(i, pos, sizes, movable, cw, ch, gap)
+            if caps is not None:
+                for i in range(num_hard):
+                    if not movable[i]:
+                        continue
+                    delta = pos[i] - pass_start[i]
+                    pos[i, 0] = pass_start[i, 0] + float(
+                        np.clip(delta[0], -caps[i], caps[i])
+                    )
+                    pos[i, 1] = pass_start[i, 1] + float(
+                        np.clip(delta[1], -caps[i], caps[i])
+                    )
+                    pos[i, 0] = np.clip(pos[i, 0], half_w[i], cw - half_w[i])
+                    pos[i, 1] = np.clip(pos[i, 1], half_h[i], ch - half_h[i])
 
-    for _ in range(24):
-        dx = pos[:, 0][:, None] - pos[:, 0][None, :]
-        dy = pos[:, 1][:, None] - pos[:, 1][None, :]
-        ovx = sep_x - np.abs(dx)
-        ovy = sep_y - np.abs(dy)
-        overlap = (ovx > 0.0) & (ovy > 0.0) & tri_mask
-        if not np.any(overlap):
-            break
-        ii, jj = np.where(overlap)
-        for i, j in zip(ii.tolist(), jj.tolist()):
-            if not movable[i] and not movable[j]:
-                continue
-            px = ovx[i, j] + gap
-            py = ovy[i, j] + gap
-            if px <= py:
-                s = 1.0 if dx[i, j] >= 0.0 else -1.0
-                if movable[i] and movable[j]:
-                    pos[i, 0] = np.clip(pos[i, 0] + 0.5 * s * px, half_w[i], cw - half_w[i])
-                    pos[j, 0] = np.clip(pos[j, 0] - 0.5 * s * px, half_w[j], cw - half_w[j])
-                elif movable[i]:
-                    pos[i, 0] = np.clip(pos[i, 0] + s * px, half_w[i], cw - half_w[i])
+            if moved_norm < 1e-8:
+                break
+
+        remaining = _collect_overlapping_macros(pos, sizes)
+        if remaining:
+            for i in remaining:
+                if movable[i]:
+                    _reinsert_one(i, pos, sizes, movable, cw, ch, gap)
+
+        for _ in range(24):
+            dx = pos[:, 0][:, None] - pos[:, 0][None, :]
+            dy = pos[:, 1][:, None] - pos[:, 1][None, :]
+            ovx = sep_x - np.abs(dx)
+            ovy = sep_y - np.abs(dy)
+            overlap = (ovx > 0.0) & (ovy > 0.0) & tri_mask
+            if not np.any(overlap):
+                break
+            ii, jj = np.where(overlap)
+            for i, j in zip(ii.tolist(), jj.tolist()):
+                if not movable[i] and not movable[j]:
+                    continue
+                px = ovx[i, j] + gap
+                py = ovy[i, j] + gap
+                if px <= py:
+                    s = 1.0 if dx[i, j] >= 0.0 else -1.0
+                    if movable[i] and movable[j]:
+                        pos[i, 0] = np.clip(
+                            pos[i, 0] + 0.5 * s * px, half_w[i], cw - half_w[i]
+                        )
+                        pos[j, 0] = np.clip(
+                            pos[j, 0] - 0.5 * s * px, half_w[j], cw - half_w[j]
+                        )
+                    elif movable[i]:
+                        pos[i, 0] = np.clip(
+                            pos[i, 0] + s * px, half_w[i], cw - half_w[i]
+                        )
+                    else:
+                        pos[j, 0] = np.clip(
+                            pos[j, 0] - s * px, half_w[j], cw - half_w[j]
+                        )
                 else:
-                    pos[j, 0] = np.clip(pos[j, 0] - s * px, half_w[j], cw - half_w[j])
-            else:
-                s = 1.0 if dy[i, j] >= 0.0 else -1.0
-                if movable[i] and movable[j]:
-                    pos[i, 1] = np.clip(pos[i, 1] + 0.5 * s * py, half_h[i], ch - half_h[i])
-                    pos[j, 1] = np.clip(pos[j, 1] - 0.5 * s * py, half_h[j], ch - half_h[j])
-                elif movable[i]:
-                    pos[i, 1] = np.clip(pos[i, 1] + s * py, half_h[i], ch - half_h[i])
-                else:
-                    pos[j, 1] = np.clip(pos[j, 1] - s * py, half_h[j], ch - half_h[j])
+                    s = 1.0 if dy[i, j] >= 0.0 else -1.0
+                    if movable[i] and movable[j]:
+                        pos[i, 1] = np.clip(
+                            pos[i, 1] + 0.5 * s * py, half_h[i], ch - half_h[i]
+                        )
+                        pos[j, 1] = np.clip(
+                            pos[j, 1] - 0.5 * s * py, half_h[j], ch - half_h[j]
+                        )
+                    elif movable[i]:
+                        pos[i, 1] = np.clip(
+                            pos[i, 1] + s * py, half_h[i], ch - half_h[i]
+                        )
+                    else:
+                        pos[j, 1] = np.clip(
+                            pos[j, 1] - s * py, half_h[j], ch - half_h[j]
+                        )
+
+        if caps is not None:
+            for i in range(num_hard):
+                if not movable[i]:
+                    continue
+                delta = pos[i] - pass_start[i]
+                pos[i, 0] = pass_start[i, 0] + float(
+                    np.clip(delta[0], -caps[i], caps[i])
+                )
+                pos[i, 1] = pass_start[i, 1] + float(
+                    np.clip(delta[1], -caps[i], caps[i])
+                )
+                pos[i, 0] = np.clip(pos[i, 0], half_w[i], cw - half_w[i])
+                pos[i, 1] = np.clip(pos[i, 1], half_h[i], ch - half_h[i])
+
+        if not _collect_overlapping_macros(pos, sizes):
+            break
 
     out[:num_hard] = torch.tensor(pos, dtype=out.dtype)
     if benchmark.macro_fixed.any():

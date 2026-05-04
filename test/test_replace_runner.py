@@ -68,7 +68,6 @@ def test_replace_runner_reports_timeout(tmp_path: Path):
         ReplaceConfig(),
         binary_path=fake,
         timeout_seconds=0.2,
-        stop_after_first_pl=False,
     )
 
     assert not result.ok

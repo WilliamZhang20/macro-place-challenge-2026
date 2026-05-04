@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import sys
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Sequence
+from typing import Callable, List, Optional, Sequence, Tuple
 
 import torch
 
@@ -62,8 +64,16 @@ def generate_dreamplace_candidates(
     timeout_seconds: float = 600.0,
     initial_placement: torch.Tensor | None = None,
     soft_macro_mode: str = "preserve",
+    soft_macro_row_cap_mult: float = 12.0,
     blend_alphas: Sequence[float] = (),
+    blend_hard_only: bool = True,
     legalize_imported: bool = True,
+    legalize_rounds: int = 1800,
+    legalize_outer_passes: int = 1,
+    legalize_displacement_budget_frac: float | None = None,
+    legalize_step_fraction: float = 0.35,
+    legalize_iterative_cycles: int = 1,
+    legalize_refine_fn: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
     use_partial_results: bool = True,
 ) -> DreamPlaceCandidateBatch:
     """Export ``benchmark``, run DREAMPlace configs, and import placements."""
@@ -82,6 +92,7 @@ def generate_dreamplace_candidates(
         include_route=False,
         include_shapes=False,
         soft_macro_mode=soft_macro_mode,
+        soft_macro_row_cap_mult=soft_macro_row_cap_mult,
         initial_placement=initial_placement,
     )
 
@@ -101,61 +112,136 @@ def generate_dreamplace_candidates(
         run_results.append(result)
         if not result.usable or (not use_partial_results and not result.ok):
             continue
-        for pl_path in result.pl_paths:
-            resolved = pl_path.resolve()
-            if resolved in seen_pls:
-                continue
-            seen_pls.add(resolved)
-            raw_placement = import_bookshelf_placement(
-                pl_path,
-                export.metadata_path,
-                benchmark,
-            )
-            candidate_inputs = [(raw_placement, _candidate_label(pl_path, result))]
-            if initial_placement is not None:
-                for alpha in blend_alphas:
-                    alpha_f = float(alpha)
-                    if not (0.0 < alpha_f < 1.0):
-                        raise ValueError("blend_alphas must be in (0, 1)")
-                    blended = (1.0 - alpha_f) * initial_placement.to(raw_placement.dtype) + alpha_f * raw_placement
-                    candidate_inputs.append(
-                        (
-                            blended,
-                            f"{_candidate_label(pl_path, result)}_blend{_label_float(alpha_f)}",
-                        )
-                    )
+        if not result.pl_paths:
+            continue
 
-            for raw_candidate, label in candidate_inputs:
-                raw_overlap_count = _overlap_count(raw_candidate, benchmark)
-                placement = raw_candidate
-                if legalize_imported:
+        chosen_pl: Path | None = None
+        raw_placement: torch.Tensor | None = None
+        for pl_path in result.pl_paths:
+            trial = _try_import_dreamplace_placement(
+                pl_path, export.metadata_path, benchmark
+            )
+            if trial is not None:
+                raw_placement = trial
+                chosen_pl = pl_path
+                break
+
+        import_fallback = False
+        if raw_placement is None:
+            if initial_placement is None:
+                warnings.warn(
+                    f"DREAMPlace run produced no finite import "
+                    f"(log {result.log_path})",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+                continue
+            warnings.warn(
+                f"DREAMPlace .pl failed import; using initial_placement fallback "
+                f"(log {result.log_path})",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            raw_placement = initial_placement.clone().float()
+            chosen_pl = result.pl_paths[0]
+            import_fallback = True
+
+        assert chosen_pl is not None
+        resolved = chosen_pl.resolve()
+        if resolved in seen_pls:
+            continue
+        seen_pls.add(resolved)
+
+        base_label = _candidate_label(chosen_pl, result)
+        if import_fallback:
+            base_label += "_import_fallback"
+        candidate_inputs: List[Tuple[torch.Tensor, str]] = [
+            (raw_placement, base_label)
+        ]
+        if initial_placement is not None:
+            for alpha in blend_alphas:
+                alpha_f = float(alpha)
+                if not (0.0 < alpha_f < 1.0):
+                    raise ValueError("blend_alphas must be in (0, 1)")
+                blended = raw_placement.clone()
+                if blend_hard_only:
+                    nh = benchmark.num_hard_macros
+                    blended[:nh] = (1.0 - alpha_f) * initial_placement[:nh].to(
+                        blended.dtype
+                    ) + alpha_f * raw_placement[:nh].to(blended.dtype)
+                else:
+                    blended = (1.0 - alpha_f) * initial_placement.to(
+                        raw_placement.dtype
+                    ) + alpha_f * raw_placement
+                suffix = "_blend" + _label_float(alpha_f)
+                candidate_inputs.append((blended, f"{base_label}{suffix}"))
+
+        for raw_candidate, label in candidate_inputs:
+            raw_overlap_count = _overlap_count(raw_candidate, benchmark)
+            placement = raw_candidate
+            if legalize_imported:
+                n_cycles = max(1, int(legalize_iterative_cycles))
+                for cycle in range(n_cycles):
                     placement = legalize_hard(
                         placement,
                         benchmark,
                         overlap_gap=1e-3,
-                        legalize_rounds=1800,
+                        legalize_rounds=int(legalize_rounds),
+                        outer_passes=int(legalize_outer_passes),
+                        displacement_budget_frac=legalize_displacement_budget_frac,
+                        step_fraction=float(legalize_step_fraction),
                     )
-                    _clamp_to_canvas(placement, benchmark)
-                final_overlap_count = _overlap_count(placement, benchmark)
-                max_disp, mean_disp = _displacement_stats(raw_candidate, placement)
-                candidates.append(
-                    DreamPlaceCandidate(
-                        placement=placement,
-                        pl_path=pl_path,
-                        run_result=result,
-                        label=label,
-                        raw_overlap_count=raw_overlap_count,
-                        final_overlap_count=final_overlap_count,
-                        legalizer_max_displacement=max_disp,
-                        legalizer_mean_displacement=mean_disp,
-                    )
+                    if (
+                        legalize_refine_fn is not None
+                        and cycle + 1 < n_cycles
+                    ):
+                        placement = legalize_refine_fn(placement)
+            _clamp_to_canvas(placement, benchmark)
+            final_overlap_count = _overlap_count(placement, benchmark)
+            max_disp, mean_disp = _displacement_stats(raw_candidate, placement)
+            candidates.append(
+                DreamPlaceCandidate(
+                    placement=placement,
+                    pl_path=chosen_pl,
+                    run_result=result,
+                    label=label,
+                    raw_overlap_count=raw_overlap_count,
+                    final_overlap_count=final_overlap_count,
+                    legalizer_max_displacement=max_disp,
+                    legalizer_mean_displacement=mean_disp,
                 )
+            )
 
     return DreamPlaceCandidateBatch(
         export=export,
         run_results=run_results,
         candidates=candidates,
     )
+
+
+def _try_import_dreamplace_placement(
+    pl_path: Path,
+    metadata_path: Path,
+    benchmark: Benchmark,
+) -> torch.Tensor | None:
+    try:
+        t = import_bookshelf_placement(pl_path, metadata_path, benchmark)
+    except (ValueError, OSError, KeyError, json.JSONDecodeError):
+        return None
+    if t.shape != benchmark.macro_positions.shape:
+        return None
+    if not bool(torch.isfinite(t).all().item()):
+        return None
+    if not _placement_is_reasonable(t, benchmark):
+        return None
+    return t
+
+
+def _placement_is_reasonable(t: torch.Tensor, benchmark: Benchmark) -> bool:
+    span = max(float(benchmark.canvas_width), float(benchmark.canvas_height))
+    if span <= 0:
+        return True
+    return bool((t.abs() <= span * 50.0).all().item())
 
 
 def _overlap_count(placement: torch.Tensor, benchmark: Benchmark) -> int:

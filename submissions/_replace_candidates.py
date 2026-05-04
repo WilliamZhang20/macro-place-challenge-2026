@@ -60,6 +60,7 @@ def generate_replace_candidates(
     initial_placement: torch.Tensor | None = None,
     legalize_imported: bool = True,
     use_partial_results: bool = True,
+    soft_macro_mode: str = "row_height",
 ) -> ReplaceCandidateBatch:
     """Export ``benchmark``, run RePlAce configs, and import all placements.
 
@@ -86,6 +87,7 @@ def generate_replace_candidates(
         bookshelf_name=bs_name,
         scale=scale,
         initial_placement=initial_placement,
+        soft_macro_mode=soft_macro_mode,
     )
 
     run_results: List[ReplaceRunResult] = []

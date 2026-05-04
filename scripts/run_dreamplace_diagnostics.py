@@ -21,7 +21,9 @@ from macro_place.objective import compute_proxy_cost  # noqa: E402
 from macro_place.utils import validate_placement  # noqa: E402
 from _benchmark_features import benchmark_features  # noqa: E402
 from _candidate_select import select_best_true_proxy  # noqa: E402
+from _dreamplace_bridge import bridge_dreamplace_configs  # noqa: E402
 from _dreamplace_candidates import generate_dreamplace_candidates  # noqa: E402
+from _dreamplace_presets import dreamplace_preset_params  # noqa: E402
 from _dreamplace_runner import DreamPlaceConfig, dreamplace_available  # noqa: E402
 from casadi_placer import CasadiPlacer  # noqa: E402
 
@@ -40,7 +42,14 @@ def main() -> int:
         raise SystemExit(f"DREAMPlace unavailable: {reason}")
 
     baseline = CasadiPlacer().place(benchmark).clone().float()
-    configs = _parse_configs(args.config, preset=args.preset)
+    if args.bridge_configs:
+        configs = bridge_dreamplace_configs(
+            benchmark,
+            preset=args.preset,
+            iterations=args.dreamplace_iterations,
+        )
+    else:
+        configs = _parse_configs(args.config, preset=args.preset)
     work_root = args.work_root / benchmark.name
 
     batch = generate_dreamplace_candidates(
@@ -54,7 +63,13 @@ def main() -> int:
         timeout_seconds=args.timeout,
         initial_placement=baseline,
         soft_macro_mode=args.soft_macro_mode,
-        blend_alphas=args.blend_alpha,
+        soft_macro_row_cap_mult=args.soft_macro_row_cap_mult,
+        blend_alphas=args.blend_alpha or (),
+        blend_hard_only=not args.blend_full_tensor,
+        legalize_outer_passes=args.legalize_outer_passes,
+        legalize_displacement_budget_frac=args.legalize_displacement_budget_frac,
+        legalize_rounds=args.legalize_rounds,
+        legalize_iterative_cycles=args.legalize_iterative_cycles,
     )
     selection = select_best_true_proxy(
         baseline,
@@ -157,7 +172,8 @@ def _parse_args() -> argparse.Namespace:
         metavar="DENSITY:ITERATIONS[:LR[:DENSITY_WEIGHT]]",
         help=(
             "DREAMPlace config. Repeat for multi-start, e.g. --config 0.80:200 "
-            "or --config 0.75:200:0.01:1e-3."
+            "or --config 0.75:200:0.01:1e-3[:BIN] with optional bin count "
+            "(num_bins_x=num_bins_y)."
         ),
     )
     parser.add_argument("--dreamplace-root", type=Path, default=DEFAULT_DREAMPLACE_ROOT)
@@ -171,9 +187,15 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--scale", type=int, default=1000)
     parser.add_argument(
         "--soft-macro-mode",
-        choices=("preserve", "row_height"),
+        choices=("preserve", "row_height", "aspect_cap"),
         default="preserve",
         help="Bookshelf geometry for soft macros.",
+    )
+    parser.add_argument(
+        "--soft-macro-row-cap-mult",
+        type=float,
+        default=12.0,
+        help="For aspect_cap mode: max soft-macro long side as multiple of row height.",
     )
     parser.add_argument(
         "--blend-alpha",
@@ -181,6 +203,46 @@ def _parse_args() -> argparse.Namespace:
         type=float,
         default=[],
         help="Also score baseline-to-DREAMPlace blended candidates at this alpha.",
+    )
+    parser.add_argument(
+        "--blend-full-tensor",
+        action="store_true",
+        help="Blend soft macros too (legacy); default blends hard macros only.",
+    )
+    parser.add_argument(
+        "--bridge-configs",
+        action="store_true",
+        help="Use utilization-driven 6-config (density×bin×gamma) ensemble.",
+    )
+    parser.add_argument(
+        "--dreamplace-iterations",
+        type=int,
+        default=200,
+        help="Iterations per stage when using --bridge-configs.",
+    )
+    parser.add_argument(
+        "--legalize-outer-passes",
+        type=int,
+        default=1,
+        help="Hard legalizer outer passes (displacement-budget iteration).",
+    )
+    parser.add_argument(
+        "--legalize-displacement-budget-frac",
+        type=float,
+        default=None,
+        help="L∞ budget per outer pass as a fraction of min(w,h) per macro.",
+    )
+    parser.add_argument(
+        "--legalize-rounds",
+        type=int,
+        default=1800,
+        help="Inner legalizer rounds per outer pass.",
+    )
+    parser.add_argument(
+        "--legalize-iterative-cycles",
+        type=int,
+        default=1,
+        help="Repeat legalize (and optional refine hook) this many times.",
     )
     parser.add_argument(
         "--preset",
@@ -210,104 +272,50 @@ def _benchmark_dir(name_or_path: str) -> Path:
 
 
 def _parse_configs(values: list[str] | None, *, preset: str) -> list[DreamPlaceConfig]:
+    extra = dreamplace_preset_params(preset)
     if not values:
         return [
             DreamPlaceConfig(
                 target_density=0.76,
                 iterations=200,
                 gpu=False,
-                extra_params=_preset_params(preset),
+                extra_params=dict(extra),
             ),
             DreamPlaceConfig(
                 target_density=0.82,
                 iterations=200,
                 gpu=False,
-                extra_params=_preset_params(preset),
+                extra_params=dict(extra),
             ),
         ]
     configs: list[DreamPlaceConfig] = []
     for raw in values:
         try:
             parts = raw.split(":")
-            if len(parts) not in {2, 3, 4}:
+            if len(parts) not in {2, 3, 4, 5}:
                 raise ValueError
             density_s, iter_s = parts[:2]
             lr = float(parts[2]) if len(parts) >= 3 else 0.01
             density_weight = float(parts[3]) if len(parts) >= 4 else 8e-5
+            bins = int(parts[4]) if len(parts) >= 5 else 0
             configs.append(
                 DreamPlaceConfig(
                     target_density=float(density_s),
                     iterations=int(iter_s),
                     learning_rate=lr,
                     density_weight=density_weight,
+                    num_bins_x=bins,
+                    num_bins_y=bins,
                     gpu=False,
-                    extra_params=_preset_params(preset),
+                    extra_params=dict(extra),
                 )
             )
         except ValueError as exc:
             raise SystemExit(
-                f"invalid --config {raw!r}; expected DENSITY:ITERATIONS[:LR[:DENSITY_WEIGHT]]"
+                f"invalid --config {raw!r}; expected "
+                "DENSITY:ITERATIONS[:LR[:DENSITY_WEIGHT[:BIN]]]"
             ) from exc
     return configs
-
-
-def _preset_params(preset: str) -> dict:
-    if preset == "basic":
-        return {}
-    if preset == "global_only":
-        return {
-            "legalize_flag": 0,
-        }
-    if preset == "random_global":
-        return {
-            "legalize_flag": 0,
-            "random_center_init_flag": 1,
-        }
-    if preset == "macro":
-        return {
-            "macro_place_flag": 1,
-            "two_stage_density_scaler": 1000,
-        }
-    if preset == "macro_global":
-        return {
-            "macro_place_flag": 1,
-            "two_stage_density_scaler": 1000,
-            "legalize_flag": 0,
-        }
-    if preset == "macro_random_global":
-        return {
-            "macro_place_flag": 1,
-            "two_stage_density_scaler": 1000,
-            "legalize_flag": 0,
-            "random_center_init_flag": 1,
-        }
-    if preset == "macro_bb":
-        return {
-            "macro_place_flag": 1,
-            "use_bb": 1,
-            "two_stage_density_scaler": 1000,
-        }
-    if preset == "macro_bb_global":
-        return {
-            "macro_place_flag": 1,
-            "use_bb": 1,
-            "two_stage_density_scaler": 1000,
-            "legalize_flag": 0,
-        }
-    if preset == "gift":
-        return {
-            "gift_init_flag": 1,
-            "gift_init_scale": 0.7,
-        }
-    if preset == "routability":
-        return {
-            "routability_opt_flag": 1,
-            "route_num_bins_x": 64,
-            "route_num_bins_y": 64,
-            "adjust_rudy_area_flag": 1,
-            "adjust_pin_area_flag": 1,
-        }
-    raise ValueError(f"unknown preset {preset!r}")
 
 
 if __name__ == "__main__":

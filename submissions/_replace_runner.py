@@ -73,7 +73,6 @@ def run_replace(
     ),
     timeout_seconds: float = 600.0,
     log_dir: Path | str | None = None,
-    stop_after_first_pl: bool = True,
 ) -> ReplaceRunResult:
     """Run RePlAce for one exported Bookshelf testcase.
 
@@ -98,7 +97,6 @@ def run_replace(
     log_root = Path(log_dir) if log_dir is not None else cwd / "replace_logs"
     log_root.mkdir(parents=True, exist_ok=True)
     log_path = log_root / _log_name(export.bookshelf_name, config)
-    raw_log_path = log_path.with_name(log_path.name + ".raw")
 
     before = set(_discover_experiment_dirs(cwd, export.bookshelf_name))
     cmd = [
@@ -112,51 +110,32 @@ def run_replace(
 
     start = time.monotonic()
     timed_out = False
-    early_stopped = False
     returncode = 0
-    with raw_log_path.open("w", encoding="utf-8", errors="replace") as raw_log:
-        proc = subprocess.Popen(
+    try:
+        proc = subprocess.run(
             cmd,
             cwd=str(cwd),
             text=True,
-            stdout=raw_log,
-            stderr=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=float(timeout_seconds),
+            check=False,
         )
-        deadline = start + float(timeout_seconds)
-        first_pl_time: float | None = None
-        while proc.poll() is None:
-            if stop_after_first_pl:
-                if _fresh_pl_ready(cwd, export.bookshelf_name, before):
-                    if first_pl_time is None:
-                        first_pl_time = time.monotonic()
-                    elif time.monotonic() - first_pl_time >= 0.03:
-                        early_stopped = True
-                        proc.kill()
-                        break
-                else:
-                    first_pl_time = None
-            if time.monotonic() >= deadline:
-                timed_out = True
-                proc.kill()
-                break
-            time.sleep(0.02)
-        proc.wait()
-
-    output = _read_log(raw_log_path)
-    if timed_out:
-        output += f"\n[TIMEOUT after {timeout_seconds} seconds]\n"
-    returncode = 124 if timed_out else int(proc.returncode)
+        output = proc.stdout or ""
+        returncode = int(proc.returncode)
+    except subprocess.TimeoutExpired as exc:
+        timed_out = True
+        returncode = 124
+        output = _timeout_output(exc)
     runtime = time.monotonic() - start
 
     after = _discover_experiment_dirs(cwd, export.bookshelf_name)
     new_dirs = [p for p in after if p not in before]
-    pl_paths = _discover_pl_paths(new_dirs, export.bookshelf_name)
+    search_dirs = new_dirs if new_dirs else after
+    pl_paths = _discover_pl_paths(search_dirs, export.bookshelf_name)
     output_dir = cwd / "outputs" / "ETC" / export.bookshelf_name
 
-    log_path.write_text(
-        _log_header(cmd, cwd, runtime, returncode, timed_out, early_stopped) + output
-    )
-    raw_log_path.unlink(missing_ok=True)
+    log_path.write_text(_log_header(cmd, cwd, runtime, returncode, timed_out) + output)
 
     return ReplaceRunResult(
         config=config,
@@ -212,33 +191,6 @@ def _discover_pl_paths(experiment_dirs: Sequence[Path], bookshelf_name: str) -> 
     return _dedupe_paths(found)
 
 
-def _fresh_pl_ready(cwd: Path, bookshelf_name: str, before: set[Path]) -> bool:
-    for pl_path in _discover_pl_paths(
-        [p for p in _discover_experiment_dirs(cwd, bookshelf_name) if p not in before],
-        bookshelf_name,
-    ):
-        if _pl_ready(pl_path):
-            return True
-    return False
-
-
-def _pl_ready(path: Path) -> bool:
-    try:
-        size = path.stat().st_size
-    except OSError:
-        return False
-    if size <= 0:
-        return False
-    try:
-        with path.open("rb") as f:
-            if size > 256:
-                f.seek(-256, 2)
-            tail = f.read()
-    except OSError:
-        return False
-    return b"\n" in tail
-
-
 def _dedupe_paths(paths: Sequence[Path]) -> List[Path]:
     seen = set()
     out: List[Path] = []
@@ -277,7 +229,6 @@ def _log_header(
     runtime: float,
     returncode: int,
     timed_out: bool,
-    early_stopped: bool,
 ) -> str:
     return (
         f"cmd: {' '.join(cmd)}\n"
@@ -285,26 +236,8 @@ def _log_header(
         f"runtime_seconds: {runtime:.3f}\n"
         f"returncode: {returncode}\n"
         f"timed_out: {timed_out}\n"
-        f"early_stopped: {early_stopped}\n"
         "\n"
     )
-
-
-def _process_output(stdout: str | None, stderr: str | None) -> str:
-    chunks = []
-    if stdout:
-        chunks.append(stdout)
-    if stderr:
-        chunks.append("\n[stderr]\n")
-        chunks.append(stderr)
-    return "".join(chunks)
-
-
-def _read_log(path: Path) -> str:
-    try:
-        return path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return ""
 
 
 def _timeout_output(exc: subprocess.TimeoutExpired) -> str:

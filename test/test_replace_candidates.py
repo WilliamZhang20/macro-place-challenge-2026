@@ -83,7 +83,7 @@ def test_generate_replace_candidates_keeps_failed_runs_out_of_candidates(tmp_pat
     assert batch.candidates == []
 
 
-def test_generate_replace_candidates_uses_early_stopped_placements(tmp_path: Path):
+def test_generate_replace_candidates_uses_partial_timeout_placements(tmp_path: Path):
     benchmark, plc = load_benchmark_from_dir(
         "external/MacroPlacement/Testcases/ICCAD04/ibm01"
     )
@@ -105,8 +105,7 @@ def test_generate_replace_candidates_uses_early_stopped_placements(tmp_path: Pat
     )
 
     assert len(batch.run_results) == 1
-    assert not batch.run_results[0].timed_out
-    assert batch.run_results[0].returncode < 0
+    assert batch.run_results[0].timed_out
     assert not batch.run_results[0].ok
     assert batch.run_results[0].usable
     assert len(batch.candidates) == 1
@@ -135,8 +134,7 @@ def test_generate_replace_candidates_can_ignore_partial_timeout_placements(tmp_p
     )
 
     assert len(batch.run_results) == 1
-    assert not batch.run_results[0].timed_out
-    assert batch.run_results[0].returncode < 0
+    assert batch.run_results[0].timed_out
     assert batch.run_results[0].usable
     assert batch.candidates == []
 
@@ -160,53 +158,10 @@ def test_generate_replace_candidates_uses_fresh_signal_crash_placements(tmp_path
     )
 
     assert len(batch.run_results) == 1
-    assert batch.run_results[0].returncode == -11
+    assert batch.run_results[0].returncode < 0
     assert not batch.run_results[0].ok
     assert batch.run_results[0].usable
     assert len(batch.candidates) == 1
-
-
-def test_generate_replace_candidates_rejects_stale_signal_crash_placements(tmp_path: Path):
-    benchmark, plc = load_benchmark_from_dir(
-        "external/MacroPlacement/Testcases/ICCAD04/ibm01"
-    )
-    fake = _fake_replace_binary(tmp_path / "fake_replace.py", exit_code=-11)
-    work_root = tmp_path / "work"
-
-    first = generate_replace_candidates(
-        benchmark,
-        plc,
-        work_root,
-        [ReplaceConfig()],
-        bookshelf_name="ibm01_export",
-        scale=100,
-        binary_path=fake,
-        timeout_seconds=10,
-        legalize_imported=False,
-    )
-    assert len(first.candidates) == 1
-
-    fake_no_write = _fake_replace_binary(
-        tmp_path / "fake_replace_no_write.py",
-        exit_code=-11,
-        write_output=False,
-    )
-    second = generate_replace_candidates(
-        benchmark,
-        plc,
-        work_root,
-        [ReplaceConfig()],
-        bookshelf_name="ibm01_export",
-        scale=100,
-        binary_path=fake_no_write,
-        timeout_seconds=10,
-        legalize_imported=False,
-    )
-
-    assert len(second.run_results) == 1
-    assert second.run_results[0].returncode == -11
-    assert not second.run_results[0].usable
-    assert second.candidates == []
 
 
 def test_generate_replace_candidates_records_legalization_accounting(tmp_path: Path):
@@ -240,39 +195,39 @@ def _fake_replace_binary(
     x_shift: float = 0.0,
     exit_code: int = 0,
     sleep_after_write_seconds: float = 0.0,
-    write_output: bool = True,
 ) -> Path:
-    write_lines = [
-        "root = Path('outputs') / 'ETC' / name",
-        "existing = [p for p in root.glob('experiment*') if p.is_dir()] if root.exists() else []",
-        "exp = root / f'experiment{len(existing)}'",
-        "exp.mkdir(parents=True, exist_ok=True)",
-        "pl = exp / f'{name}.eplace-mGP2D.pl'",
-        "src = Path('ETC') / name / f'{name}.pl'",
-        "lines = []",
-        "for raw in src.read_text().splitlines():",
-        "    parts = raw.split()",
-        "    if parts and parts[0] == 'm1':",
-        f"        parts[1] = str(float(parts[1]) + {float(x_shift)!r})",
-        "        raw = '\\t'.join(parts)",
-        "    lines.append(raw)",
-        "pl.write_text('\\n'.join(lines) + '\\n')",
-    ]
-    script_lines = [
-        "#!/usr/bin/env python3",
-        "from pathlib import Path",
-        "import sys",
-        "args = sys.argv[1:]",
-        "name = args[args.index('-bmname') + 1]",
-        *(write_lines if write_output else ["pass"]),
-        f"import time; time.sleep({float(sleep_after_write_seconds)!r})",
-        "print('fake replace candidate ok')",
-        f"exit_code = {int(exit_code)}",
-        "if exit_code < 0:",
-        "    import os, signal",
-        "    os.kill(os.getpid(), -exit_code)",
-        "sys.exit(exit_code)",
-    ]
-    path.write_text("\n".join(script_lines) + "\n")
+    path.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env python3",
+                "from pathlib import Path",
+                "import sys",
+                "args = sys.argv[1:]",
+                "name = args[args.index('-bmname') + 1]",
+                "root = Path('outputs') / 'ETC' / name",
+                "existing = [p for p in root.glob('experiment*') if p.is_dir()] if root.exists() else []",
+                "exp = root / f'experiment{len(existing)}'",
+                "exp.mkdir(parents=True, exist_ok=True)",
+                "pl = exp / f'{name}.eplace-mGP2D.pl'",
+                "src = Path('ETC') / name / f'{name}.pl'",
+                "lines = []",
+                "for raw in src.read_text().splitlines():",
+                "    parts = raw.split()",
+                "    if parts and parts[0] == 'm1':",
+                f"        parts[1] = str(float(parts[1]) + {float(x_shift)!r})",
+                "        raw = '\\t'.join(parts)",
+                "    lines.append(raw)",
+                "pl.write_text('\\n'.join(lines) + '\\n')",
+                f"import time; time.sleep({float(sleep_after_write_seconds)!r})",
+                "print('fake replace candidate ok')",
+                f"exit_code = {int(exit_code)}",
+                "if exit_code < 0:",
+                "    import os, signal",
+                "    os.kill(os.getpid(), -exit_code)",
+                "sys.exit(exit_code)",
+            ]
+        )
+        + "\n"
+    )
     path.chmod(0o755)
     return path

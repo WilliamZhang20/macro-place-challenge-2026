@@ -155,14 +155,23 @@ def run_dreamplace(
 
 
 def discover_dreamplace_pls(bookshelf_name: str, result_dir: Path | str) -> List[Path]:
+    """Return ``.pl`` paths, preferred global placement first then newest others."""
+
     result_dir = Path(result_dir)
     design_dir = result_dir / bookshelf_name
+    out: List[Path] = []
     preferred = design_dir / f"{bookshelf_name}.gp.pl"
     if preferred.exists():
-        return [preferred]
+        out.append(preferred)
     if not design_dir.exists():
-        return []
-    return sorted(design_dir.glob("*.pl"))
+        return out
+    rest = sorted(
+        (p for p in design_dir.glob("*.pl") if p.resolve() not in {x.resolve() for x in out}),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    out.extend(rest)
+    return out
 
 
 def _collect_config_pls(pl_paths: Sequence[Path], work: Path, run_stem: str) -> List[Path]:

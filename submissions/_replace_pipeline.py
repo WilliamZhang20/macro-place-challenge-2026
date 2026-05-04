@@ -142,6 +142,7 @@ class ReplacePipeline:
         ),
         timeout_seconds: float = 600.0,
         scale: int = 1000,
+        soft_macro_mode: str = "row_height",
     ):
         self.configs = list(configs) if configs is not None else None
         self.baseline_provider = baseline_provider or self._default_baseline_provider()
@@ -150,6 +151,7 @@ class ReplacePipeline:
         self.binary_path = binary_path
         self.timeout_seconds = float(timeout_seconds)
         self.scale = int(scale)
+        self.soft_macro_mode = soft_macro_mode
 
     def place(self, benchmark: Benchmark) -> torch.Tensor:
         """Return only the selected placement for evaluator compatibility."""
@@ -189,6 +191,7 @@ class ReplacePipeline:
                 binary_path=self.binary_path,
                 timeout_seconds=self.timeout_seconds,
                 initial_placement=baseline,
+                soft_macro_mode=self.soft_macro_mode,
             )
         except Exception:
             return ReplacePipelineResult(
@@ -201,6 +204,9 @@ class ReplacePipeline:
 
         candidate_tensors = [candidate.placement for candidate in batch.candidates]
         labels = [candidate.label for candidate in batch.candidates]
+        for label, placement in self._sidecar_candidates(benchmark):
+            candidate_tensors.append(placement)
+            labels.append(label)
         try:
             selection = select_best_true_proxy(
                 baseline,
@@ -243,6 +249,17 @@ class ReplacePipeline:
         if _is_compact_external_candidate(features):
             configs.extend(_COMPACT_EXTRA_CONFIGS)
         return configs
+
+    def _sidecar_candidates(self, benchmark: Benchmark) -> List[tuple[str, torch.Tensor]]:
+        if int(getattr(benchmark, "num_hard_macros", 0)) < 360:
+            return []
+        try:
+            from hard_macro_lns_quick_placer import HardMacroLnsQuickPlacer
+
+            placement = HardMacroLnsQuickPlacer().place(benchmark).clone().float()
+        except Exception:
+            return []
+        return [("hard_macro_lns_quick", placement)]
 
     @staticmethod
     def _default_baseline_provider() -> BaselineProvider:
