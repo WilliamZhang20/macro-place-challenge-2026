@@ -93,6 +93,48 @@ def select_best_true_proxy(
     return SelectionResult(best=best, scores=scored)
 
 
+def select_best_true_proxy_candidates_only(
+    candidates: Sequence[torch.Tensor],
+    benchmark: Benchmark,
+    plc,
+    *,
+    candidate_labels: Optional[Sequence[str]] = None,
+    require_zero_overlap: bool = True,
+) -> SelectionResult:
+    """Pick the valid candidate with lowest true proxy; no separate baseline tensor.
+
+    Raises ``ValueError`` if ``candidates`` is empty or none are valid.
+    """
+
+    if not candidates:
+        raise ValueError("no candidates")
+    if candidate_labels is not None and len(candidate_labels) != len(candidates):
+        raise ValueError("candidate_labels length must match candidates length")
+
+    labels = list(candidate_labels) if candidate_labels is not None else [
+        f"candidate_{i}" for i in range(len(candidates))
+    ]
+
+    scored: List[ScoredPlacement] = []
+    for label, placement in zip(labels, candidates):
+        scored.append(
+            score_placement(
+                label,
+                placement,
+                benchmark,
+                plc,
+                require_zero_overlap=require_zero_overlap,
+            )
+        )
+
+    valid_scores = [s for s in scored if s.valid]
+    if not valid_scores:
+        raise ValueError("no valid placement candidates")
+
+    best = min(valid_scores, key=lambda s: s.proxy_cost)
+    return SelectionResult(best=best, scores=scored)
+
+
 def score_placement(
     label: str,
     placement: torch.Tensor,

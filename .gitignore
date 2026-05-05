@@ -80,6 +80,9 @@ external/MacroPlacement/Docs/OurProgress/
 external/MacroPlacement/Flows/
 external/MacroPlacement/.git/
 
+# Optuna / tuning artifacts
+tuning_logs/
+
 # Internal dev tooling (not for participants)
 scripts/test_*.py
 scripts/debug_*.py

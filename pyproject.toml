@@ -49,6 +49,9 @@ baselines = [
     "torch-geometric>=2.3.0",
     "scipy>=1.10.0",
 ]
+tuning = [
+    "optuna>=3.5.0",
+]
 
 [project.scripts]
 evaluate = "macro_place.evaluate:main"

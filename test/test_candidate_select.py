@@ -72,6 +72,42 @@ def test_select_best_true_proxy_rejects_label_length_mismatch():
         )
 
 
+def test_select_best_true_proxy_candidates_only_picks_best(monkeypatch):
+    benchmark = _toy_benchmark()
+    a = benchmark.macro_positions.clone()
+    a[0, 0] = 2.0
+    b = benchmark.macro_positions.clone()
+    b[0, 0] = 1.0
+
+    monkeypatch.setattr(selector, "compute_proxy_cost", _fake_cost)
+
+    result = selector.select_best_true_proxy_candidates_only(
+        [a, b],
+        benchmark,
+        plc=object(),
+        candidate_labels=["a", "b"],
+    )
+
+    assert result.best.label == "b"
+    assert torch.equal(result.placement, b)
+    assert [s.label for s in result.scores] == ["a", "b"]
+
+
+def test_select_best_true_proxy_candidates_only_errors_when_none_valid(monkeypatch):
+    benchmark = _toy_benchmark()
+    bad = benchmark.macro_positions.clone()
+    bad[1] = bad[0]
+
+    monkeypatch.setattr(selector, "compute_proxy_cost", _fake_cost)
+
+    with pytest.raises(ValueError, match="no valid"):
+        selector.select_best_true_proxy_candidates_only(
+            [bad],
+            benchmark,
+            plc=object(),
+        )
+
+
 def test_select_best_true_proxy_errors_when_everything_invalid(monkeypatch):
     benchmark = _toy_benchmark()
     bad = benchmark.macro_positions.clone()

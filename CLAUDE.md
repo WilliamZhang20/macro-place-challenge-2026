@@ -63,6 +63,28 @@ submission.
 - More CasADi global/two-phase variants without a new measured mismatch.
 - Large local-search sweeps before a stronger global candidate exists.
 
+## DREAMPlace Submission And Tuning
+
+**Submission entry:** `submissions/dreamplace_pipeline_placer.py` — multi-start
+DREAMPlace only (Bookshelf seed = loader `.plc`, plus jittered seeds), true-proxy
+selection **among DREAMPlace outputs** via `_candidate_select` (no CasADi/DCCP
+floor — failures surface as bad proxy or fallback to initial handoff).
+Bookshelf export omits `.shapes` / `.route` for DREAMPlace parser compatibility.
+Install: `scripts/setup_dreamplace.sh`; CPU/GPU: `MACRO_PLACE_DP_GPU` and
+`resolve_dreamplace_gpu` in `_dreamplace_cpu_smoke.py`.
+
+**Tuning:** `scripts/tune_dreamplace_optuna.py` (dependency: `uv sync --extra tuning`).
+Uses **Optuna + TPE** — pragmatic Bayesian-style search on mixed spaces without
+maintaining a custom GP. **Objective = mean proxy** over a user-chosen benchmark
+list; **one parameter vector for all benches** in that list (no name-specific
+knobs). Failed/invalid placements get a large penalty. Default search uses moderate
+`global_iterations` / `num_starts` for throughput; after search, re-validate winners
+with production iteration budgets and full `evaluate --all`. Prefer promoting
+knobs that improve the aggregate when stratified by **features** (utilization,
+macro count, grid), not by benchmark identity.
+
+Lighter diagnostic: `submissions/dreamplace_cpu_smoke_placer.py` (single short run).
+
 ## Next Steps
 
 1. Run `evaluate submissions/replace_pipeline_placer.py --all` as the final
