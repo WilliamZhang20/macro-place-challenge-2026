@@ -82,11 +82,10 @@ class CasadiPlacer:
             return self._soft_proxy_polish(placement, benchmark)
 
         # Large IBM cases can have many tiny overlap components. IPOPT is not
-        # earning its runtime there yet, so use the deterministic DREAMPlace
-        # repair as the research-safe path and reserve CasADi for smaller local
-        # repair opportunities.
+        # earning its runtime there yet, so fall back to multi-round hard
+        # legalization and reserve CasADi for smaller local repair opportunities.
         if n_hard > 450 or len(bad) > 180:
-            return self._dreamplace_repair(benchmark.macro_positions.clone().float(), benchmark)
+            return self._hard_legalize_repair(benchmark.macro_positions.clone().float(), benchmark)
 
         for outer in range(self.max_outer_iters):
             if time.monotonic() - start > self.max_seconds:
@@ -138,14 +137,14 @@ class CasadiPlacer:
         if benchmark.macro_fixed.any():
             placement[benchmark.macro_fixed] = benchmark.macro_positions[benchmark.macro_fixed]
 
-        base_repair = self._dreamplace_repair(
+        base_repair = self._hard_legalize_repair(
             benchmark.macro_positions.clone().float(), benchmark
         )
         candidates = [placement, base_repair]
 
         ok, _ = validate_placement(placement, benchmark, check_overlaps=True)
         if not ok or int(compute_overlap_metrics(placement, benchmark)["overlap_count"]) != 0:
-            strict = self._dreamplace_repair(placement, benchmark)
+            strict = self._hard_legalize_repair(placement, benchmark)
             candidates.append(strict)
 
         best = self._select_best_valid(candidates, benchmark)
@@ -223,7 +222,7 @@ class CasadiPlacer:
         out[:n_hard] = torch.tensor(solved, dtype=out.dtype)
         if benchmark.macro_fixed.any():
             out[benchmark.macro_fixed] = benchmark.macro_positions[benchmark.macro_fixed]
-        out = self._dreamplace_repair(out, benchmark)
+        out = self._hard_legalize_repair(out, benchmark)
         ok, _ = validate_placement(out, benchmark, check_overlaps=True)
         if ok and int(compute_overlap_metrics(out, benchmark)["overlap_count"]) == 0:
             return out
@@ -622,7 +621,7 @@ class CasadiPlacer:
                 return None
         return None
 
-    def _dreamplace_repair(
+    def _hard_legalize_repair(
         self, placement: torch.Tensor, benchmark: Benchmark
     ) -> torch.Tensor:
         out = placement.clone().float()

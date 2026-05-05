@@ -24,8 +24,7 @@ IBM_BENCHMARKS=(
 DEFAULT_PLACERS=(
   submissions/casadi_placer.py
   submissions/dccp_placer.py
-  submissions/hard_coord_descent_placer.py
-  submissions/hard_macro_lns_quick_placer.py
+  submissions/replace_pipeline_placer.py
 )
 
 mkdir -p "$OUT_DIR"

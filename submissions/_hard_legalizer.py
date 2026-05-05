@@ -1,8 +1,8 @@
 """Hard-macro legalization helpers.
 
-This module contains the deterministic overlap repair that used to live inside
-``dreamplace_moreau_placer.py``. It is intentionally independent of global
-placement/objective code: callers pass a placement and get a repaired placement.
+This module contains deterministic overlap repair (`legalize_hard`). It is
+intentionally independent of global placement/objective code: callers pass a
+placement and get a repaired placement.
 """
 
 from __future__ import annotations
