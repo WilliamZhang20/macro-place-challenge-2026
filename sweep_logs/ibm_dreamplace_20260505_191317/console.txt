@@ -1,0 +1,8 @@
+timestamp,placer,benchmark,status,exit_code,runtime_seconds,proxy_line
+=== ibm01 (timeout 1800s) ===
+ibm01 ok exit=0 45s
+=== ibm02 (timeout 1800s) ===
+ibm02 ok exit=0 63s
+=== ibm03 (timeout 1800s) ===
+ibm03 ok exit=0 29s
+=== ibm04 (timeout 1800s) ===

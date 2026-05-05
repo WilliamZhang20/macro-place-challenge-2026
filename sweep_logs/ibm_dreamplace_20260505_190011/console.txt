@@ -1,0 +1,30 @@
+timestamp,placer,benchmark,status,exit_code,runtime_seconds,proxy_line
+=== ibm01 (timeout 1800s) ===
+ibm01 ok exit=0 44s
+=== ibm02 (timeout 1800s) ===
+ibm02 ok exit=0 63s
+=== ibm03 (timeout 1800s) ===
+ibm03 ok exit=0 30s
+=== ibm04 (timeout 1800s) ===
+ibm04 ok exit=0 59s
+=== ibm06 (timeout 1800s) ===
+ibm06 ok exit=0 31s
+=== ibm07 (timeout 1800s) ===
+ibm07 ok exit=0 81s
+=== ibm08 (timeout 1800s) ===
+ibm08 ok exit=0 45s
+=== ibm09 (timeout 1800s) ===
+ibm09 ok exit=0 35s
+=== ibm10 (timeout 1800s) ===
+ibm10 ok exit=0 63s
+=== ibm11 (timeout 1800s) ===
+ibm11 ok exit=0 39s
+=== ibm12 (timeout 1800s) ===
+ibm12 ok exit=0 62s
+=== ibm13 (timeout 1800s) ===
+ibm13 ok exit=0 43s
+=== ibm14 (timeout 1800s) ===
+ibm14 ok exit=0 72s
+=== ibm15 (timeout 1800s) ===
+ibm15 ok exit=0 59s
+=== ibm16 (timeout 1800s) ===

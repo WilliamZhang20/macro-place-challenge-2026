@@ -1,7 +1,10 @@
 ## How To Run
 
 ```bash
-source ~/myenv/bin/activate
+# Use the conda env on this machine (no `~/myenv` plain venv exists here):
+conda activate myenv
+# Or invoke the interpreter directly:
+#   /u5/w223zhan/.conda/envs/myenv/bin/python -m macro_place.evaluate ...
 evaluate submissions/<placer>.py -b ibm01
 evaluate submissions/<placer>.py --all
 evaluate submissions/<placer>.py --ng45
@@ -73,15 +76,21 @@ Bookshelf export omits `.shapes` / `.route` for DREAMPlace parser compatibility.
 Install: `scripts/setup_dreamplace.sh`; CPU/GPU: `MACRO_PLACE_DP_GPU` and
 `resolve_dreamplace_gpu` in `_dreamplace_cpu_smoke.py`.
 
-**Tuning:** `scripts/tune_dreamplace_optuna.py` (dependency: `uv sync --extra tuning`).
-Uses **Optuna + TPE** — pragmatic Bayesian-style search on mixed spaces without
-maintaining a custom GP. **Objective = mean proxy** over a user-chosen benchmark
-list; **one parameter vector for all benches** in that list (no name-specific
-knobs). Failed/invalid placements get a large penalty. Default search uses moderate
-`global_iterations` / `num_starts` for throughput; after search, re-validate winners
-with production iteration budgets and full `evaluate --all`. Prefer promoting
-knobs that improve the aggregate when stratified by **features** (utilization,
-macro count, grid), not by benchmark identity.
+**Tuning:** `scripts/tune_dreamplace_optuna.py` (dependency: `optuna`, e.g. `uv sync --extra tuning`).
+**Strategy:** Tree-structured Parzen Estimator (TPE) on a **single global knob vector**
+(minimize mean or median true proxy over a calibration set). If `--benchmarks` is
+omitted, the study uses an **evenly spaced subset** of ICCAD04 directories (sorted
+on disk—no hand-picked benchmark identities). **Knobs** span pipeline settings
+(`target_density`, `global_iterations`, `num_bins`, multi-start `num_starts`,
+`jitter_sigma_um`, `num_threads`) plus DREAMPlace JSON fields merged correctly into
+`global_place_stages[0]` (`learning_rate`, `optimizer`, `wirelength`,
+`Llambda_density_weight_iteration`, `Lsub_iteration`) and top-level weights
+(`density_weight`, `gamma`, `stop_overflow`, `gp_noise_ratio`, fillers/scale/degree).
+Optional **MedianPruner** drops bad trials using running mean across the calibration
+sequence; on clusters use `scripts/slurm/tune_dreamplace_optuna.slurm` (1× GPU,
+`MACRO_PLACE_DP_GPU=1`). After search, re-validate winners at production budgets with
+full `evaluate --all` and promote only improvements that hold across **feature**
+strata, not single benchmark IDs.
 
 Lighter diagnostic: `submissions/dreamplace_cpu_smoke_placer.py` (single short run).
 

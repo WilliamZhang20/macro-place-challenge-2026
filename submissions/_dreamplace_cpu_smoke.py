@@ -3,17 +3,83 @@
 ``gpu`` in the JSON is resolved for CPU- or CUDA-built installs (see
 ``resolve_dreamplace_gpu``). Requires a built tree under ``external/DREAMPlace/install``
 (``scripts/setup_dreamplace.sh``).
+
+By default Placer stdout/stderr are discarded so long logs cannot fill pipe buffers
+and deadlock the parent (``capture_output``). Set ``MACRO_PLACE_DP_DEBUG_SUBPROCESS=1``
+to inherit the parent terminal and see DREAMPlace logs.
 """
 
 from __future__ import annotations
 
-import json
 import os
+import sys
+from pathlib import Path
+
+
+def _prepend_ld_library_path(dir_path: Path) -> None:
+    """Ensure *dir_path* is searched first by the dynamic linker (Linux).
+
+    PyTorch may load a system ``libstdc++.so.6`` first; DREAMPlace extensions
+    built with a newer conda toolchain then fail with ``CXXABI_1.3.15`` unless
+    the env's ``libstdc++`` wins the lookup order.
+    """
+
+    if sys.platform != "linux" or not dir_path.is_dir():
+        return
+    key = "LD_LIBRARY_PATH"
+    prefix = str(dir_path)
+    cur = os.environ.get(key, "")
+    if cur == "":
+        os.environ[key] = prefix
+        return
+    if cur == prefix or cur.startswith(prefix + os.pathsep):
+        return
+    os.environ[key] = prefix + os.pathsep + cur
+
+
+def _ensure_toolchain_libstdcxx_preload() -> None:
+    """Best-effort: put the active Python env's lib dir ahead of system libs."""
+
+    conda = os.environ.get("CONDA_PREFIX", "").strip()
+    if conda:
+        lib_dir = Path(conda) / "lib"
+        _prepend_ld_library_path(lib_dir)
+        _ctypes_preload(lib_dir / "libstdc++.so.6")
+        return
+    # venv layout: ``.../env/bin/python`` -> ``.../env/lib``
+    lib_dir = Path(sys.executable).resolve().parent.parent / "lib"
+    _prepend_ld_library_path(lib_dir)
+    _ctypes_preload(lib_dir / "libstdc++.so.6")
+
+
+def _ctypes_preload(so_path: Path) -> None:
+    """``LD_LIBRARY_PATH`` alone is not always enough.
+
+    NVIDIA's pip wheels (e.g. cuDNN) ship shared libs with a ``RUNPATH`` that
+    can steer *transitive* ``libstdc++.so.6`` resolution away from the conda
+    env, even when ``LD_LIBRARY_PATH`` prefixes that env. Loading the env's
+    ``libstdc++`` explicitly first avoids ``CXXABI_1.3.15`` mismatch failures
+    when importing PyTorch before DREAMPlace extension modules.
+    """
+
+    if sys.platform != "linux" or not so_path.is_file():
+        return
+    try:
+        import ctypes
+    except ImportError:
+        return
+    try:
+        ctypes.CDLL(str(so_path), mode=ctypes.RTLD_GLOBAL)
+    except OSError:
+        return
+
+
+_ensure_toolchain_libstdcxx_preload()
+
+import json
 import re
 import subprocess
-import sys
 import tempfile
-from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
 import torch
@@ -26,6 +92,15 @@ from _hard_legalizer import legalize_hard
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _DEFAULT_INSTALL = _REPO_ROOT / "external" / "DREAMPlace" / "install"
+
+
+def _tuner_progress_enabled() -> bool:
+    return os.environ.get("MACRO_PLACE_TUNER_DEBUG", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 _PLACER_REL = Path("dreamplace") / "Placer.py"
 _CONFIGURE_REL = Path("dreamplace") / "configure.py"
 
@@ -116,7 +191,12 @@ def resolve_dreamplace_gpu(
 def deep_merge_dreamplace_json(
     base: Dict[str, Any], overrides: Mapping[str, Any]
 ) -> Dict[str, Any]:
-    """Recursively merge ``overrides`` into ``base`` (dict branches merge; scalars/lists replace)."""
+    """Recursively merge ``overrides`` into ``base`` (dict branches merge; scalars replace).
+
+    Lists are merged **only** when both sides are lists of dicts (e.g. ``global_place_stages``):
+    each index is deep-merged so tuning can patch ``learning_rate`` / ``optimizer`` in stage 0
+    without respecifying bins or iteration counts.
+    """
 
     out = dict(base)
     for key, val in overrides.items():
@@ -128,6 +208,25 @@ def deep_merge_dreamplace_json(
             out[key] = deep_merge_dreamplace_json(
                 dict(out[key]), val  # type: ignore[arg-type]
             )
+        elif (
+            key in out
+            and isinstance(out[key], list)
+            and isinstance(val, list)
+            and out[key]
+            and val
+            and all(isinstance(x, dict) for x in out[key])
+            and all(isinstance(x, Mapping) for x in val)
+        ):
+            merged: list[Any] = []
+            n_merge = min(len(out[key]), len(val))
+            for i in range(len(out[key])):
+                if i < n_merge:
+                    merged.append(
+                        deep_merge_dreamplace_json(dict(out[key][i]), val[i])
+                    )
+                else:
+                    merged.append(out[key][i])
+            out[key] = merged
         else:
             out[key] = val
     return out
@@ -170,13 +269,16 @@ def _dp_json(
         "gp_noise_ratio": 0.025,
         "global_place_flag": 1,
         "legalize_flag": 1,
+        # Bookshelf exports mix row-snapped fillers with non-row-height macros; abacus
+        # legalization asserts (node_size_y vs row_height). Greedy legalization suffices.
+        "abacus_legalize_flag": 0,
         "detailed_place_flag": 0,
         "detailed_place_engine": "",
         "detailed_place_command": "",
         "stop_overflow": 0.12,
         "dtype": "float32",
         "plot_flag": 0,
-        "random_center_init_flag": 1,
+        "random_center_init_flag": 0,
         "gift_init_flag": 0,
         "sort_nets_by_degree": 0,
         "num_threads": int(num_threads),
@@ -277,14 +379,37 @@ def run_dreamplace_placement(
         env.setdefault("OMP_NUM_THREADS", str(effective_threads))
 
         cmd = [sys.executable, str(inst / _PLACER_REL), str(cfg_path)]
-        proc = subprocess.run(
-            cmd,
-            cwd=str(inst),
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=timeout_seconds,
+        if _tuner_progress_enabled():
+            print(
+                f"[tune:dp] {benchmark.name}  spawning Placer  gpu={cfg.get('gpu')}  "
+                f"iters={global_iterations}  bins={num_bins}  "
+                f"timeout={timeout_seconds:.0f}s",
+                file=sys.stderr,
+                flush=True,
+            )
+        # Never use capture_output=True here: DREAMPlace logs can exceed the pipe
+        # buffer; the child then blocks on write while we block in communicate().
+        debug_io = os.environ.get("MACRO_PLACE_DP_DEBUG_SUBPROCESS", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
         )
+        run_kw: Dict[str, Any] = {
+            "cwd": str(inst),
+            "env": env,
+            "timeout": timeout_seconds,
+            "stdin": subprocess.DEVNULL,
+        }
+        if debug_io:
+            proc = subprocess.run(cmd, **run_kw)
+        else:
+            proc = subprocess.run(
+                cmd,
+                **run_kw,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
         if proc.returncode != 0:
             return None
 
