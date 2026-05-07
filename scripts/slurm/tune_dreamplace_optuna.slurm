@@ -15,8 +15,9 @@
 #
 # Optional env:
 #   N_TRIALS, SEED, BENCHMARKS (comma list; empty = script default calibration set)
-#   CONDA_ENV (default: myenv) — `conda activate` is attempted when conda is available;
-#     otherwise falls back to `~/.conda/envs/$CONDA_ENV/bin/python` if present.
+#   TILUS_CONDA_ENV (default: myenv), TILUS_CONDA_BASE — same as hopper_matmul_benchmark.sh
+#   CONDA_ENV — legacy alias for TILUS_CONDA_ENV if TILUS_CONDA_ENV is unset
+#   TILUS_CUDA_MODULE — optional `module load` argument after sourcing modules.sh
 
 set -euo pipefail
 
@@ -25,21 +26,67 @@ cd "${REPO_ROOT}"
 
 mkdir -p tuning_logs
 
-CONDA_ENV="${CONDA_ENV:-myenv}"
-if [[ -f "${HOME}/.conda/etc/profile.d/conda.sh" ]]; then
+echo "Host: $(hostname)  Job: ${SLURM_JOB_ID:-}  Start: $(date)"
+echo "Repo: ${REPO_ROOT}"
+
+# ── Environment modules ────────────────────────────────────────────────────────
+if [[ -f /etc/profile.d/modules.sh ]]; then
   # shellcheck source=/dev/null
-  source "${HOME}/.conda/etc/profile.d/conda.sh"
-elif [[ -f "/u5/w223zhan/.conda/etc/profile.d/conda.sh" ]]; then
-  # shellcheck source=/dev/null
-  source "/u5/w223zhan/.conda/etc/profile.d/conda.sh"
-elif [[ -f "/opt/conda/etc/profile.d/conda.sh" ]]; then
-  # shellcheck source=/dev/null
-  source "/opt/conda/etc/profile.d/conda.sh"
+  source /etc/profile.d/modules.sh
+fi
+if [[ -n "${TILUS_CUDA_MODULE:-}" ]]; then
+  module load "${TILUS_CUDA_MODULE}"
 fi
 
-if command -v conda >/dev/null 2>&1; then
-  conda activate "${CONDA_ENV}"
+# ── Conda (aligned with hopper_matmul_benchmark.sh) ───────────────────────────
+: "${TILUS_CONDA_ENV:=${CONDA_ENV:-myenv}}"
+
+if [[ -n "${TILUS_CONDA_ENV:-}" ]]; then
+  _conda_sh=""
+  if [[ -n "${TILUS_CONDA_BASE:-}" && -f "${TILUS_CONDA_BASE}/etc/profile.d/conda.sh" ]]; then
+    _conda_sh="${TILUS_CONDA_BASE}/etc/profile.d/conda.sh"
+  elif [[ -f "${HOME}/miniconda3/etc/profile.d/conda.sh" ]]; then
+    _conda_sh="${HOME}/miniconda3/etc/profile.d/conda.sh"
+  elif [[ -f "${HOME}/anaconda3/etc/profile.d/conda.sh" ]]; then
+    _conda_sh="${HOME}/anaconda3/etc/profile.d/conda.sh"
+  elif [[ -f "${HOME}/mambaforge/etc/profile.d/conda.sh" ]]; then
+    _conda_sh="${HOME}/mambaforge/etc/profile.d/conda.sh"
+  elif [[ -f "/opt/anaconda3/etc/profile.d/conda.sh" ]]; then
+    _conda_sh="/opt/anaconda3/etc/profile.d/conda.sh"
+  elif command -v conda >/dev/null 2>&1; then
+    _b="$(conda info --base 2>/dev/null || true)"
+    if [[ -n "${_b}" && -f "${_b}/etc/profile.d/conda.sh" ]]; then
+      _conda_sh="${_b}/etc/profile.d/conda.sh"
+    fi
+  fi
+  if [[ -z "${_conda_sh}" ]]; then
+    echo "ERROR: could not find conda.sh. Set TILUS_CONDA_BASE to your conda install root." >&2
+    exit 4
+  fi
+  # shellcheck source=/dev/null
+  set +u
+  source "${_conda_sh}"
+  conda activate "${TILUS_CONDA_ENV}"
+  set -u
 fi
+
+# ── CUDA / nvcc ────────────────────────────────────────────────────────────────
+for p in \
+    "${CONDA_PREFIX:-}/bin" \
+    "${CUDA_HOME:-}/bin" \
+    "${CUDA_PATH:-}/bin" \
+    "/usr/local/cuda/bin"; do
+  [[ -x "${p}/nvcc" ]] && export PATH="${p}:${PATH}"
+done
+
+if ! command -v nvcc >/dev/null 2>&1; then
+  echo "ERROR: nvcc not found. GPU DREAMPlace needs the CUDA toolkit on PATH." >&2
+  exit 3
+fi
+echo "nvcc: $(command -v nvcc)  ($(nvcc --version 2>/dev/null | grep release | head -1 || true))"
+
+# ── Python path ────────────────────────────────────────────────────────────────
+export PYTHONPATH="${REPO_ROOT}/python${PYTHONPATH:+:$PYTHONPATH}"
 
 # Prefer interpreter from the activated env when possible.
 PYTHON="${PYTHON:-}"
@@ -47,8 +94,9 @@ if [[ -z "${PYTHON}" && -n "${CONDA_PREFIX:-}" && -x "${CONDA_PREFIX}/bin/python
   PYTHON="${CONDA_PREFIX}/bin/python"
 fi
 if [[ -z "${PYTHON}" ]]; then
-  for _cand in "${HOME}/.conda/envs/${CONDA_ENV}/bin/python" \
-               "/u5/w223zhan/.conda/envs/${CONDA_ENV}/bin/python"; do
+  for _cand in "${HOME}/.conda/envs/${TILUS_CONDA_ENV}/bin/python" \
+               "${HOME}/miniconda3/envs/${TILUS_CONDA_ENV}/bin/python" \
+               "${HOME}/anaconda3/envs/${TILUS_CONDA_ENV}/bin/python"; do
     if [[ -x "${_cand}" ]]; then
       PYTHON="${_cand}"
       break

@@ -24,7 +24,11 @@ Design choices
 6. **Pruning** — optional ``MedianPruner`` with intermediate reports after each
    benchmark (running mean) to drop bad trials early on long sweeps.
 
-7. **Fidelity** — moderate ``global_iterations`` / ``num_starts`` for search; promote
+7. **Subprocess timeout** — default is **no cap** (``--timeout-per-run 0``): large ICCAD04
+   cases often exceed a fixed per-start limit. Use a positive value only when you need
+   a hard kill; cluster wall time and ``--runtime-target`` still shape cost.
+
+8. **Fidelity** — moderate ``global_iterations`` / ``num_starts`` for search; promote
    winners and re-run full ``evaluate --all`` at production budgets.
 
 **Expectations:** Tuning can materially improve the DREAMPlace pipeline, but the gap
@@ -143,7 +147,6 @@ def split_optuna_params_to_pipeline_and_overrides(
         "gp_noise_ratio": float(p["gp_noise_ratio"]),
         "random_center_init_flag": int(p["random_center_init_flag"]),
         "enable_fillers": int(p["enable_fillers"]),
-        "scale_factor": float(p["scale_factor"]),
         "ignore_net_degree": int(p["ignore_net_degree"]),
         "global_place_stages": [
             {
@@ -247,10 +250,11 @@ def main() -> None:
     parser.add_argument(
         "--timeout-per-run",
         type=float,
-        default=900.0,
+        default=0.0,
         help=(
-            "Subprocess timeout per DREAMPlace *start* (seconds). CPU builds often "
-            "need >420s for slow optimizer/wirelength combos; use 1200+ if trials still time out."
+            "Subprocess cap per DREAMPlace start (seconds). 0 or negative = no cap "
+            "(recommended when large ICCAD04 cases exceed a fixed budget). Positive "
+            "values use subprocess hard timeout."
         ),
     )
     parser.add_argument(
@@ -384,10 +388,13 @@ def main() -> None:
             interval_steps=1,
         )
 
+    to_msg = (
+        "none" if args.timeout_per_run <= 0 else f"{args.timeout_per_run:g}s"
+    )
     _err(
         f"[tune] study={args.study_name!r}  trials={args.n_trials}  "
         f"benches={len(names)} {names[:3]}{'...' if len(names) > 3 else ''}  "
-        f"timeout_per_placer={args.timeout_per_run}s  gpu={'off' if args.cpu else 'auto'}"
+        f"timeout_per_placer={to_msg}  gpu={'off' if args.cpu else 'auto'}"
     )
 
     def objective(trial: optuna.Trial) -> float:
@@ -408,7 +415,6 @@ def main() -> None:
         trial.suggest_categorical("wirelength", ["weighted_average", "logsumexp"])
         trial.suggest_categorical("optimizer", ["nesterov", "adamw", "yogi"])
         trial.suggest_categorical("enable_fillers", [0, 1])
-        trial.suggest_float("scale_factor", 0.88, 1.12)
         trial.suggest_categorical("ignore_net_degree", [80, 100, 200])
 
         pipeline = dreamplace_pipeline_from_optuna_params(
