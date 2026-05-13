@@ -16,7 +16,10 @@ _SUBMISSIONS_DIR = Path(__file__).resolve().parent
 if str(_SUBMISSIONS_DIR) not in sys.path:
     sys.path.insert(0, str(_SUBMISSIONS_DIR))
 
-from _candidate_select import SelectionResult, select_best_true_proxy  # noqa: E402
+from _candidate_select import (  # noqa: E402
+    SelectionResult,
+    select_best_true_proxy_candidates_only,
+)
 from _benchmark_features import benchmark_features  # noqa: E402
 from _plc_lookup import PlcLookup  # noqa: E402
 from _replace_candidates import ReplaceCandidateBatch, generate_replace_candidates  # noqa: E402
@@ -142,6 +145,10 @@ class ReplacePipeline:
         ),
         timeout_seconds: float = 600.0,
         scale: int = 1000,
+        adaptive_multistart: bool = True,
+        adaptive_top_k: int = 3,
+        adaptive_probe_timeout_seconds: float | None = None,
+        adaptive_full_timeout_seconds: float | None = None,
     ):
         self.configs = list(configs) if configs is not None else None
         self.baseline_provider = baseline_provider or self._default_baseline_provider()
@@ -150,6 +157,10 @@ class ReplacePipeline:
         self.binary_path = binary_path
         self.timeout_seconds = float(timeout_seconds)
         self.scale = int(scale)
+        self.adaptive_multistart = bool(adaptive_multistart)
+        self.adaptive_top_k = int(adaptive_top_k)
+        self.adaptive_probe_timeout_seconds = adaptive_probe_timeout_seconds
+        self.adaptive_full_timeout_seconds = adaptive_full_timeout_seconds
 
     def place(self, benchmark: Benchmark) -> torch.Tensor:
         """Return only the selected placement for evaluator compatibility."""
@@ -160,63 +171,35 @@ class ReplacePipeline:
         baseline = self.baseline_provider(benchmark).clone().float()
         plc = self.plc_lookup.load(benchmark)
         if plc is None:
-            return ReplacePipelineResult(
-                placement=baseline,
-                baseline=baseline,
-                selection=None,
-                candidate_batch=None,
-                reason="missing_plc",
-            )
+            raise FileNotFoundError(f"no PLC handoff found for benchmark {benchmark.name!r}")
 
         configs = self._configs_for(benchmark)
         if not configs:
-            return ReplacePipelineResult(
-                placement=baseline,
-                baseline=baseline,
-                selection=None,
-                candidate_batch=None,
-                reason="no_external_configs",
-            )
+            raise RuntimeError(f"no RePlAce configs available for benchmark {benchmark.name!r}")
 
-        try:
-            batch = generate_replace_candidates(
-                benchmark,
-                plc,
-                self._work_root_for(benchmark),
-                configs,
-                bookshelf_name=benchmark.name,
-                scale=self.scale,
-                binary_path=self.binary_path,
-                timeout_seconds=self.timeout_seconds,
-                initial_placement=baseline,
-            )
-        except Exception:
-            return ReplacePipelineResult(
-                placement=baseline,
-                baseline=baseline,
-                selection=None,
-                candidate_batch=None,
-                reason="candidate_generation_failed",
-            )
+        batch = generate_replace_candidates(
+            benchmark,
+            plc,
+            self._work_root_for(benchmark),
+            configs,
+            bookshelf_name=benchmark.name,
+            scale=self.scale,
+            binary_path=self.binary_path,
+            timeout_seconds=self.timeout_seconds,
+            initial_placement=baseline,
+            adaptive_top_k=(self.adaptive_top_k if self.adaptive_multistart else 0),
+            adaptive_probe_timeout_seconds=self.adaptive_probe_timeout_seconds,
+            adaptive_full_timeout_seconds=self.adaptive_full_timeout_seconds,
+        )
 
         candidate_tensors = [candidate.placement for candidate in batch.candidates]
         labels = [candidate.label for candidate in batch.candidates]
-        try:
-            selection = select_best_true_proxy(
-                baseline,
-                candidate_tensors,
-                benchmark,
-                plc,
-                candidate_labels=labels,
-            )
-        except Exception:
-            return ReplacePipelineResult(
-                placement=baseline,
-                baseline=baseline,
-                selection=None,
-                candidate_batch=batch,
-                reason="selection_failed",
-            )
+        selection = select_best_true_proxy_candidates_only(
+            candidate_tensors,
+            benchmark,
+            plc,
+            candidate_labels=labels,
+        )
 
         return ReplacePipelineResult(
             placement=selection.placement,
@@ -246,10 +229,7 @@ class ReplacePipeline:
 
     @staticmethod
     def _default_baseline_provider() -> BaselineProvider:
-        from casadi_placer import CasadiPlacer
-
-        placer = CasadiPlacer()
-        return placer.place
+        return lambda benchmark: benchmark.macro_positions.clone().float()
 
 
 def _is_compact_external_candidate(features: Dict[str, Any]) -> bool:

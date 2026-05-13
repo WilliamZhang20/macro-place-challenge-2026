@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Sequence
+from typing import List, Sequence, Tuple
 
 import torch
 
@@ -17,6 +17,7 @@ if str(_SUBMISSIONS_DIR) not in sys.path:
     sys.path.insert(0, str(_SUBMISSIONS_DIR))
 
 from _replace_bookshelf import BookshelfExport, write_bookshelf  # noqa: E402
+from _candidate_select import score_placement  # noqa: E402
 from _hard_legalizer import legalize_hard  # noqa: E402
 from _replace_import import import_bookshelf_placement  # noqa: E402
 from _replace_runner import ReplaceConfig, ReplaceRunResult, run_replace  # noqa: E402
@@ -60,6 +61,9 @@ def generate_replace_candidates(
     initial_placement: torch.Tensor | None = None,
     legalize_imported: bool = True,
     use_partial_results: bool = True,
+    adaptive_top_k: int = 0,
+    adaptive_probe_timeout_seconds: float | None = None,
+    adaptive_full_timeout_seconds: float | None = None,
 ) -> ReplaceCandidateBatch:
     """Export ``benchmark``, run RePlAce configs, and import all placements.
 
@@ -92,16 +96,23 @@ def generate_replace_candidates(
     candidates: List[ReplaceCandidate] = []
     seen_pls = set()
 
-    for config in configs:
+    def run_one(
+        config: ReplaceConfig,
+        *,
+        run_timeout_seconds: float,
+        stop_after_first_pl: bool,
+    ) -> List[ReplaceCandidate]:
         result = run_replace(
             export,
             config,
             binary_path=binary_path,
-            timeout_seconds=timeout_seconds,
+            timeout_seconds=run_timeout_seconds,
+            stop_after_first_pl=stop_after_first_pl,
         )
         run_results.append(result)
         if not result.usable or (not use_partial_results and not result.ok):
-            continue
+            return []
+        out: List[ReplaceCandidate] = []
         for pl_path in result.pl_paths:
             resolved = pl_path.resolve()
             if resolved in seen_pls:
@@ -124,23 +135,136 @@ def generate_replace_candidates(
                 _clamp_to_canvas(placement, benchmark)
             final_overlap_count = _overlap_count(placement, benchmark)
             max_disp, mean_disp = _displacement_stats(raw_placement, placement)
-            candidates.append(
-                ReplaceCandidate(
-                    placement=placement,
-                    pl_path=pl_path,
-                    run_result=result,
-                    label=_candidate_label(pl_path, result),
-                    raw_overlap_count=raw_overlap_count,
-                    final_overlap_count=final_overlap_count,
-                    legalizer_max_displacement=max_disp,
-                    legalizer_mean_displacement=mean_disp,
-                )
+            candidate = ReplaceCandidate(
+                placement=placement,
+                pl_path=pl_path,
+                run_result=result,
+                label=_candidate_label(pl_path, result),
+                raw_overlap_count=raw_overlap_count,
+                final_overlap_count=final_overlap_count,
+                legalizer_max_displacement=max_disp,
+                legalizer_mean_displacement=mean_disp,
+            )
+            candidates.append(candidate)
+            out.append(candidate)
+        return out
+
+    if adaptive_top_k <= 0:
+        for config in configs:
+            run_one(
+                config,
+                run_timeout_seconds=float(timeout_seconds),
+                stop_after_first_pl=True,
+            )
+    else:
+        probe_timeout = (
+            float(adaptive_probe_timeout_seconds)
+            if adaptive_probe_timeout_seconds is not None
+            else max(8.0, min(75.0, 0.20 * float(timeout_seconds)))
+        )
+        full_timeout = (
+            float(adaptive_full_timeout_seconds)
+            if adaptive_full_timeout_seconds is not None
+            else float(timeout_seconds)
+        )
+        probe_scores: List[Tuple[ReplaceConfig, float]] = []
+        for config in configs:
+            probe_candidates = run_one(
+                config,
+                run_timeout_seconds=probe_timeout,
+                stop_after_first_pl=True,
+            )
+            best_proxy = _best_valid_proxy(
+                probe_candidates,
+                benchmark,
+                plc,
+            )
+            if best_proxy < float("inf"):
+                probe_scores.append((config, best_proxy))
+
+        promoted = _promoted_replace_configs(
+            probe_scores,
+            top_k=adaptive_top_k,
+            existing=configs,
+        )
+        for config in promoted:
+            run_one(
+                config,
+                run_timeout_seconds=full_timeout,
+                stop_after_first_pl=False,
             )
 
     return ReplaceCandidateBatch(
         export=export,
         run_results=run_results,
         candidates=candidates,
+    )
+
+
+def _best_valid_proxy(
+    candidates: Sequence[ReplaceCandidate],
+    benchmark: Benchmark,
+    plc,
+) -> float:
+    best = float("inf")
+    for candidate in candidates:
+        score = score_placement(candidate.label, candidate.placement, benchmark, plc)
+        if score.valid:
+            best = min(best, float(score.proxy_cost))
+    return best
+
+
+def _promoted_replace_configs(
+    probe_scores: Sequence[Tuple[ReplaceConfig, float]],
+    *,
+    top_k: int,
+    existing: Sequence[ReplaceConfig],
+) -> List[ReplaceConfig]:
+    if not probe_scores:
+        return []
+    existing_keys = {_config_key(c) for c in existing}
+    ordered = [config for config, _score in sorted(probe_scores, key=lambda item: item[1])]
+    promoted: List[ReplaceConfig] = []
+    seen = set()
+
+    def add(config: ReplaceConfig) -> None:
+        key = _config_key(config)
+        if key in seen:
+            return
+        seen.add(key)
+        promoted.append(config)
+
+    for config in ordered[: max(1, int(top_k))]:
+        add(config)
+        for neighbor in _neighbor_configs(config):
+            key = _config_key(neighbor)
+            if key not in existing_keys:
+                add(neighbor)
+    return promoted
+
+
+def _neighbor_configs(config: ReplaceConfig) -> List[ReplaceConfig]:
+    density = float(config.density)
+    pcofmax = float(config.pcofmax)
+    extra_args = tuple(str(v) for v in config.extra_args)
+    out: List[ReplaceConfig] = []
+    for delta in (-0.02, 0.02):
+        d = min(0.92, max(0.58, density + delta))
+        out.append(ReplaceConfig(density=d, pcofmax=pcofmax, extra_args=extra_args))
+    for pcof in (1.03, 1.08, 1.20):
+        if abs(pcof - pcofmax) > 1e-9:
+            out.append(ReplaceConfig(density=density, pcofmax=pcof, extra_args=extra_args))
+    if "-bin" not in extra_args:
+        out.append(ReplaceConfig(density=density, pcofmax=pcofmax, extra_args=("-bin", "64")))
+        out.append(ReplaceConfig(density=density, pcofmax=pcofmax, extra_args=("-bin", "128")))
+    return out
+
+
+def _config_key(config: ReplaceConfig) -> Tuple[float, float, Tuple[str, ...]]:
+    return (
+        round(float(config.density), 6),
+        round(float(config.pcofmax), 6),
+        tuple(str(v) for v in config.extra_args),
     )
 
 

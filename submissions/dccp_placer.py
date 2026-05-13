@@ -429,6 +429,121 @@ def _rms_displacement(curr: np.ndarray, base: np.ndarray) -> float:
     return float(np.sqrt(np.mean(d2)))
 
 
+def _clamp_np_centers_to_canvas(
+    centers: np.ndarray,
+    half_w: np.ndarray,
+    half_h: np.ndarray,
+    cw: float,
+    ch: float,
+) -> np.ndarray:
+    out = np.asarray(centers, dtype=np.float64).copy()
+    out[:, 0] = np.clip(out[:, 0], half_w + 1e-3, cw - half_w - 1e-3)
+    out[:, 1] = np.clip(out[:, 1], half_h + 1e-3, ch - half_h - 1e-3)
+    return out
+
+
+def _normalized_center_distance(a: np.ndarray, b: np.ndarray, cw: float, ch: float) -> float:
+    if a.size == 0:
+        return 0.0
+    scale = np.asarray([max(cw, 1e-6), max(ch, 1e-6)], dtype=np.float64)
+    d = (a - b) / scale[None, :]
+    return float(np.sqrt(np.mean(d * d)))
+
+
+def _dccp_maximin_warm_starts(
+    centers: np.ndarray,
+    sizes: np.ndarray,
+    half_w: np.ndarray,
+    half_h: np.ndarray,
+    cw: float,
+    ch: float,
+    *,
+    count: int,
+    sigma: float,
+    rng: np.random.Generator,
+) -> List[np.ndarray]:
+    """Build unique, far-apart DCCP warm starts from symmetries, anchors, and jitter."""
+
+    requested = max(1, int(count))
+    base = _clamp_np_centers_to_canvas(centers, half_w, half_h, cw, ch)
+    if requested == 1 or base.shape[0] == 0:
+        return [base]
+
+    pool: List[np.ndarray] = [base]
+    x = base[:, 0]
+    y = base[:, 1]
+    transforms = (
+        np.column_stack((cw - x, y)),
+        np.column_stack((x, ch - y)),
+        np.column_stack((cw - x, ch - y)),
+        np.column_stack(((y / max(ch, 1e-6)) * cw, (x / max(cw, 1e-6)) * ch)),
+        np.column_stack((cw - (y / max(ch, 1e-6)) * cw, ch - (x / max(cw, 1e-6)) * ch)),
+    )
+    for cand in transforms:
+        pool.append(_clamp_np_centers_to_canvas(cand, half_w, half_h, cw, ch))
+
+    anchors = (
+        (0.12, 0.12),
+        (0.88, 0.12),
+        (0.12, 0.88),
+        (0.88, 0.88),
+        (0.50, 0.10),
+        (0.90, 0.50),
+        (0.50, 0.90),
+        (0.10, 0.50),
+    )
+    for strength in (0.18, 0.32, 0.46):
+        for ax, ay in anchors:
+            anchor = np.asarray([ax * cw, ay * ch], dtype=np.float64)
+            pool.append(
+                _clamp_np_centers_to_canvas(
+                    (1.0 - strength) * base + strength * anchor[None, :],
+                    half_w,
+                    half_h,
+                    cw,
+                    ch,
+                )
+            )
+
+    jitter_sigma = max(1e-6, float(sigma))
+    for scale in (0.50, 1.00, 1.65, 2.40):
+        for source in pool[: min(len(pool), 10)]:
+            pool.append(
+                _clamp_np_centers_to_canvas(
+                    source + rng.normal(0.0, jitter_sigma * scale, size=source.shape),
+                    half_w,
+                    half_h,
+                    cw,
+                    ch,
+                )
+            )
+
+    selected: List[np.ndarray] = [base]
+    seen = {np.round(base, decimals=4).tobytes()}
+    while len(selected) < requested and pool:
+        best_i = -1
+        best_score = -1.0
+        for i, cand in enumerate(pool):
+            key = np.round(cand, decimals=4).tobytes()
+            if key in seen:
+                continue
+            min_dist = min(
+                _normalized_center_distance(cand, prev, cw, ch) for prev in selected
+            )
+            base_dist = _normalized_center_distance(cand, base, cw, ch)
+            score = min_dist + 0.18 * base_dist
+            if score > best_score:
+                best_i = i
+                best_score = score
+        if best_i < 0:
+            break
+        chosen = pool.pop(best_i)
+        seen.add(np.round(chosen, decimals=4).tobytes())
+        selected.append(chosen)
+
+    return selected
+
+
 def _adaptive_refinement_policy(
     n: int,
     pair_density: float,
@@ -695,7 +810,7 @@ def _legalize_hard_macros_multi_seed(
     placement: torch.Tensor,
     benchmark: Benchmark,
     *,
-    num_seeds: int = 14,
+    num_seeds: int = 28,
     max_pair_ops: int = 1_100_000,
     max_rounds: int = 4000,
     idle_cap: int = 40,
@@ -926,6 +1041,7 @@ class DccpPlacer:
         circle_shrink: float = 0.92,
         trust_region_scale: float = 1.0,
         surrogate_tolerance: float = 0.03,
+        dccp_warm_starts: int = 6,
     ):
         self.max_outer_iters = max_outer_iters
         self.dccp_max_iter = dccp_max_iter
@@ -933,6 +1049,7 @@ class DccpPlacer:
         self.circle_shrink = circle_shrink
         self.trust_region_scale = trust_region_scale
         self.surrogate_tolerance = surrogate_tolerance
+        self.dccp_warm_starts = max(1, int(dccp_warm_starts))
 
     def place(self, benchmark: Benchmark) -> torch.Tensor:
         # True handoff from loader (may be epsilon-out-of-bounds / micro-overlapping vs strict Python checks).
@@ -1022,8 +1139,17 @@ class DccpPlacer:
             init_list: List[np.ndarray] = [centers.copy()]
             if n <= 95 and outer <= 1:
                 sigma = 0.012 * float(np.mean(np.minimum(sizes[:, 0], sizes[:, 1])))
-                for _k in range(2):
-                    init_list.append(centers + rng_outer.normal(0.0, sigma, size=centers.shape))
+                init_list = _dccp_maximin_warm_starts(
+                    centers,
+                    sizes,
+                    half_w,
+                    half_h,
+                    cw,
+                    ch,
+                    count=self.dccp_warm_starts,
+                    sigma=sigma,
+                    rng=rng_outer,
+                )
 
             best_cand_centers: np.ndarray | None = None
             best_tentative: torch.Tensor | None = None
@@ -1180,7 +1306,7 @@ class DccpPlacer:
                 repaired_baseline = _legalize_hard_macros_multi_seed(
                     baseline.clone(),
                     benchmark,
-                    num_seeds=14,
+                    num_seeds=28,
                     max_pair_ops=1_400_000,
                     max_rounds=4500,
                     idle_cap=42,
