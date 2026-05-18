@@ -1,0 +1,19 @@
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm17/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 51, Row: 44
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+experiment0 0p70_1p03_bin64 missing
+experiment1 0p72_1p03 missing
+experiment2 0p72_1p03_bin64 missing
+experiment3 0p72_1p03_bin128 missing
+experiment4 0p78_1p03 missing
+experiment5_0p80_1p03 valid=1 proxy=2.9909 wl=0.031 den=2.698 cong=3.222 overlaps=0
+experiment6_0p80_1p03_bin64 valid=1 proxy=3.2670 wl=0.031 den=2.788 cong=3.685 overlaps=0
+experiment7_0p80_1p03_bin128 valid=1 proxy=3.0526 wl=0.031 den=2.708 cong=3.336 overlaps=0
+experiment8_0p80_1p03_pcofmin0p98 valid=0 proxy=inf wl=inf den=inf cong=inf overlaps=0
+experiment9_0p80_1p20 valid=0 proxy=inf wl=inf den=inf cong=inf overlaps=0
+experiment10_0p80_1p20_bin64 valid=0 proxy=inf wl=inf den=inf cong=inf overlaps=0
+experiment11_0p80_1p20_bin128 valid=1 proxy=1.5053 wl=0.064 den=0.559 cong=2.325 overlaps=0
+experiment12_0p84_1p20_bin128 valid=1 proxy=1.5537 wl=0.061 den=0.575 cong=2.410 overlaps=0

@@ -401,15 +401,18 @@ def run_dreamplace_placement(
             "timeout": timeout_seconds,
             "stdin": subprocess.DEVNULL,
         }
-        if debug_io:
-            proc = subprocess.run(cmd, **run_kw)
-        else:
-            proc = subprocess.run(
-                cmd,
-                **run_kw,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+        try:
+            if debug_io:
+                proc = subprocess.run(cmd, **run_kw)
+            else:
+                proc = subprocess.run(
+                    cmd,
+                    **run_kw,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+        except subprocess.TimeoutExpired:
+            return None
         if proc.returncode != 0:
             return None
 
@@ -434,4 +437,3 @@ def run_dreamplace_placement(
 
 # Backwards-compatible name
 run_dreamplace_cpu_placement = run_dreamplace_placement
-

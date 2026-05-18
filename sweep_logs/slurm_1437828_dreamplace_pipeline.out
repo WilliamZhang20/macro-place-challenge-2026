@@ -1,0 +1,1942 @@
+Host: watgpu208  Job: 1437828  Start: Wed May 13 05:28:44 UTC 2026
+Repo: /u5/w223zhan/macro-place-challenge-2026
+nvcc: /u5/w223zhan/.conda/envs/myenv/bin/nvcc  (Cuda compilation tools, release 12.8, V12.8.93)
+python: /u5/w223zhan/.conda/envs/myenv/bin/python
+DREAMPlace install: /u5/w223zhan/macro-place-challenge-2026/external/DREAMPlace/install  ok=True  msg=ok
+MACRO_PLACE_DP_CONFIG=
+MACRO_PLACE_DP_GPU=1
+Running: /u5/w223zhan/.conda/envs/myenv/bin/python -m macro_place.evaluate submissions/dreamplace_pipeline_placer.py --all
+Log: sweep_logs/dreamplace_pipeline_1437828_20260513_052845.log
+================================================================================
+evaluate · DreamplacePipelinePlacer  (submissions/dreamplace_pipeline_placer.py)
+================================================================================
+
+[tune:dp] ibm01  Placer 1/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm01  Placer 1/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 2/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=mirror_xy  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm01  Placer 2/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 3/16  round=0  iters=48  bins=128  td=0.756  tag=tight  start=transpose_jit0.75  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm01  Placer 3/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 4/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anti_transpose  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm01  Placer 4/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 5/16  round=0  iters=48  bins=128  td=0.771  tag=xtight  start=mirror_x_jit1.25  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm01  Placer 5/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 6/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.25  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm01  Placer 6/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 7/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit2.35  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm01  Placer 7/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 8/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit1.75  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm01  Placer 8/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 9/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=anchor3_s44_jit2.35  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm01  Placer 9/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 10/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=anchor2_s44_jit1.75  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm01  Placer 10/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 11/16  round=0  iters=48  bins=128  td=0.756  tag=tight  start=anchor4_s44_jit1.25  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm01  Placer 11/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 12/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anchor5_s44_jit2.35  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm01  Placer 12/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 13/16  round=0  iters=48  bins=128  td=0.771  tag=xtight  start=anchor7_s44_jit2.35  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm01  Placer 13/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 14/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=anchor6_s44_jit2.35  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm01  Placer 14/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 15/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=mirror_xy_jit2.35  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm01  Placer 15/16  round=0 finished  placement=ok
+[tune:dp] ibm01  Placer 16/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.75  timeout=194s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm01  Placer 16/16  round=0 finished  placement=ok
+[tune:dp] ibm01  hyperband promote 6 after round 0: k13:coarse/anchor6_s44_jit2.35, k7:escape/anchor0_s44_jit1.75, k9:spread/anchor2_s44_jit1.75, k11:xspread/anchor5_s44_jit2.35, k5:coarse/mirror_y_jit1.25, k3:xspread/anti_transpose
+[tune:dp] ibm01  Placer 14/16  round=1  iters=144  bins=64  td=0.675  tag=coarse  start=anchor6_s44_jit2.35  timeout=583s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=144  bins=64  timeout=583s
+[tune:dp] ibm01  Placer 14/16  round=1 finished  placement=ok
+[tune:dp] ibm01  Placer 8/16  round=1  iters=144  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit1.75  timeout=583s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=144  bins=64  timeout=583s
+[tune:dp] ibm01  Placer 8/16  round=1 finished  placement=ok
+[tune:dp] ibm01  Placer 10/16  round=1  iters=144  bins=64  td=0.695  tag=spread  start=anchor2_s44_jit1.75  timeout=583s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=144  bins=64  timeout=583s
+[tune:dp] ibm01  Placer 10/16  round=1 finished  placement=ok
+[tune:dp] ibm01  Placer 12/16  round=1  iters=144  bins=64  td=0.655  tag=xspread  start=anchor5_s44_jit2.35  timeout=583s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=144  bins=64  timeout=583s
+[tune:dp] ibm01  Placer 12/16  round=1 finished  placement=ok
+[tune:dp] ibm01  Placer 6/16  round=1  iters=144  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.25  timeout=583s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=144  bins=64  timeout=583s
+[tune:dp] ibm01  Placer 6/16  round=1 finished  placement=ok
+[tune:dp] ibm01  Placer 4/16  round=1  iters=144  bins=64  td=0.655  tag=xspread  start=anti_transpose  timeout=583s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=144  bins=64  timeout=583s
+[tune:dp] ibm01  Placer 4/16  round=1 finished  placement=ok
+[tune:dp] ibm01  hyperband promote 2 after round 1: k5:coarse/mirror_y_jit1.25, k7:escape/anchor0_s44_jit1.75
+[tune:dp] ibm01  Placer 6/16  round=2  iters=240  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.25  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm01  Placer 6/16  round=2 finished  placement=ok
+[tune:dp] ibm01  Placer 8/16  round=2  iters=240  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit1.75  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm01  Placer 8/16  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_coarse_mirror_y_jit1.25_k5_r1_it144_seed60005 valid=1 proxy=0.9626 wl=0.070 den=0.627 cong=1.158 overlaps=0
+[tune:dp-score:pre] dp_escape_anchor0_s44_jit1.75_k7_r1_it144_seed79951 valid=1 proxy=0.9872 wl=0.073 den=0.621 cong=1.208 overlaps=0
+[tune:dp-score:pre] dp_escape_anchor0_s44_jit1.75_k7_r2_it240_seed79951 valid=1 proxy=1.0074 wl=0.079 den=0.618 cong=1.239 overlaps=0
+[tune:dp-score:pre] dp_xspread_anchor5_s44_jit2.35_k11_r1_it144_seed119843 valid=1 proxy=1.0186 wl=0.077 den=0.621 cong=1.262 overlaps=0
+[tune:dp-score:pre] dp_coarse_mirror_y_jit1.25_k5_r2_it240_seed60005 valid=1 proxy=1.0241 wl=0.081 den=0.634 cong=1.252 overlaps=0
+[tune:dp-score:pre] dp_xspread_anti_transpose_k3_r1_it144_seed40059 valid=1 proxy=1.0423 wl=0.078 den=0.657 cong=1.272 overlaps=0
+[tune:dp-score:pre] dp_spread_anchor2_s44_jit1.75_k9_r1_it144_seed99897 valid=1 proxy=1.0491 wl=0.077 den=0.646 cong=1.297 overlaps=0
+[tune:dp-score:pre] dp_coarse_anchor6_s44_jit2.35_k13_r1_it144_seed139789 valid=1 proxy=1.0535 wl=0.078 den=0.651 cong=1.301 overlaps=0
+[tune:dp-score:pre] dp_coarse_anchor6_s44_jit2.35_k13_r0_it48_seed139789 valid=1 proxy=2.8743 wl=0.289 den=0.615 cong=4.555 overlaps=0
+[tune:dp-score:pre] dp_escape_anchor0_s44_jit1.75_k7_r0_it48_seed79951 valid=1 proxy=2.9408 wl=0.284 den=0.611 cong=4.703 overlaps=0
+[tune:dp-score:pre] dp_spread_anchor2_s44_jit1.75_k9_r0_it48_seed99897 valid=1 proxy=2.9505 wl=0.292 den=0.610 cong=4.707 overlaps=0
+[tune:dp-score:pre] dp_xspread_anchor5_s44_jit2.35_k11_r0_it48_seed119843 valid=1 proxy=2.9696 wl=0.291 den=0.611 cong=4.747 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_mirror_y_jit1.25_k5_r1_it144_seed60005 valid=1 proxy=0.9626 wl=0.070 den=0.627 cong=1.158 overlaps=0
+[tune:dp-score:post_sa] dp_escape_anchor0_s44_jit1.75_k7_r1_it144_seed79951 valid=1 proxy=0.9872 wl=0.073 den=0.621 cong=1.208 overlaps=0
+[tune:dp-score:post_sa] dp_escape_anchor0_s44_jit1.75_k7_r2_it240_seed79951 valid=1 proxy=1.0074 wl=0.079 den=0.618 cong=1.239 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anchor5_s44_jit2.35_k11_r1_it144_seed119843 valid=1 proxy=1.0186 wl=0.077 den=0.621 cong=1.262 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_mirror_y_jit1.25_k5_r2_it240_seed60005 valid=1 proxy=1.0241 wl=0.081 den=0.634 cong=1.252 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anti_transpose_k3_r1_it144_seed40059 valid=1 proxy=1.0423 wl=0.078 den=0.657 cong=1.272 overlaps=0
+[tune:dp-score:post_sa] dp_spread_anchor2_s44_jit1.75_k9_r1_it144_seed99897 valid=1 proxy=1.0491 wl=0.077 den=0.646 cong=1.297 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_anchor6_s44_jit2.35_k13_r1_it144_seed139789 valid=1 proxy=1.0535 wl=0.078 den=0.651 cong=1.301 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_anchor6_s44_jit2.35_k13_r0_it48_seed139789 valid=1 proxy=2.8743 wl=0.289 den=0.615 cong=4.555 overlaps=0
+[tune:dp-score:post_sa] dp_escape_anchor0_s44_jit1.75_k7_r0_it48_seed79951 valid=1 proxy=2.9408 wl=0.284 den=0.611 cong=4.703 overlaps=0
+[tune:dp-score:post_sa] dp_spread_anchor2_s44_jit1.75_k9_r0_it48_seed99897 valid=1 proxy=2.9505 wl=0.292 den=0.610 cong=4.707 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anchor5_s44_jit2.35_k11_r0_it48_seed119843 valid=1 proxy=2.9696 wl=0.291 den=0.611 cong=4.747 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment89_den0p7_pcof1p03_ibm01.eplace-mGP2D.pl valid=1 proxy=0.9219 wl=0.066 den=0.598 cong=1.113 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment88_den0p66_pcof1p03_ibm01.eplace-mGP2D.pl valid=1 proxy=0.9286 wl=0.069 den=0.608 cong=1.111 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment81_den0p74_pcof1p08_ibm01.eplace-mGP2D.pl valid=1 proxy=0.9321 wl=0.068 den=0.571 cong=1.157 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment82_den0p74_pcof1p08_ibm01.eplace-mGP2D.pl valid=1 proxy=0.9321 wl=0.068 den=0.571 cong=1.157 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment78_den0p68_pcof1p03_ibm01.eplace-mGP2D.pl valid=1 proxy=0.9322 wl=0.068 den=0.622 cong=1.106 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment87_den0p68_pcof1p03_ibm01.eplace-mGP2D.pl valid=1 proxy=0.9322 wl=0.068 den=0.622 cong=1.106 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment90_den0p68_pcof1p08_ibm01.eplace-mGP2D.pl valid=1 proxy=0.9348 wl=0.068 den=0.607 cong=1.127 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment85_den0p74_pcof1p03_ibm01.eplace-mGP2D.pl valid=1 proxy=0.9375 wl=0.067 den=0.571 cong=1.170 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment80_den0p72_pcof1p03_ibm01.eplace-mGP2D.pl valid=1 proxy=0.9413 wl=0.068 den=0.569 cong=1.178 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment92_den0p72_pcof1p03_ibm01.eplace-mGP2D.pl valid=1 proxy=0.9413 wl=0.068 den=0.569 cong=1.178 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment93_den0p7_pcof1p03_ibm01.eplace-mGP2D.pl valid=1 proxy=0.9475 wl=0.070 den=0.546 cong=1.209 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment91_den0p68_pcof1p2_ibm01.eplace-mGP2D.pl valid=1 proxy=0.9542 wl=0.071 den=0.627 cong=1.140 overlaps=0
+  ibm01... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm01/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 45, Row: 41
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm01/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 45, Row: 41
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=0.9219  (wl=0.066 den=0.598 cong=1.113)  VALID  [709.38s]
+[tune:dp] ibm02  Placer 1/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=128  timeout=151s
+[tune:dp] ibm02  Placer 1/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 2/16  round=0  iters=48  bins=64  td=0.648  tag=spread  start=mirror_xy_jit1.25  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=64  timeout=151s
+[tune:dp] ibm02  Placer 2/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 3/16  round=0  iters=48  bins=128  td=0.720  tag=tight  start=mirror_x_jit1.25  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=128  timeout=151s
+[tune:dp] ibm02  Placer 3/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 4/16  round=0  iters=48  bins=64  td=0.608  tag=xspread  start=mirror_y_jit1.75  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=64  timeout=151s
+[tune:dp] ibm02  Placer 4/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 5/16  round=0  iters=48  bins=128  td=0.735  tag=xtight  start=transpose_jit1.75  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=128  timeout=151s
+[tune:dp] ibm02  Placer 5/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 6/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=anti_transpose_jit2.35  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=64  timeout=151s
+[tune:dp] ibm02  Placer 6/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 7/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit1.25  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=128  timeout=151s
+[tune:dp] ibm02  Placer 7/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 8/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit1.75  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=64  timeout=151s
+[tune:dp] ibm02  Placer 8/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 9/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=anchor3_s44_jit2.35  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=128  timeout=151s
+[tune:dp] ibm02  Placer 9/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 10/16  round=0  iters=48  bins=64  td=0.648  tag=spread  start=anchor2_s44_jit1.75  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=64  timeout=151s
+[tune:dp] ibm02  Placer 10/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 11/16  round=0  iters=48  bins=128  td=0.720  tag=tight  start=anchor4_s44_jit2.35  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=128  timeout=151s
+[tune:dp] ibm02  Placer 11/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 12/16  round=0  iters=48  bins=64  td=0.608  tag=xspread  start=anchor5_s44_jit2.35  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=64  timeout=151s
+[tune:dp] ibm02  Placer 12/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 13/16  round=0  iters=48  bins=128  td=0.735  tag=xtight  start=anchor7_s44_jit2.35  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=128  timeout=151s
+[tune:dp] ibm02  Placer 13/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 14/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=anchor6_s44_jit2.35  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=64  timeout=151s
+[tune:dp] ibm02  Placer 14/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 15/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor1_s28_jit2.35  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=128  timeout=151s
+[tune:dp] ibm02  Placer 15/16  round=0 finished  placement=ok
+[tune:dp] ibm02  Placer 16/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=mirror_xy_jit2.35  timeout=151s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=48  bins=64  timeout=151s
+[tune:dp] ibm02  Placer 16/16  round=0 finished  placement=ok
+[tune:dp] ibm02  hyperband promote 6 after round 0: k12:xtight/anchor7_s44_jit2.35, k0:base/native_jit, k13:coarse/anchor6_s44_jit2.35, k4:xtight/transpose_jit1.75, k2:tight/mirror_x_jit1.25, k7:escape/anchor0_s44_jit1.75
+[tune:dp] ibm02  Placer 13/16  round=1  iters=144  bins=128  td=0.735  tag=xtight  start=anchor7_s44_jit2.35  timeout=453s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=144  bins=128  timeout=453s
+[tune:dp] ibm02  Placer 13/16  round=1 finished  placement=ok
+[tune:dp] ibm02  Placer 1/16  round=1  iters=144  bins=128  td=0.720  tag=base  start=native_jit  timeout=453s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=144  bins=128  timeout=453s
+[tune:dp] ibm02  Placer 1/16  round=1 finished  placement=ok
+[tune:dp] ibm02  Placer 14/16  round=1  iters=144  bins=64  td=0.675  tag=coarse  start=anchor6_s44_jit2.35  timeout=453s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=144  bins=64  timeout=453s
+[tune:dp] ibm02  Placer 14/16  round=1 finished  placement=ok
+[tune:dp] ibm02  Placer 5/16  round=1  iters=144  bins=128  td=0.735  tag=xtight  start=transpose_jit1.75  timeout=453s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=144  bins=128  timeout=453s
+[tune:dp] ibm02  Placer 5/16  round=1 finished  placement=ok
+[tune:dp] ibm02  Placer 3/16  round=1  iters=144  bins=128  td=0.720  tag=tight  start=mirror_x_jit1.25  timeout=453s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=144  bins=128  timeout=453s
+[tune:dp] ibm02  Placer 3/16  round=1 finished  placement=ok
+[tune:dp] ibm02  Placer 8/16  round=1  iters=144  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit1.75  timeout=453s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=144  bins=64  timeout=453s
+[tune:dp] ibm02  Placer 8/16  round=1 finished  placement=ok
+[tune:dp] ibm02  hyperband promote 2 after round 1: k0:base/native_jit, k2:tight/mirror_x_jit1.25
+[tune:dp] ibm02  Placer 1/16  round=2  iters=309  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=128  timeout=720s
+[tune:dp] ibm02  Placer 1/16  round=2 finished  placement=ok
+[tune:dp] ibm02  Placer 3/16  round=2  iters=309  bins=128  td=0.720  tag=tight  start=mirror_x_jit1.25  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=128  timeout=720s
+[tune:dp] ibm02  Placer 3/16  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_base_native_jit_k0_r2_it309_seed10346 valid=1 proxy=1.3523 wl=0.081 den=0.509 cong=2.035 overlaps=0
+[tune:dp-score:pre] dp_tight_mirror_x_jit1.25_k2_r2_it309_seed30292 valid=1 proxy=1.3900 wl=0.084 den=0.505 cong=2.107 overlaps=0
+[tune:dp-score:pre] dp_base_native_jit_k0_r1_it144_seed10346 valid=1 proxy=1.4537 wl=0.083 den=0.508 cong=2.233 overlaps=0
+[tune:dp-score:pre] dp_tight_mirror_x_jit1.25_k2_r1_it144_seed30292 valid=1 proxy=1.5376 wl=0.086 den=0.507 cong=2.396 overlaps=0
+[tune:dp-score:pre] dp_xtight_transpose_jit1.75_k4_r1_it144_seed50238 valid=1 proxy=1.5456 wl=0.084 den=0.505 cong=2.418 overlaps=0
+[tune:dp-score:pre] dp_escape_anchor0_s44_jit1.75_k7_r1_it144_seed80157 valid=1 proxy=1.6275 wl=0.082 den=0.657 cong=2.434 overlaps=0
+[tune:dp-score:pre] dp_coarse_anchor6_s44_jit2.35_k13_r1_it144_seed139995 valid=1 proxy=1.6744 wl=0.084 den=0.676 cong=2.505 overlaps=0
+[tune:dp-score:pre] dp_xtight_anchor7_s44_jit2.35_k12_r1_it144_seed130022 valid=1 proxy=1.9504 wl=0.087 den=0.855 cong=2.872 overlaps=0
+[tune:dp-score:pre] dp_xtight_anchor7_s44_jit2.35_k12_r0_it48_seed130022 valid=1 proxy=4.0742 wl=0.408 den=0.512 cong=6.820 overlaps=0
+[tune:dp-score:pre] dp_base_native_jit_k0_r0_it48_seed10346 valid=1 proxy=4.1190 wl=0.324 den=0.511 cong=7.080 overlaps=0
+[tune:dp-score:pre] dp_coarse_anchor6_s44_jit2.35_k13_r0_it48_seed139995 valid=1 proxy=4.1480 wl=0.319 den=0.510 cong=7.148 overlaps=0
+[tune:dp-score:pre] dp_xtight_transpose_jit1.75_k4_r0_it48_seed50238 valid=1 proxy=4.2608 wl=0.329 den=0.515 cong=7.348 overlaps=0
+[tune:dp-score:post_sa] dp_base_native_jit_k0_r2_it309_seed10346 valid=1 proxy=1.3523 wl=0.081 den=0.509 cong=2.035 overlaps=0
+[tune:dp-score:post_sa] dp_tight_mirror_x_jit1.25_k2_r2_it309_seed30292 valid=1 proxy=1.3900 wl=0.084 den=0.505 cong=2.107 overlaps=0
+[tune:dp-score:post_sa] dp_base_native_jit_k0_r1_it144_seed10346 valid=1 proxy=1.4537 wl=0.083 den=0.508 cong=2.233 overlaps=0
+[tune:dp-score:post_sa] dp_tight_mirror_x_jit1.25_k2_r1_it144_seed30292 valid=1 proxy=1.5376 wl=0.086 den=0.507 cong=2.396 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_transpose_jit1.75_k4_r1_it144_seed50238 valid=1 proxy=1.5456 wl=0.084 den=0.505 cong=2.418 overlaps=0
+[tune:dp-score:post_sa] dp_escape_anchor0_s44_jit1.75_k7_r1_it144_seed80157 valid=1 proxy=1.6275 wl=0.082 den=0.657 cong=2.434 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_anchor6_s44_jit2.35_k13_r1_it144_seed139995 valid=1 proxy=1.6744 wl=0.084 den=0.676 cong=2.505 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_anchor7_s44_jit2.35_k12_r1_it144_seed130022 valid=1 proxy=1.9504 wl=0.087 den=0.855 cong=2.872 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_anchor7_s44_jit2.35_k12_r0_it48_seed130022 valid=1 proxy=4.0742 wl=0.408 den=0.512 cong=6.820 overlaps=0
+[tune:dp-score:post_sa] dp_base_native_jit_k0_r0_it48_seed10346 valid=1 proxy=4.1190 wl=0.324 den=0.511 cong=7.080 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_anchor6_s44_jit2.35_k13_r0_it48_seed139995 valid=1 proxy=4.1480 wl=0.319 den=0.510 cong=7.148 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_transpose_jit1.75_k4_r0_it48_seed50238 valid=1 proxy=4.2608 wl=0.329 den=0.515 cong=7.348 overlaps=0
+[tune:dp-score:post_replace] dp_base_native_jit_k0_r2_it309_seed10346 valid=1 proxy=1.3523 wl=0.081 den=0.509 cong=2.035 overlaps=0
+[tune:dp-score:post_replace] dp_tight_mirror_x_jit1.25_k2_r2_it309_seed30292 valid=1 proxy=1.3900 wl=0.084 den=0.505 cong=2.107 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment14_den0p68_pcof1p08_ibm02.eplace-mGP2D.pl valid=1 proxy=1.4306 wl=0.074 den=0.655 cong=2.059 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment4_den0p72_pcof1p03_ibm02.eplace-mGP2D.pl valid=1 proxy=1.4533 wl=0.073 den=0.768 cong=1.993 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment6_den0p72_pcof1p03_ibm02.eplace-mGP2D.pl valid=1 proxy=1.4533 wl=0.073 den=0.768 cong=1.993 overlaps=0
+[tune:dp-score:post_replace] dp_base_native_jit_k0_r1_it144_seed10346 valid=1 proxy=1.4537 wl=0.083 den=0.508 cong=2.233 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment2_den0p68_pcof1p03_ibm02.eplace-mGP2D.pl valid=1 proxy=1.4647 wl=0.073 den=0.726 cong=2.057 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment11_den0p68_pcof1p03_ibm02.eplace-mGP2D.pl valid=1 proxy=1.4647 wl=0.073 den=0.726 cong=2.057 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment7_den0p7_pcof1p03_ibm02.eplace-mGP2D.pl valid=1 proxy=1.4752 wl=0.074 den=0.775 cong=2.027 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment8_den0p74_pcof1p03_ibm02.eplace-mGP2D.pl valid=1 proxy=1.4864 wl=0.073 den=0.817 cong=2.009 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment9_den0p72_pcof1p08_ibm02.eplace-mGP2D.pl valid=1 proxy=1.5321 wl=0.073 den=0.767 cong=2.152 overlaps=0
+[tune:dp-score:post_replace] dp_tight_mirror_x_jit1.25_k2_r1_it144_seed30292 valid=1 proxy=1.5376 wl=0.086 den=0.507 cong=2.396 overlaps=0
+  ibm02... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm02/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 30, Row: 27
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm02/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 30, Row: 27
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.3523  (wl=0.081 den=0.509 cong=2.035)  VALID  [804.70s]
+[tune:dp] ibm03  Placer 1/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=128  timeout=171s
+[tune:dp] ibm03  Placer 1/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 2/16  round=0  iters=48  bins=64  td=0.675  tag=spread  start=mirror_xy_jit1.75  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=64  timeout=171s
+[tune:dp] ibm03  Placer 2/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 3/16  round=0  iters=48  bins=128  td=0.720  tag=tight  start=mirror_x_jit1.75  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=128  timeout=171s
+[tune:dp] ibm03  Placer 3/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 4/16  round=0  iters=48  bins=64  td=0.635  tag=xspread  start=mirror_y  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=64  timeout=171s
+[tune:dp] ibm03  Placer 4/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 5/16  round=0  iters=48  bins=128  td=0.735  tag=xtight  start=transpose_jit1.25  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=128  timeout=171s
+[tune:dp] ibm03  Placer 5/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 6/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=anti_transpose  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=64  timeout=171s
+[tune:dp] ibm03  Placer 6/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 7/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit2.35  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=128  timeout=171s
+[tune:dp] ibm03  Placer 7/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 8/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=anchor3_s44_jit2.35  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=64  timeout=171s
+[tune:dp] ibm03  Placer 8/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 9/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=anchor0_s44_jit2.35  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=128  timeout=171s
+[tune:dp] ibm03  Placer 9/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 10/16  round=0  iters=48  bins=64  td=0.675  tag=spread  start=anchor2_s44_jit1.75  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=64  timeout=171s
+[tune:dp] ibm03  Placer 10/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 11/16  round=0  iters=48  bins=128  td=0.720  tag=tight  start=anchor5_s44_jit2.35  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=128  timeout=171s
+[tune:dp] ibm03  Placer 11/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 12/16  round=0  iters=48  bins=64  td=0.635  tag=xspread  start=anchor4_s44_jit2.35  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=64  timeout=171s
+[tune:dp] ibm03  Placer 12/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 13/16  round=0  iters=48  bins=128  td=0.735  tag=xtight  start=anchor6_s44_jit2.35  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=128  timeout=171s
+[tune:dp] ibm03  Placer 13/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 14/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=anchor7_s44_jit1.75  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=64  timeout=171s
+[tune:dp] ibm03  Placer 14/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 15/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=mirror_xy_jit2.35  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=128  timeout=171s
+[tune:dp] ibm03  Placer 15/16  round=0 finished  placement=ok
+[tune:dp] ibm03  Placer 16/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=171s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=48  bins=64  timeout=171s
+[tune:dp] ibm03  Placer 16/16  round=0 finished  placement=ok
+[tune:dp] ibm03  hyperband promote 6 after round 0: k12:xtight/anchor6_s44_jit2.35, k8:base/anchor0_s44_jit2.35, k10:tight/anchor5_s44_jit2.35, k6:fine/anchor1_s44_jit2.35, k9:spread/anchor2_s44_jit1.75, k13:coarse/anchor7_s44_jit1.75
+[tune:dp] ibm03  Placer 13/16  round=1  iters=144  bins=128  td=0.735  tag=xtight  start=anchor6_s44_jit2.35  timeout=513s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=144  bins=128  timeout=513s
+[tune:dp] ibm03  Placer 13/16  round=1 finished  placement=ok
+[tune:dp] ibm03  Placer 9/16  round=1  iters=144  bins=128  td=0.720  tag=base  start=anchor0_s44_jit2.35  timeout=513s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=144  bins=128  timeout=513s
+[tune:dp] ibm03  Placer 9/16  round=1 finished  placement=ok
+[tune:dp] ibm03  Placer 11/16  round=1  iters=144  bins=128  td=0.720  tag=tight  start=anchor5_s44_jit2.35  timeout=513s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=144  bins=128  timeout=513s
+[tune:dp] ibm03  Placer 11/16  round=1 finished  placement=ok
+[tune:dp] ibm03  Placer 7/16  round=1  iters=144  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit2.35  timeout=513s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=144  bins=128  timeout=513s
+[tune:dp] ibm03  Placer 7/16  round=1 finished  placement=ok
+[tune:dp] ibm03  Placer 10/16  round=1  iters=144  bins=64  td=0.675  tag=spread  start=anchor2_s44_jit1.75  timeout=513s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=144  bins=64  timeout=513s
+[tune:dp] ibm03  Placer 10/16  round=1 finished  placement=ok
+[tune:dp] ibm03  Placer 14/16  round=1  iters=144  bins=64  td=0.675  tag=coarse  start=anchor7_s44_jit1.75  timeout=513s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=144  bins=64  timeout=513s
+[tune:dp] ibm03  Placer 14/16  round=1 finished  placement=ok
+[tune:dp] ibm03  hyperband promote 1 after round 1: k6:fine/anchor1_s44_jit2.35
+[tune:dp] ibm03  Placer 7/16  round=2  iters=273  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit2.35  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=128  timeout=720s
+[tune:dp] ibm03  Placer 7/16  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_fine_anchor1_s44_jit2.35_k6_r2_it273_seed70276 valid=1 proxy=1.2471 wl=0.090 den=0.540 cong=1.774 overlaps=0
+[tune:dp-score:pre] dp_fine_anchor1_s44_jit2.35_k6_r1_it144_seed70276 valid=1 proxy=1.4106 wl=0.093 den=0.555 cong=2.080 overlaps=0
+[tune:dp-score:pre] dp_xtight_anchor6_s44_jit2.35_k12_r0_it48_seed130114 valid=1 proxy=2.8578 wl=0.344 den=0.516 cong=4.512 overlaps=0
+[tune:dp-score:pre] dp_base_anchor0_s44_jit2.35_k8_r0_it48_seed90222 valid=1 proxy=2.9151 wl=0.325 den=0.519 cong=4.661 overlaps=0
+[tune:dp-score:pre] dp_tight_anchor5_s44_jit2.35_k10_r0_it48_seed110168 valid=1 proxy=2.9400 wl=0.323 den=0.514 cong=4.720 overlaps=0
+[tune:dp-score:pre] dp_fine_anchor1_s44_jit2.35_k6_r0_it48_seed70276 valid=1 proxy=2.9554 wl=0.328 den=0.516 cong=4.738 overlaps=0
+[tune:dp-score:pre] dp_spread_anchor2_s44_jit1.75_k9_r0_it48_seed100195 valid=1 proxy=3.0800 wl=0.332 den=0.514 cong=4.981 overlaps=0
+[tune:dp-score:pre] dp_coarse_anchor7_s44_jit1.75_k13_r0_it48_seed140087 valid=1 proxy=3.1248 wl=0.330 den=0.517 cong=5.073 overlaps=0
+[tune:dp-score:pre] dp_escape_anchor3_s44_jit2.35_k7_r0_it48_seed80249 valid=1 proxy=3.2502 wl=0.326 den=0.517 cong=5.332 overlaps=0
+[tune:dp-score:pre] dp_xspread_anchor4_s44_jit2.35_k11_r0_it48_seed120141 valid=1 proxy=3.2966 wl=0.327 den=0.516 cong=5.423 overlaps=0
+[tune:dp-score:pre] dp_escape_mirror_xy_jit1.25_k15_r0_it48_seed160033 valid=1 proxy=3.5702 wl=0.278 den=0.523 cong=6.060 overlaps=0
+[tune:dp-score:pre] dp_xtight_transpose_jit1.25_k4_r0_it48_seed50330 valid=1 proxy=3.6428 wl=0.320 den=0.519 cong=6.126 overlaps=0
+[tune:dp-score:post_sa] dp_fine_anchor1_s44_jit2.35_k6_r2_it273_seed70276 valid=1 proxy=1.2471 wl=0.090 den=0.540 cong=1.774 overlaps=0
+[tune:dp-score:post_sa] dp_fine_anchor1_s44_jit2.35_k6_r1_it144_seed70276 valid=1 proxy=1.4106 wl=0.093 den=0.555 cong=2.080 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_anchor6_s44_jit2.35_k12_r0_it48_seed130114 valid=1 proxy=2.8578 wl=0.344 den=0.516 cong=4.512 overlaps=0
+[tune:dp-score:post_sa] dp_base_anchor0_s44_jit2.35_k8_r0_it48_seed90222 valid=1 proxy=2.9151 wl=0.325 den=0.519 cong=4.661 overlaps=0
+[tune:dp-score:post_sa] dp_tight_anchor5_s44_jit2.35_k10_r0_it48_seed110168 valid=1 proxy=2.9400 wl=0.323 den=0.514 cong=4.720 overlaps=0
+[tune:dp-score:post_sa] dp_fine_anchor1_s44_jit2.35_k6_r0_it48_seed70276 valid=1 proxy=2.9554 wl=0.328 den=0.516 cong=4.738 overlaps=0
+[tune:dp-score:post_sa] dp_spread_anchor2_s44_jit1.75_k9_r0_it48_seed100195 valid=1 proxy=3.0800 wl=0.332 den=0.514 cong=4.981 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_anchor7_s44_jit1.75_k13_r0_it48_seed140087 valid=1 proxy=3.1248 wl=0.330 den=0.517 cong=5.073 overlaps=0
+[tune:dp-score:post_sa] dp_escape_anchor3_s44_jit2.35_k7_r0_it48_seed80249 valid=1 proxy=3.2502 wl=0.326 den=0.517 cong=5.332 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anchor4_s44_jit2.35_k11_r0_it48_seed120141 valid=1 proxy=3.2966 wl=0.327 den=0.516 cong=5.423 overlaps=0
+[tune:dp-score:post_sa] dp_escape_mirror_xy_jit1.25_k15_r0_it48_seed160033 valid=1 proxy=3.5702 wl=0.278 den=0.523 cong=6.060 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_transpose_jit1.25_k4_r0_it48_seed50330 valid=1 proxy=3.6428 wl=0.320 den=0.519 cong=6.126 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment7_den0p7_pcof1p03_ibm03.eplace-mGP2D.pl valid=1 proxy=1.1276 wl=0.084 den=0.504 cong=1.583 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment8_den0p74_pcof1p03_ibm03.eplace-mGP2D.pl valid=1 proxy=1.1559 wl=0.082 den=0.511 cong=1.638 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment4_den0p72_pcof1p03_ibm03.eplace-mGP2D.pl valid=1 proxy=1.1610 wl=0.083 den=0.514 cong=1.642 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment6_den0p72_pcof1p03_ibm03.eplace-mGP2D.pl valid=1 proxy=1.1610 wl=0.083 den=0.514 cong=1.642 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment10_den0p72_pcof1p2_ibm03.eplace-mGP2D.pl valid=1 proxy=1.1615 wl=0.084 den=0.507 cong=1.648 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment12_den0p76_pcof1p08_ibm03.eplace-mGP2D.pl valid=1 proxy=1.1673 wl=0.081 den=0.514 cong=1.659 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment5_den0p74_pcof1p08_ibm03.eplace-mGP2D.pl valid=1 proxy=1.1697 wl=0.082 den=0.513 cong=1.662 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment11_den0p74_pcof1p08_ibm03.eplace-mGP2D.pl valid=1 proxy=1.1697 wl=0.082 den=0.513 cong=1.662 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment13_den0p74_pcof1p2_ibm03.eplace-mGP2D.pl valid=1 proxy=1.1852 wl=0.083 den=0.512 cong=1.693 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment9_den0p72_pcof1p08_ibm03.eplace-mGP2D.pl valid=1 proxy=1.1853 wl=0.083 den=0.513 cong=1.691 overlaps=0
+[tune:dp-score:post_replace] dp_fine_anchor1_s44_jit2.35_k6_r2_it273_seed70276 valid=1 proxy=1.2471 wl=0.090 den=0.540 cong=1.774 overlaps=0
+[tune:dp-score:post_replace] dp_fine_anchor1_s44_jit2.35_k6_r1_it144_seed70276 valid=1 proxy=1.4106 wl=0.093 den=0.555 cong=2.080 overlaps=0
+  ibm03... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm03/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 32, Row: 29
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm03/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 32, Row: 29
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.1276  (wl=0.084 den=0.504 cong=1.583)  VALID  [447.38s]
+[tune:dp] ibm04  Placer 1/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm04  Placer 1/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 2/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=mirror_xy_jit1.75  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm04  Placer 2/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 3/16  round=0  iters=48  bins=128  td=0.760  tag=tight  start=transpose_jit1.25  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm04  Placer 3/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 4/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anti_transpose_jit1.75  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm04  Placer 4/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 5/16  round=0  iters=48  bins=128  td=0.775  tag=xtight  start=mirror_x_jit2.35  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm04  Placer 5/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 6/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=mirror_y  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm04  Placer 6/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 7/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor3_s44_jit1.25  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm04  Placer 7/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 8/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=anchor1_s44_jit1.25  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm04  Placer 8/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 9/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=anchor2_s44_jit0.75  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm04  Placer 9/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 10/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=anchor0_s44_jit2.35  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm04  Placer 10/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 11/16  round=0  iters=48  bins=128  td=0.760  tag=tight  start=anchor5_s44_jit2.35  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm04  Placer 11/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 12/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anchor6_s44_jit0.75  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm04  Placer 12/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 13/16  round=0  iters=48  bins=128  td=0.775  tag=xtight  start=anchor4_s44_jit2.35  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm04  Placer 13/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 14/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=anchor7_s44_jit1.75  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm04  Placer 14/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 15/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=mirror_xy_jit2.35  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm04  Placer 15/16  round=0 finished  placement=ok
+[tune:dp] ibm04  Placer 16/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=190s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm04  Placer 16/16  round=0 finished  placement=ok
+[tune:dp] ibm04  hyperband promote 6 after round 0: k6:fine/anchor3_s44_jit1.25, k4:xtight/mirror_x_jit2.35, k8:base/anchor2_s44_jit0.75, k10:tight/anchor5_s44_jit2.35, k2:tight/transpose_jit1.25, k1:spread/mirror_xy_jit1.75
+[tune:dp] ibm04  Placer 7/16  round=1  iters=144  bins=128  td=0.705  tag=fine  start=anchor3_s44_jit1.25  timeout=571s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=144  bins=128  timeout=571s
+[tune:dp] ibm04  Placer 7/16  round=1 finished  placement=ok
+[tune:dp] ibm04  Placer 5/16  round=1  iters=144  bins=128  td=0.775  tag=xtight  start=mirror_x_jit2.35  timeout=571s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=144  bins=128  timeout=571s
+[tune:dp] ibm04  Placer 5/16  round=1 finished  placement=ok
+[tune:dp] ibm04  Placer 9/16  round=1  iters=144  bins=128  td=0.720  tag=base  start=anchor2_s44_jit0.75  timeout=571s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=144  bins=128  timeout=571s
+[tune:dp] ibm04  Placer 9/16  round=1 finished  placement=ok
+[tune:dp] ibm04  Placer 11/16  round=1  iters=144  bins=128  td=0.760  tag=tight  start=anchor5_s44_jit2.35  timeout=571s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=144  bins=128  timeout=571s
+[tune:dp] ibm04  Placer 11/16  round=1 finished  placement=ok
+[tune:dp] ibm04  Placer 3/16  round=1  iters=144  bins=128  td=0.760  tag=tight  start=transpose_jit1.25  timeout=571s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=144  bins=128  timeout=571s
+[tune:dp] ibm04  Placer 3/16  round=1 finished  placement=ok
+[tune:dp] ibm04  Placer 2/16  round=1  iters=144  bins=64  td=0.695  tag=spread  start=mirror_xy_jit1.75  timeout=571s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=144  bins=64  timeout=571s
+[tune:dp] ibm04  Placer 2/16  round=1 finished  placement=ok
+[tune:dp] ibm04  hyperband promote 2 after round 1: k4:xtight/mirror_x_jit2.35, k10:tight/anchor5_s44_jit2.35
+[tune:dp] ibm04  Placer 5/16  round=2  iters=245  bins=128  td=0.775  tag=xtight  start=mirror_x_jit2.35  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=128  timeout=720s
+[tune:dp] ibm04  Placer 5/16  round=2 finished  placement=ok
+[tune:dp] ibm04  Placer 11/16  round=2  iters=245  bins=128  td=0.760  tag=tight  start=anchor5_s44_jit2.35  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=128  timeout=720s
+[tune:dp] ibm04  Placer 11/16  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_tight_anchor5_s44_jit2.35_k10_r2_it245_seed110110 valid=1 proxy=1.2397 wl=0.082 den=0.617 cong=1.697 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_x_jit2.35_k4_r2_it245_seed50272 valid=1 proxy=1.2943 wl=0.084 den=0.619 cong=1.801 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_x_jit2.35_k4_r1_it144_seed50272 valid=1 proxy=1.3593 wl=0.086 den=0.673 cong=1.874 overlaps=0
+[tune:dp-score:pre] dp_tight_anchor5_s44_jit2.35_k10_r1_it144_seed110110 valid=1 proxy=1.4262 wl=0.098 den=0.671 cong=1.985 overlaps=0
+[tune:dp-score:pre] dp_base_anchor2_s44_jit0.75_k8_r1_it144_seed90164 valid=1 proxy=1.4489 wl=0.102 den=0.686 cong=2.007 overlaps=0
+[tune:dp-score:pre] dp_tight_transpose_jit1.25_k2_r1_it144_seed30326 valid=1 proxy=1.4555 wl=0.092 den=0.707 cong=2.019 overlaps=0
+[tune:dp-score:pre] dp_fine_anchor3_s44_jit1.25_k6_r1_it144_seed70218 valid=1 proxy=1.4737 wl=0.094 den=0.764 cong=1.996 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_jit1.75_k1_r1_it144_seed20353 valid=1 proxy=1.5455 wl=0.099 den=0.770 cong=2.123 overlaps=0
+[tune:dp-score:pre] dp_fine_anchor3_s44_jit1.25_k6_r0_it48_seed70218 valid=1 proxy=3.5102 wl=0.275 den=0.690 cong=5.781 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_x_jit2.35_k4_r0_it48_seed50272 valid=1 proxy=3.5245 wl=0.266 den=0.747 cong=5.771 overlaps=0
+[tune:dp-score:pre] dp_base_anchor2_s44_jit0.75_k8_r0_it48_seed90164 valid=1 proxy=3.5555 wl=0.288 den=0.534 cong=6.001 overlaps=0
+[tune:dp-score:pre] dp_tight_anchor5_s44_jit2.35_k10_r0_it48_seed110110 valid=1 proxy=3.5712 wl=0.286 den=0.535 cong=6.035 overlaps=0
+[tune:dp-score:post_sa] dp_tight_anchor5_s44_jit2.35_k10_r2_it245_seed110110 valid=1 proxy=1.2397 wl=0.082 den=0.617 cong=1.697 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_x_jit2.35_k4_r2_it245_seed50272 valid=1 proxy=1.2943 wl=0.084 den=0.619 cong=1.801 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_x_jit2.35_k4_r1_it144_seed50272 valid=1 proxy=1.3593 wl=0.086 den=0.673 cong=1.874 overlaps=0
+[tune:dp-score:post_sa] dp_tight_anchor5_s44_jit2.35_k10_r1_it144_seed110110 valid=1 proxy=1.4262 wl=0.098 den=0.671 cong=1.985 overlaps=0
+[tune:dp-score:post_sa] dp_base_anchor2_s44_jit0.75_k8_r1_it144_seed90164 valid=1 proxy=1.4489 wl=0.102 den=0.686 cong=2.007 overlaps=0
+[tune:dp-score:post_sa] dp_tight_transpose_jit1.25_k2_r1_it144_seed30326 valid=1 proxy=1.4555 wl=0.092 den=0.707 cong=2.019 overlaps=0
+[tune:dp-score:post_sa] dp_fine_anchor3_s44_jit1.25_k6_r1_it144_seed70218 valid=1 proxy=1.4737 wl=0.094 den=0.764 cong=1.996 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_jit1.75_k1_r1_it144_seed20353 valid=1 proxy=1.5455 wl=0.099 den=0.770 cong=2.123 overlaps=0
+[tune:dp-score:post_sa] dp_fine_anchor3_s44_jit1.25_k6_r0_it48_seed70218 valid=1 proxy=3.5102 wl=0.275 den=0.690 cong=5.781 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_x_jit2.35_k4_r0_it48_seed50272 valid=1 proxy=3.5245 wl=0.266 den=0.747 cong=5.771 overlaps=0
+[tune:dp-score:post_sa] dp_base_anchor2_s44_jit0.75_k8_r0_it48_seed90164 valid=1 proxy=3.5555 wl=0.288 den=0.534 cong=6.001 overlaps=0
+[tune:dp-score:post_sa] dp_tight_anchor5_s44_jit2.35_k10_r0_it48_seed110110 valid=1 proxy=3.5712 wl=0.286 den=0.535 cong=6.035 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment9_den0p74_pcof1p03_ibm04.eplace-mGP2D.pl valid=1 proxy=1.1649 wl=0.079 den=0.525 cong=1.646 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment8_den0p76_pcof1p08_ibm04.eplace-mGP2D.pl valid=1 proxy=1.1653 wl=0.078 den=0.537 cong=1.638 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment5_den0p74_pcof1p08_ibm04.eplace-mGP2D.pl valid=1 proxy=1.1786 wl=0.080 den=0.520 cong=1.677 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment6_den0p74_pcof1p08_ibm04.eplace-mGP2D.pl valid=1 proxy=1.1786 wl=0.080 den=0.520 cong=1.677 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment10_den0p74_pcof1p2_ibm04.eplace-mGP2D.pl valid=1 proxy=1.1889 wl=0.079 den=0.514 cong=1.706 overlaps=0
+[tune:dp-score:post_replace] dp_tight_anchor5_s44_jit2.35_k10_r2_it245_seed110110 valid=1 proxy=1.2397 wl=0.082 den=0.617 cong=1.697 overlaps=0
+[tune:dp-score:post_replace] dp_xtight_mirror_x_jit2.35_k4_r2_it245_seed50272 valid=1 proxy=1.2943 wl=0.084 den=0.619 cong=1.801 overlaps=0
+[tune:dp-score:post_replace] dp_xtight_mirror_x_jit2.35_k4_r1_it144_seed50272 valid=1 proxy=1.3593 wl=0.086 den=0.673 cong=1.874 overlaps=0
+[tune:dp-score:post_replace] dp_tight_anchor5_s44_jit2.35_k10_r1_it144_seed110110 valid=1 proxy=1.4262 wl=0.098 den=0.671 cong=1.985 overlaps=0
+[tune:dp-score:post_replace] dp_base_anchor2_s44_jit0.75_k8_r1_it144_seed90164 valid=1 proxy=1.4489 wl=0.102 den=0.686 cong=2.007 overlaps=0
+[tune:dp-score:post_replace] dp_tight_transpose_jit1.25_k2_r1_it144_seed30326 valid=1 proxy=1.4555 wl=0.092 den=0.707 cong=2.019 overlaps=0
+[tune:dp-score:post_replace] dp_fine_anchor3_s44_jit1.25_k6_r1_it144_seed70218 valid=1 proxy=1.4737 wl=0.094 den=0.764 cong=1.996 overlaps=0
+  ibm04... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm04/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 31, Row: 30
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm04/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 31, Row: 30
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.1649  (wl=0.079 den=0.525 cong=1.646)  VALID  [513.66s]
+[tune:dp] ibm06  Placer 1/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm06  Placer 1/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 2/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=mirror_xy  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm06  Placer 2/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 3/16  round=0  iters=48  bins=128  td=0.743  tag=tight  start=transpose_jit2.35  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm06  Placer 3/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 4/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anti_transpose_jit2.35  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm06  Placer 4/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 5/16  round=0  iters=48  bins=128  td=0.758  tag=xtight  start=mirror_x_jit2.35  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm06  Placer 5/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 6/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.25  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm06  Placer 6/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 7/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor2_s44_jit1.75  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm06  Placer 7/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 8/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit2.35  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm06  Placer 8/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 9/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=anchor3_s44_jit2.35  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm06  Placer 9/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 10/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=anchor1_s44_jit0.75  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm06  Placer 10/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 11/16  round=0  iters=48  bins=128  td=0.743  tag=tight  start=anchor7_s44_jit2.35  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm06  Placer 11/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 12/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anchor6_s44_jit2.35  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm06  Placer 12/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 13/16  round=0  iters=48  bins=128  td=0.758  tag=xtight  start=anchor4_s44_jit1.75  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm06  Placer 13/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 14/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=anchor5_s44_jit0.75  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm06  Placer 14/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 15/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=mirror_xy_jit2.35  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm06  Placer 15/16  round=0 finished  placement=ok
+[tune:dp] ibm06  Placer 16/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.75  timeout=194s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm06  Placer 16/16  round=0 finished  placement=ok
+[tune:dp] ibm06  hyperband promote 6 after round 0: k10:tight/anchor7_s44_jit2.35, k2:tight/transpose_jit2.35, k14:fine/mirror_xy_jit2.35, k15:escape/mirror_xy_jit1.75, k6:fine/anchor2_s44_jit1.75, k3:xspread/anti_transpose_jit2.35
+[tune:dp] ibm06  Placer 11/16  round=1  iters=144  bins=128  td=0.743  tag=tight  start=anchor7_s44_jit2.35  timeout=583s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=144  bins=128  timeout=583s
+[tune:dp] ibm06  Placer 11/16  round=1 finished  placement=ok
+[tune:dp] ibm06  Placer 3/16  round=1  iters=144  bins=128  td=0.743  tag=tight  start=transpose_jit2.35  timeout=583s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=144  bins=128  timeout=583s
+[tune:dp] ibm06  Placer 3/16  round=1 finished  placement=ok
+[tune:dp] ibm06  Placer 15/16  round=1  iters=144  bins=128  td=0.705  tag=fine  start=mirror_xy_jit2.35  timeout=583s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=144  bins=128  timeout=583s
+[tune:dp] ibm06  Placer 15/16  round=1 finished  placement=ok
+[tune:dp] ibm06  Placer 16/16  round=1  iters=144  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.75  timeout=583s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=144  bins=64  timeout=583s
+[tune:dp] ibm06  Placer 16/16  round=1 finished  placement=ok
+[tune:dp] ibm06  Placer 7/16  round=1  iters=144  bins=128  td=0.705  tag=fine  start=anchor2_s44_jit1.75  timeout=583s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=144  bins=128  timeout=583s
+[tune:dp] ibm06  Placer 7/16  round=1 finished  placement=ok
+[tune:dp] ibm06  Placer 4/16  round=1  iters=144  bins=64  td=0.655  tag=xspread  start=anti_transpose_jit2.35  timeout=583s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=144  bins=64  timeout=583s
+[tune:dp] ibm06  Placer 4/16  round=1 finished  placement=ok
+[tune:dp] ibm06  hyperband promote 2 after round 1: k3:xspread/anti_transpose_jit2.35, k15:escape/mirror_xy_jit1.75
+[tune:dp] ibm06  Placer 4/16  round=2  iters=240  bins=64  td=0.655  tag=xspread  start=anti_transpose_jit2.35  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm06  Placer 4/16  round=2 finished  placement=ok
+[tune:dp] ibm06  Placer 16/16  round=2  iters=240  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.75  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm06  Placer 16/16  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_xspread_anti_transpose_jit2.35_k3_r2_it240_seed39997 valid=1 proxy=1.4429 wl=0.079 den=0.526 cong=2.201 overlaps=0
+[tune:dp-score:pre] dp_escape_mirror_xy_jit1.75_k15_r2_it240_seed159673 valid=1 proxy=1.4563 wl=0.079 den=0.530 cong=2.224 overlaps=0
+[tune:dp-score:pre] dp_xspread_anti_transpose_jit2.35_k3_r1_it144_seed39997 valid=1 proxy=1.7931 wl=0.089 den=0.521 cong=2.887 overlaps=0
+[tune:dp-score:pre] dp_escape_mirror_xy_jit1.75_k15_r1_it144_seed159673 valid=1 proxy=1.8013 wl=0.085 den=0.525 cong=2.909 overlaps=0
+[tune:dp-score:pre] dp_tight_anchor7_s44_jit2.35_k10_r1_it144_seed109808 valid=1 proxy=1.8127 wl=0.088 den=0.530 cong=2.920 overlaps=0
+[tune:dp-score:pre] dp_tight_transpose_jit2.35_k2_r1_it144_seed30024 valid=1 proxy=1.8253 wl=0.089 den=0.529 cong=2.944 overlaps=0
+[tune:dp-score:pre] dp_fine_anchor2_s44_jit1.75_k6_r1_it144_seed69916 valid=1 proxy=1.8692 wl=0.094 den=0.525 cong=3.025 overlaps=0
+[tune:dp-score:pre] dp_fine_mirror_xy_jit2.35_k14_r1_it144_seed149700 valid=1 proxy=1.9587 wl=0.092 den=0.533 cong=3.200 overlaps=0
+[tune:dp-score:pre] dp_tight_anchor7_s44_jit2.35_k10_r0_it48_seed109808 valid=1 proxy=4.5943 wl=0.337 den=0.519 cong=7.996 overlaps=0
+[tune:dp-score:pre] dp_tight_transpose_jit2.35_k2_r0_it48_seed30024 valid=1 proxy=4.8238 wl=0.338 den=0.522 cong=8.450 overlaps=0
+[tune:dp-score:pre] dp_fine_mirror_xy_jit2.35_k14_r0_it48_seed149700 valid=1 proxy=5.0065 wl=0.339 den=0.576 cong=8.759 overlaps=0
+[tune:dp-score:pre] dp_escape_mirror_xy_jit1.75_k15_r0_it48_seed159673 valid=1 proxy=5.0639 wl=0.328 den=0.526 cong=8.947 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anti_transpose_jit2.35_k3_r2_it240_seed39997 valid=1 proxy=1.4429 wl=0.079 den=0.526 cong=2.201 overlaps=0
+[tune:dp-score:post_sa] dp_escape_mirror_xy_jit1.75_k15_r2_it240_seed159673 valid=1 proxy=1.4563 wl=0.079 den=0.530 cong=2.224 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anti_transpose_jit2.35_k3_r1_it144_seed39997 valid=1 proxy=1.7931 wl=0.089 den=0.521 cong=2.887 overlaps=0
+[tune:dp-score:post_sa] dp_escape_mirror_xy_jit1.75_k15_r1_it144_seed159673 valid=1 proxy=1.8013 wl=0.085 den=0.525 cong=2.909 overlaps=0
+[tune:dp-score:post_sa] dp_tight_anchor7_s44_jit2.35_k10_r1_it144_seed109808 valid=1 proxy=1.8127 wl=0.088 den=0.530 cong=2.920 overlaps=0
+[tune:dp-score:post_sa] dp_tight_transpose_jit2.35_k2_r1_it144_seed30024 valid=1 proxy=1.8253 wl=0.089 den=0.529 cong=2.944 overlaps=0
+[tune:dp-score:post_sa] dp_fine_anchor2_s44_jit1.75_k6_r1_it144_seed69916 valid=1 proxy=1.8692 wl=0.094 den=0.525 cong=3.025 overlaps=0
+[tune:dp-score:post_sa] dp_fine_mirror_xy_jit2.35_k14_r1_it144_seed149700 valid=1 proxy=1.9587 wl=0.092 den=0.533 cong=3.200 overlaps=0
+[tune:dp-score:post_sa] dp_tight_anchor7_s44_jit2.35_k10_r0_it48_seed109808 valid=1 proxy=4.5943 wl=0.337 den=0.519 cong=7.996 overlaps=0
+[tune:dp-score:post_sa] dp_tight_transpose_jit2.35_k2_r0_it48_seed30024 valid=1 proxy=4.8238 wl=0.338 den=0.522 cong=8.450 overlaps=0
+[tune:dp-score:post_sa] dp_fine_mirror_xy_jit2.35_k14_r0_it48_seed149700 valid=1 proxy=5.0065 wl=0.339 den=0.576 cong=8.759 overlaps=0
+[tune:dp-score:post_sa] dp_escape_mirror_xy_jit1.75_k15_r0_it48_seed159673 valid=1 proxy=5.0639 wl=0.328 den=0.526 cong=8.947 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment8_den0p74_pcof1p03_ibm06.eplace-mGP2D.pl valid=1 proxy=1.3896 wl=0.073 den=0.525 cong=2.109 overlaps=0
+[tune:dp-score:post_replace] dp_xspread_anti_transpose_jit2.35_k3_r2_it240_seed39997 valid=1 proxy=1.4429 wl=0.079 den=0.526 cong=2.201 overlaps=0
+[tune:dp-score:post_replace] dp_escape_mirror_xy_jit1.75_k15_r2_it240_seed159673 valid=1 proxy=1.4563 wl=0.079 den=0.530 cong=2.224 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment13_den0p74_pcof1p2_ibm06.eplace-mGP2D.pl valid=1 proxy=1.6529 wl=0.076 den=0.513 cong=2.641 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment9_den0p72_pcof1p08_ibm06.eplace-mGP2D.pl valid=1 proxy=1.6644 wl=0.075 den=0.831 cong=2.349 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment10_den0p72_pcof1p2_ibm06.eplace-mGP2D.pl valid=1 proxy=1.6909 wl=0.077 den=0.511 cong=2.717 overlaps=0
+[tune:dp-score:post_replace] dp_xspread_anti_transpose_jit2.35_k3_r1_it144_seed39997 valid=1 proxy=1.7931 wl=0.089 den=0.521 cong=2.887 overlaps=0
+[tune:dp-score:post_replace] dp_escape_mirror_xy_jit1.75_k15_r1_it144_seed159673 valid=1 proxy=1.8013 wl=0.085 den=0.525 cong=2.909 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment4_den0p72_pcof1p03_ibm06.eplace-mGP2D.pl valid=1 proxy=1.8100 wl=0.074 den=0.900 cong=2.572 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment6_den0p72_pcof1p03_ibm06.eplace-mGP2D.pl valid=1 proxy=1.8100 wl=0.074 den=0.900 cong=2.572 overlaps=0
+[tune:dp-score:post_replace] dp_tight_anchor7_s44_jit2.35_k10_r1_it144_seed109808 valid=1 proxy=1.8127 wl=0.088 den=0.530 cong=2.920 overlaps=0
+[tune:dp-score:post_replace] dp_tight_transpose_jit2.35_k2_r1_it144_seed30024 valid=1 proxy=1.8253 wl=0.089 den=0.529 cong=2.944 overlaps=0
+  ibm06... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm06/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 31, Row: 28
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm06/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 31, Row: 28
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.3896  (wl=0.073 den=0.525 cong=2.109)  VALID  [582.05s]
+[tune:dp] ibm07  Placer 1/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm07  Placer 1/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 2/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=mirror_xy_jit2.35  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm07  Placer 2/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 3/16  round=0  iters=48  bins=128  td=0.790  tag=tight  start=anti_transpose_jit1.75  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm07  Placer 3/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 4/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=transpose_jit2.35  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm07  Placer 4/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 5/16  round=0  iters=48  bins=128  td=0.805  tag=xtight  start=mirror_y_jit0.75  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm07  Placer 5/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 6/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=mirror_x_jit1.75  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm07  Placer 6/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 7/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit1.25  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm07  Placer 7/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 8/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit1.75  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm07  Placer 8/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 9/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=anchor3_s44_jit1.75  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm07  Placer 9/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 10/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=anchor2_s44_jit1.75  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm07  Placer 10/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 11/16  round=0  iters=48  bins=128  td=0.790  tag=tight  start=anchor4_s44_jit0.75  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm07  Placer 11/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 12/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anchor5_s44  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm07  Placer 12/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 13/16  round=0  iters=48  bins=128  td=0.805  tag=xtight  start=anchor7_s44_jit2.35  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm07  Placer 13/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 14/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=anchor6_s44_jit1.25  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm07  Placer 14/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 15/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=mirror_xy_jit1.75  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm07  Placer 15/16  round=0 finished  placement=ok
+[tune:dp] ibm07  Placer 16/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=191s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm07  Placer 16/16  round=0 finished  placement=ok
+[tune:dp] ibm07  hyperband promote 6 after round 0: k3:xspread/transpose_jit2.35, k14:fine/mirror_xy_jit1.75, k1:spread/mirror_xy_jit2.35, k12:xtight/anchor7_s44_jit2.35, k5:coarse/mirror_x_jit1.75, k15:escape/mirror_xy_jit1.25
+[tune:dp] ibm07  Placer 4/16  round=1  iters=144  bins=64  td=0.655  tag=xspread  start=transpose_jit2.35  timeout=574s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=144  bins=64  timeout=574s
+[tune:dp] ibm07  Placer 4/16  round=1 finished  placement=ok
+[tune:dp] ibm07  Placer 15/16  round=1  iters=144  bins=128  td=0.705  tag=fine  start=mirror_xy_jit1.75  timeout=574s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=144  bins=128  timeout=574s
+[tune:dp] ibm07  Placer 15/16  round=1 finished  placement=ok
+[tune:dp] ibm07  Placer 2/16  round=1  iters=144  bins=64  td=0.695  tag=spread  start=mirror_xy_jit2.35  timeout=574s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=144  bins=64  timeout=574s
+[tune:dp] ibm07  Placer 2/16  round=1 finished  placement=ok
+[tune:dp] ibm07  Placer 13/16  round=1  iters=144  bins=128  td=0.805  tag=xtight  start=anchor7_s44_jit2.35  timeout=574s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=144  bins=128  timeout=574s
+[tune:dp] ibm07  Placer 13/16  round=1 finished  placement=ok
+[tune:dp] ibm07  Placer 6/16  round=1  iters=144  bins=64  td=0.675  tag=coarse  start=mirror_x_jit1.75  timeout=574s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=144  bins=64  timeout=574s
+[tune:dp] ibm07  Placer 6/16  round=1 finished  placement=ok
+[tune:dp] ibm07  Placer 16/16  round=1  iters=144  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=574s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=144  bins=64  timeout=574s
+[tune:dp] ibm07  Placer 16/16  round=1 finished  placement=ok
+[tune:dp] ibm07  hyperband promote 2 after round 1: k3:xspread/transpose_jit2.35, k14:fine/mirror_xy_jit1.75
+[tune:dp] ibm07  Placer 4/16  round=2  iters=244  bins=64  td=0.655  tag=xspread  start=transpose_jit2.35  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm07  Placer 4/16  round=2 finished  placement=ok
+[tune:dp] ibm07  Placer 15/16  round=2  iters=244  bins=128  td=0.705  tag=fine  start=mirror_xy_jit1.75  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm07  Placer 15/16  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_xspread_transpose_jit2.35_k3_r0_it48_seed40250 valid=1 proxy=4.0552 wl=0.288 den=0.688 cong=6.847 overlaps=0
+[tune:dp-score:pre] dp_fine_mirror_xy_jit1.75_k14_r0_it48_seed149953 valid=1 proxy=4.0820 wl=0.288 den=0.823 cong=6.765 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_jit2.35_k1_r0_it48_seed20304 valid=1 proxy=4.1733 wl=0.285 den=0.811 cong=6.965 overlaps=0
+[tune:dp-score:pre] dp_xtight_anchor7_s44_jit2.35_k12_r0_it48_seed130007 valid=1 proxy=4.2142 wl=0.317 den=0.558 cong=7.236 overlaps=0
+[tune:dp-score:pre] dp_coarse_mirror_x_jit1.75_k5_r0_it48_seed60196 valid=1 proxy=4.3035 wl=0.288 den=0.718 cong=7.312 overlaps=0
+[tune:dp-score:pre] dp_escape_mirror_xy_jit1.25_k15_r0_it48_seed159926 valid=1 proxy=4.3410 wl=0.281 den=0.712 cong=7.408 overlaps=0
+[tune:dp-score:pre] dp_base_anchor3_s44_jit1.75_k8_r0_it48_seed90115 valid=1 proxy=4.3519 wl=0.305 den=0.564 cong=7.530 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_y_jit0.75_k4_r0_it48_seed50223 valid=1 proxy=4.4174 wl=0.296 den=0.705 cong=7.538 overlaps=0
+[tune:dp-score:pre] dp_spread_anchor2_s44_jit1.75_k9_r0_it48_seed100088 valid=1 proxy=4.4564 wl=0.298 den=0.701 cong=7.615 overlaps=0
+[tune:dp-score:pre] dp_tight_anti_transpose_jit1.75_k2_r0_it48_seed30277 valid=1 proxy=4.4737 wl=0.288 den=0.730 cong=7.642 overlaps=0
+[tune:dp-score:pre] dp_base_native_jit_k0_r0_it48_seed10331 valid=1 proxy=4.5575 wl=0.299 den=0.712 cong=7.805 overlaps=0
+[tune:dp-score:pre] dp_escape_anchor0_s44_jit1.75_k7_r0_it48_seed80142 valid=1 proxy=4.6433 wl=0.293 den=0.728 cong=7.972 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_transpose_jit2.35_k3_r0_it48_seed40250 valid=1 proxy=4.0552 wl=0.288 den=0.688 cong=6.847 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_transpose_jit2.35_k3_r0_it48_seed40250_sa valid=1 proxy=4.0563 wl=0.288 den=0.691 cong=6.846 overlaps=0
+[tune:dp-score:post_sa] dp_fine_mirror_xy_jit1.75_k14_r0_it48_seed149953 valid=1 proxy=4.0820 wl=0.288 den=0.823 cong=6.765 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_jit2.35_k1_r0_it48_seed20304 valid=1 proxy=4.1733 wl=0.285 den=0.811 cong=6.965 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_anchor7_s44_jit2.35_k12_r0_it48_seed130007 valid=1 proxy=4.2142 wl=0.317 den=0.558 cong=7.236 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_mirror_x_jit1.75_k5_r0_it48_seed60196 valid=1 proxy=4.3035 wl=0.288 den=0.718 cong=7.312 overlaps=0
+[tune:dp-score:post_sa] dp_escape_mirror_xy_jit1.25_k15_r0_it48_seed159926 valid=1 proxy=4.3410 wl=0.281 den=0.712 cong=7.408 overlaps=0
+[tune:dp-score:post_sa] dp_base_anchor3_s44_jit1.75_k8_r0_it48_seed90115 valid=1 proxy=4.3519 wl=0.305 den=0.564 cong=7.530 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_y_jit0.75_k4_r0_it48_seed50223 valid=1 proxy=4.4174 wl=0.296 den=0.705 cong=7.538 overlaps=0
+[tune:dp-score:post_sa] dp_spread_anchor2_s44_jit1.75_k9_r0_it48_seed100088 valid=1 proxy=4.4564 wl=0.298 den=0.701 cong=7.615 overlaps=0
+[tune:dp-score:post_sa] dp_tight_anti_transpose_jit1.75_k2_r0_it48_seed30277 valid=1 proxy=4.4737 wl=0.288 den=0.730 cong=7.642 overlaps=0
+[tune:dp-score:post_sa] dp_base_native_jit_k0_r0_it48_seed10331 valid=1 proxy=4.5575 wl=0.299 den=0.712 cong=7.805 overlaps=0
+  ibm07... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm07/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 35, Row: 32
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm07/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 35, Row: 32
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=4.0552  (wl=0.288 den=0.688 cong=6.847)  VALID  [488.70s]
+[tune:dp] ibm08  Placer 1/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm08  Placer 1/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 2/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=mirror_xy_jit2.35  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm08  Placer 2/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 3/16  round=0  iters=48  bins=128  td=0.764  tag=tight  start=mirror_x_jit2.35  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm08  Placer 3/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 4/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=transpose_jit1.25  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm08  Placer 4/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 5/16  round=0  iters=48  bins=128  td=0.779  tag=xtight  start=mirror_y_jit2.35  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm08  Placer 5/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 6/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=anti_transpose_jit0.75  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm08  Placer 6/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 7/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor0_s44_jit0.75  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm08  Placer 7/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 8/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=anchor2_s44_jit2.35  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm08  Placer 8/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 9/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=anchor1_s44_jit0.75  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm08  Placer 9/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 10/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=anchor3_s44_jit1.25  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm08  Placer 10/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 11/16  round=0  iters=48  bins=128  td=0.764  tag=tight  start=anchor7_s44_jit2.35  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm08  Placer 11/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 12/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anchor4_s44_jit1.75  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm08  Placer 12/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 13/16  round=0  iters=48  bins=128  td=0.779  tag=xtight  start=anchor6_s44_jit2.35  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm08  Placer 13/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 14/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=anchor5_s44_jit2.35  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm08  Placer 14/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 15/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=mirror_xy_jit1.75  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=128  timeout=190s
+[tune:dp] ibm08  Placer 15/16  round=0 finished  placement=ok
+[tune:dp] ibm08  Placer 16/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=190s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=48  bins=64  timeout=190s
+[tune:dp] ibm08  Placer 16/16  round=0 finished  placement=ok
+[tune:dp] ibm08  hyperband promote 6 after round 0: k1:spread/mirror_xy_jit2.35, k9:spread/anchor3_s44_jit1.25, k15:escape/mirror_xy_jit1.25, k7:escape/anchor2_s44_jit2.35, k8:base/anchor1_s44_jit0.75, k5:coarse/anti_transpose_jit0.75
+[tune:dp] ibm08  Placer 2/16  round=1  iters=144  bins=64  td=0.695  tag=spread  start=mirror_xy_jit2.35  timeout=569s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=144  bins=64  timeout=569s
+[tune:dp] ibm08  Placer 2/16  round=1 finished  placement=ok
+[tune:dp] ibm08  Placer 10/16  round=1  iters=144  bins=64  td=0.695  tag=spread  start=anchor3_s44_jit1.25  timeout=569s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=144  bins=64  timeout=569s
+[tune:dp] ibm08  Placer 10/16  round=1 finished  placement=ok
+[tune:dp] ibm08  Placer 16/16  round=1  iters=144  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=569s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=144  bins=64  timeout=569s
+[tune:dp] ibm08  Placer 16/16  round=1 finished  placement=ok
+[tune:dp] ibm08  Placer 8/16  round=1  iters=144  bins=64  td=0.635  tag=escape  start=anchor2_s44_jit2.35  timeout=569s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=144  bins=64  timeout=569s
+[tune:dp] ibm08  Placer 8/16  round=1 finished  placement=ok
+[tune:dp] ibm08  Placer 9/16  round=1  iters=144  bins=128  td=0.720  tag=base  start=anchor1_s44_jit0.75  timeout=569s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=144  bins=128  timeout=569s
+[tune:dp] ibm08  Placer 9/16  round=1 finished  placement=ok
+[tune:dp] ibm08  Placer 6/16  round=1  iters=144  bins=64  td=0.675  tag=coarse  start=anti_transpose_jit0.75  timeout=569s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=144  bins=64  timeout=569s
+[tune:dp] ibm08  Placer 6/16  round=1 finished  placement=ok
+[tune:dp] ibm08  hyperband promote 2 after round 1: k15:escape/mirror_xy_jit1.25, k8:base/anchor1_s44_jit0.75
+[tune:dp] ibm08  Placer 16/16  round=2  iters=246  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=64  timeout=720s
+[tune:dp] ibm08  Placer 16/16  round=2 finished  placement=ok
+[tune:dp] ibm08  Placer 9/16  round=2  iters=246  bins=128  td=0.720  tag=base  start=anchor1_s44_jit0.75  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=128  timeout=720s
+[tune:dp] ibm08  Placer 9/16  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_escape_mirror_xy_jit1.25_k15_r1_it144_seed159926 valid=1 proxy=2.6998 wl=0.127 den=0.679 cong=4.466 overlaps=0
+[tune:dp-score:pre] dp_base_anchor1_s44_jit0.75_k8_r1_it144_seed90115 valid=1 proxy=3.1167 wl=0.154 den=0.545 cong=5.380 overlaps=0
+[tune:dp-score:pre] dp_spread_anchor3_s44_jit1.25_k9_r1_it144_seed100088 valid=1 proxy=3.1319 wl=0.150 den=0.548 cong=5.416 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_jit2.35_k1_r0_it48_seed20304 valid=1 proxy=4.0108 wl=0.282 den=0.546 cong=6.912 overlaps=0
+[tune:dp-score:pre] dp_spread_anchor3_s44_jit1.25_k9_r0_it48_seed100088 valid=1 proxy=4.1321 wl=0.301 den=0.542 cong=7.120 overlaps=0
+[tune:dp-score:pre] dp_escape_mirror_xy_jit1.25_k15_r0_it48_seed159926 valid=1 proxy=4.1616 wl=0.281 den=0.543 cong=7.218 overlaps=0
+[tune:dp-score:pre] dp_escape_anchor2_s44_jit2.35_k7_r0_it48_seed80142 valid=1 proxy=4.3587 wl=0.298 den=0.548 cong=7.574 overlaps=0
+[tune:dp-score:pre] dp_base_anchor1_s44_jit0.75_k8_r0_it48_seed90115 valid=1 proxy=4.3996 wl=0.320 den=0.541 cong=7.618 overlaps=0
+[tune:dp-score:pre] dp_coarse_anti_transpose_jit0.75_k5_r0_it48_seed60196 valid=1 proxy=4.4504 wl=0.296 den=0.544 cong=7.764 overlaps=0
+[tune:dp-score:pre] dp_xspread_anchor4_s44_jit1.75_k11_r0_it48_seed120034 valid=1 proxy=4.5015 wl=0.303 den=0.541 cong=7.855 overlaps=0
+[tune:dp-score:pre] dp_xtight_anchor6_s44_jit2.35_k12_r0_it48_seed130007 valid=1 proxy=4.5600 wl=0.313 den=0.543 cong=7.950 overlaps=0
+[tune:dp-score:pre] dp_tight_anchor7_s44_jit2.35_k10_r0_it48_seed110061 valid=1 proxy=4.6196 wl=0.312 den=0.546 cong=8.070 overlaps=0
+[tune:dp-score:post_sa] dp_escape_mirror_xy_jit1.25_k15_r1_it144_seed159926 valid=1 proxy=2.6998 wl=0.127 den=0.679 cong=4.466 overlaps=0
+[tune:dp-score:post_sa] dp_base_anchor1_s44_jit0.75_k8_r1_it144_seed90115 valid=1 proxy=3.1167 wl=0.154 den=0.545 cong=5.380 overlaps=0
+[tune:dp-score:post_sa] dp_spread_anchor3_s44_jit1.25_k9_r1_it144_seed100088 valid=1 proxy=3.1319 wl=0.150 den=0.548 cong=5.416 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_jit2.35_k1_r0_it48_seed20304 valid=1 proxy=4.0108 wl=0.282 den=0.546 cong=6.912 overlaps=0
+[tune:dp-score:post_sa] dp_spread_anchor3_s44_jit1.25_k9_r0_it48_seed100088 valid=1 proxy=4.1321 wl=0.301 den=0.542 cong=7.120 overlaps=0
+[tune:dp-score:post_sa] dp_escape_mirror_xy_jit1.25_k15_r0_it48_seed159926 valid=1 proxy=4.1616 wl=0.281 den=0.543 cong=7.218 overlaps=0
+[tune:dp-score:post_sa] dp_escape_anchor2_s44_jit2.35_k7_r0_it48_seed80142 valid=1 proxy=4.3587 wl=0.298 den=0.548 cong=7.574 overlaps=0
+[tune:dp-score:post_sa] dp_base_anchor1_s44_jit0.75_k8_r0_it48_seed90115 valid=1 proxy=4.3996 wl=0.320 den=0.541 cong=7.618 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_anti_transpose_jit0.75_k5_r0_it48_seed60196 valid=1 proxy=4.4504 wl=0.296 den=0.544 cong=7.764 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anchor4_s44_jit1.75_k11_r0_it48_seed120034 valid=1 proxy=4.5015 wl=0.303 den=0.541 cong=7.855 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_anchor6_s44_jit2.35_k12_r0_it48_seed130007 valid=1 proxy=4.5600 wl=0.313 den=0.543 cong=7.950 overlaps=0
+[tune:dp-score:post_sa] dp_tight_anchor7_s44_jit2.35_k10_r0_it48_seed110061 valid=1 proxy=4.6196 wl=0.312 den=0.546 cong=8.070 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment4_den0p72_pcof1p03_ibm08.eplace-mGP2D.pl valid=1 proxy=1.2929 wl=0.078 den=0.516 cong=1.914 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment6_den0p72_pcof1p03_ibm08.eplace-mGP2D.pl valid=1 proxy=1.2929 wl=0.078 den=0.516 cong=1.914 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment9_den0p72_pcof1p08_ibm08.eplace-mGP2D.pl valid=1 proxy=1.2974 wl=0.079 den=0.525 cong=1.913 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment8_den0p74_pcof1p03_ibm08.eplace-mGP2D.pl valid=1 proxy=1.3110 wl=0.077 den=0.528 cong=1.941 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment5_den0p74_pcof1p08_ibm08.eplace-mGP2D.pl valid=1 proxy=1.3140 wl=0.077 den=0.542 cong=1.932 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment11_den0p74_pcof1p08_ibm08.eplace-mGP2D.pl valid=1 proxy=1.3140 wl=0.077 den=0.542 cong=1.932 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment13_den0p74_pcof1p2_ibm08.eplace-mGP2D.pl valid=1 proxy=1.3270 wl=0.078 den=0.556 cong=1.942 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment10_den0p72_pcof1p2_ibm08.eplace-mGP2D.pl valid=1 proxy=1.3308 wl=0.079 den=0.550 cong=1.954 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment12_den0p76_pcof1p08_ibm08.eplace-mGP2D.pl valid=1 proxy=1.3575 wl=0.076 den=0.579 cong=1.984 overlaps=0
+[tune:dp-score:post_replace] dp_escape_mirror_xy_jit1.25_k15_r1_it144_seed159926 valid=1 proxy=2.6998 wl=0.127 den=0.679 cong=4.466 overlaps=0
+[tune:dp-score:post_replace] dp_base_anchor1_s44_jit0.75_k8_r1_it144_seed90115 valid=1 proxy=3.1167 wl=0.154 den=0.545 cong=5.380 overlaps=0
+[tune:dp-score:post_replace] dp_spread_anchor3_s44_jit1.25_k9_r1_it144_seed100088 valid=1 proxy=3.1319 wl=0.150 den=0.548 cong=5.416 overlaps=0
+  ibm08... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm08/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 38, Row: 34
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm08/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 38, Row: 34
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.2929  (wl=0.078 den=0.516 cong=1.914)  VALID  [1005.86s]
+[tune:dp] ibm09  Placer 1/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm09  Placer 1/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 2/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=mirror_xy_jit1.75  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm09  Placer 2/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 3/16  round=0  iters=48  bins=128  td=0.771  tag=tight  start=mirror_y_jit1.25  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm09  Placer 3/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 4/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anti_transpose  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm09  Placer 4/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 5/16  round=0  iters=48  bins=128  td=0.786  tag=xtight  start=mirror_x_jit2.35  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm09  Placer 5/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 6/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=transpose_jit0.75  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm09  Placer 6/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 7/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit2.35  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm09  Placer 7/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 8/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit2.35  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm09  Placer 8/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 9/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=anchor3_s44_jit2.35  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm09  Placer 9/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 10/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=anchor2_s44_jit0.75  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm09  Placer 10/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 11/16  round=0  iters=48  bins=128  td=0.771  tag=tight  start=anchor4_s28_jit1.75  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm09  Placer 11/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 12/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anchor5_s44_jit1.75  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm09  Placer 12/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 13/16  round=0  iters=48  bins=128  td=0.786  tag=xtight  start=anchor7_s44_jit1.25  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm09  Placer 13/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 14/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=anchor6_s44_jit1.75  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm09  Placer 14/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 15/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=mirror_xy_jit2.35  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=128  timeout=194s
+[tune:dp] ibm09  Placer 15/16  round=0 finished  placement=ok
+[tune:dp] ibm09  Placer 16/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=194s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=48  bins=64  timeout=194s
+[tune:dp] ibm09  Placer 16/16  round=0 finished  placement=ok
+[tune:dp] ibm09  hyperband promote 6 after round 0: k1:spread/mirror_xy_jit1.75, k15:escape/mirror_xy_jit1.25, k3:xspread/anti_transpose, k4:xtight/mirror_x_jit2.35, k2:tight/mirror_y_jit1.25, k9:spread/anchor2_s44_jit0.75
+[tune:dp] ibm09  Placer 2/16  round=1  iters=144  bins=64  td=0.695  tag=spread  start=mirror_xy_jit1.75  timeout=583s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=144  bins=64  timeout=583s
+[tune:dp] ibm09  Placer 2/16  round=1 finished  placement=ok
+[tune:dp] ibm09  Placer 16/16  round=1  iters=144  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=583s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=144  bins=64  timeout=583s
+[tune:dp] ibm09  Placer 16/16  round=1 finished  placement=ok
+[tune:dp] ibm09  Placer 4/16  round=1  iters=144  bins=64  td=0.655  tag=xspread  start=anti_transpose  timeout=583s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=144  bins=64  timeout=583s
+[tune:dp] ibm09  Placer 4/16  round=1 finished  placement=ok
+[tune:dp] ibm09  Placer 5/16  round=1  iters=144  bins=128  td=0.786  tag=xtight  start=mirror_x_jit2.35  timeout=583s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=144  bins=128  timeout=583s
+[tune:dp] ibm09  Placer 5/16  round=1 finished  placement=ok
+[tune:dp] ibm09  Placer 3/16  round=1  iters=144  bins=128  td=0.771  tag=tight  start=mirror_y_jit1.25  timeout=583s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=144  bins=128  timeout=583s
+[tune:dp] ibm09  Placer 3/16  round=1 finished  placement=ok
+[tune:dp] ibm09  Placer 10/16  round=1  iters=144  bins=64  td=0.695  tag=spread  start=anchor2_s44_jit0.75  timeout=583s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=144  bins=64  timeout=583s
+[tune:dp] ibm09  Placer 10/16  round=1 finished  placement=ok
+[tune:dp] ibm09  hyperband promote 2 after round 1: k2:tight/mirror_y_jit1.25, k15:escape/mirror_xy_jit1.25
+[tune:dp] ibm09  Placer 3/16  round=2  iters=240  bins=128  td=0.771  tag=tight  start=mirror_y_jit1.25  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm09  Placer 3/16  round=2 finished  placement=ok
+[tune:dp] ibm09  Placer 16/16  round=2  iters=240  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm09  Placer 16/16  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_escape_mirror_xy_jit1.25_k15_r2_it240_seed159896 valid=1 proxy=1.0262 wl=0.066 den=0.564 cong=1.357 overlaps=0
+[tune:dp-score:pre] dp_tight_mirror_y_jit1.25_k2_r2_it240_seed30247 valid=1 proxy=1.0473 wl=0.066 den=0.569 cong=1.394 overlaps=0
+[tune:dp-score:pre] dp_tight_mirror_y_jit1.25_k2_r1_it144_seed30247 valid=1 proxy=1.1068 wl=0.073 den=0.573 cong=1.495 overlaps=0
+[tune:dp-score:pre] dp_escape_mirror_xy_jit1.25_k15_r1_it144_seed159896 valid=1 proxy=1.1086 wl=0.073 den=0.570 cong=1.501 overlaps=0
+[tune:dp-score:pre] dp_xspread_anti_transpose_k3_r1_it144_seed40220 valid=1 proxy=1.1288 wl=0.073 den=0.571 cong=1.540 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_x_jit2.35_k4_r1_it144_seed50193 valid=1 proxy=1.1584 wl=0.079 den=0.580 cong=1.579 overlaps=0
+[tune:dp-score:pre] dp_spread_anchor2_s44_jit0.75_k9_r1_it144_seed100058 valid=1 proxy=1.2112 wl=0.088 den=0.564 cong=1.683 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_jit1.75_k1_r1_it144_seed20274 valid=1 proxy=1.2673 wl=0.080 den=0.573 cong=1.802 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_jit1.75_k1_r0_it48_seed20274 valid=1 proxy=2.8680 wl=0.282 den=0.571 cong=4.602 overlaps=0
+[tune:dp-score:pre] dp_escape_mirror_xy_jit1.25_k15_r0_it48_seed159896 valid=1 proxy=2.9350 wl=0.266 den=0.569 cong=4.769 overlaps=0
+[tune:dp-score:pre] dp_xspread_anti_transpose_k3_r0_it48_seed40220 valid=1 proxy=2.9371 wl=0.278 den=0.567 cong=4.751 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_x_jit2.35_k4_r0_it48_seed50193 valid=1 proxy=3.0135 wl=0.259 den=0.579 cong=4.929 overlaps=0
+[tune:dp-score:post_sa] dp_escape_mirror_xy_jit1.25_k15_r2_it240_seed159896 valid=1 proxy=1.0262 wl=0.066 den=0.564 cong=1.357 overlaps=0
+[tune:dp-score:post_sa] dp_tight_mirror_y_jit1.25_k2_r2_it240_seed30247 valid=1 proxy=1.0473 wl=0.066 den=0.569 cong=1.394 overlaps=0
+[tune:dp-score:post_sa] dp_tight_mirror_y_jit1.25_k2_r1_it144_seed30247 valid=1 proxy=1.1068 wl=0.073 den=0.573 cong=1.495 overlaps=0
+[tune:dp-score:post_sa] dp_escape_mirror_xy_jit1.25_k15_r1_it144_seed159896 valid=1 proxy=1.1086 wl=0.073 den=0.570 cong=1.501 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anti_transpose_k3_r1_it144_seed40220 valid=1 proxy=1.1288 wl=0.073 den=0.571 cong=1.540 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_x_jit2.35_k4_r1_it144_seed50193 valid=1 proxy=1.1584 wl=0.079 den=0.580 cong=1.579 overlaps=0
+[tune:dp-score:post_sa] dp_spread_anchor2_s44_jit0.75_k9_r1_it144_seed100058 valid=1 proxy=1.2112 wl=0.088 den=0.564 cong=1.683 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_jit1.75_k1_r1_it144_seed20274 valid=1 proxy=1.2673 wl=0.080 den=0.573 cong=1.802 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_jit1.75_k1_r0_it48_seed20274 valid=1 proxy=2.8680 wl=0.282 den=0.571 cong=4.602 overlaps=0
+[tune:dp-score:post_sa] dp_escape_mirror_xy_jit1.25_k15_r0_it48_seed159896 valid=1 proxy=2.9350 wl=0.266 den=0.569 cong=4.769 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anti_transpose_k3_r0_it48_seed40220 valid=1 proxy=2.9371 wl=0.278 den=0.567 cong=4.751 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_x_jit2.35_k4_r0_it48_seed50193 valid=1 proxy=3.0135 wl=0.259 den=0.579 cong=4.929 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment7_den0p72_pcof1p08_ibm09.eplace-mGP2D.pl valid=1 proxy=0.9360 wl=0.063 den=0.518 cong=1.227 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment5_den0p74_pcof1p08_ibm09.eplace-mGP2D.pl valid=1 proxy=0.9429 wl=0.062 den=0.519 cong=1.243 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment6_den0p74_pcof1p08_ibm09.eplace-mGP2D.pl valid=1 proxy=0.9429 wl=0.062 den=0.519 cong=1.243 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment4_den0p72_pcof1p03_ibm09.eplace-mGP2D.pl valid=1 proxy=0.9443 wl=0.063 den=0.530 cong=1.231 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment11_den0p72_pcof1p03_ibm09.eplace-mGP2D.pl valid=1 proxy=0.9443 wl=0.063 den=0.530 cong=1.231 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment8_den0p76_pcof1p08_ibm09.eplace-mGP2D.pl valid=1 proxy=0.9484 wl=0.061 den=0.523 cong=1.252 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment9_den0p74_pcof1p03_ibm09.eplace-mGP2D.pl valid=1 proxy=0.9574 wl=0.062 den=0.535 cong=1.255 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment13_den0p72_pcof1p2_ibm09.eplace-mGP2D.pl valid=1 proxy=0.9736 wl=0.064 den=0.533 cong=1.287 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment10_den0p74_pcof1p2_ibm09.eplace-mGP2D.pl valid=1 proxy=0.9810 wl=0.062 den=0.534 cong=1.303 overlaps=0
+[tune:dp-score:post_replace] dp_escape_mirror_xy_jit1.25_k15_r2_it240_seed159896 valid=1 proxy=1.0262 wl=0.066 den=0.564 cong=1.357 overlaps=0
+[tune:dp-score:post_replace] dp_tight_mirror_y_jit1.25_k2_r2_it240_seed30247 valid=1 proxy=1.0473 wl=0.066 den=0.569 cong=1.394 overlaps=0
+[tune:dp-score:post_replace] dp_tight_mirror_y_jit1.25_k2_r1_it144_seed30247 valid=1 proxy=1.1068 wl=0.073 den=0.573 cong=1.495 overlaps=0
+  ibm09... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm09/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 36, Row: 38
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm09/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 36, Row: 38
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=0.9360  (wl=0.063 den=0.518 cong=1.227)  VALID  [739.98s]
+[tune:dp] ibm10  Placer 1/8  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=125s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=48  bins=128  timeout=125s
+[tune:dp] ibm10  Placer 1/8  round=0 finished  placement=ok
+[tune:dp] ibm10  Placer 2/8  round=0  iters=48  bins=64  td=0.627  tag=spread  start=mirror_xy  timeout=125s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=48  bins=64  timeout=125s
+[tune:dp] ibm10  Placer 2/8  round=0 finished  placement=ok
+[tune:dp] ibm10  Placer 3/8  round=0  iters=48  bins=128  td=0.720  tag=tight  start=anti_transpose_jit0.75  timeout=125s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=48  bins=128  timeout=125s
+[tune:dp] ibm10  Placer 3/8  round=0 finished  placement=ok
+[tune:dp] ibm10  Placer 4/8  round=0  iters=48  bins=64  td=0.587  tag=xspread  start=transpose  timeout=125s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=48  bins=64  timeout=125s
+[tune:dp] ibm10  Placer 4/8  round=0 finished  placement=ok
+[tune:dp] ibm10  Placer 5/8  round=0  iters=48  bins=128  td=0.735  tag=xtight  start=mirror_y  timeout=125s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=48  bins=128  timeout=125s
+[tune:dp] ibm10  Placer 5/8  round=0 finished  placement=ok
+[tune:dp] ibm10  Placer 6/8  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=mirror_x  timeout=125s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=48  bins=64  timeout=125s
+[tune:dp] ibm10  Placer 6/8  round=0 finished  placement=ok
+[tune:dp] ibm10  Placer 7/8  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor3_s44_jit2.35  timeout=125s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=48  bins=128  timeout=125s
+[tune:dp] ibm10  Placer 7/8  round=0 finished  placement=ok
+[tune:dp] ibm10  Placer 8/8  round=0  iters=48  bins=64  td=0.635  tag=escape  start=anchor1_s44_jit2.35  timeout=125s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=48  bins=64  timeout=125s
+[tune:dp] ibm10  Placer 8/8  round=0 finished  placement=ok
+[tune:dp] ibm10  hyperband promote 3 after round 0: k3:xspread/transpose, k5:coarse/mirror_x, k7:escape/anchor1_s44_jit2.35
+[tune:dp] ibm10  Placer 4/8  round=1  iters=144  bins=64  td=0.587  tag=xspread  start=transpose  timeout=376s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=144  bins=64  timeout=376s
+[tune:dp] ibm10  Placer 4/8  round=1 finished  placement=ok
+[tune:dp] ibm10  Placer 6/8  round=1  iters=144  bins=64  td=0.675  tag=coarse  start=mirror_x  timeout=376s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=144  bins=64  timeout=376s
+[tune:dp] ibm10  Placer 6/8  round=1 finished  placement=ok
+[tune:dp] ibm10  Placer 8/8  round=1  iters=144  bins=64  td=0.635  tag=escape  start=anchor1_s44_jit2.35  timeout=376s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=144  bins=64  timeout=376s
+[tune:dp] ibm10  Placer 8/8  round=1 finished  placement=ok
+[tune:dp] ibm10  hyperband promote 1 after round 1: k3:xspread/transpose
+[tune:dp] ibm10  Placer 4/8  round=2  iters=372  bins=64  td=0.587  tag=xspread  start=transpose  timeout=720s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=372  bins=64  timeout=720s
+[tune:dp] ibm10  Placer 4/8  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_xspread_transpose_k3_r2_it372_seed41687 valid=1 proxy=1.3405 wl=0.073 den=0.511 cong=2.024 overlaps=0
+[tune:dp-score:pre] dp_xspread_transpose_k3_r1_it144_seed41687 valid=1 proxy=3.3287 wl=0.207 den=0.511 cong=5.732 overlaps=0
+[tune:dp-score:pre] dp_coarse_mirror_x_k5_r1_it144_seed61633 valid=1 proxy=3.4740 wl=0.228 den=0.512 cong=5.979 overlaps=0
+[tune:dp-score:pre] dp_escape_anchor1_s44_jit2.35_k7_r1_it144_seed81579 valid=1 proxy=3.5690 wl=0.229 den=0.509 cong=6.170 overlaps=0
+[tune:dp-score:pre] dp_xspread_transpose_k3_r0_it48_seed41687 valid=1 proxy=4.0022 wl=0.317 den=0.511 cong=6.860 overlaps=0
+[tune:dp-score:pre] dp_coarse_mirror_x_k5_r0_it48_seed61633 valid=1 proxy=4.1009 wl=0.293 den=0.513 cong=7.102 overlaps=0
+[tune:dp-score:pre] dp_escape_anchor1_s44_jit2.35_k7_r0_it48_seed81579 valid=1 proxy=4.2548 wl=0.318 den=0.511 cong=7.363 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_k1_r0_it48_seed21741 valid=1 proxy=4.4411 wl=0.303 den=0.513 cong=7.764 overlaps=0
+[tune:dp-score:pre] dp_tight_anti_transpose_jit0.75_k2_r0_it48_seed31714 valid=1 proxy=4.5341 wl=0.315 den=0.526 cong=7.912 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_y_k4_r0_it48_seed51660 valid=1 proxy=4.6145 wl=0.307 den=0.511 cong=8.103 overlaps=0
+[tune:dp-score:pre] dp_fine_anchor3_s44_jit2.35_k6_r0_it48_seed71606 valid=1 proxy=5.0469 wl=0.341 den=0.508 cong=8.903 overlaps=0
+[tune:dp-score:pre] dp_base_native_jit_k0_r0_it48_seed11768 valid=1 proxy=5.1847 wl=0.306 den=0.514 cong=9.244 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_transpose_k3_r2_it372_seed41687 valid=1 proxy=1.3405 wl=0.073 den=0.511 cong=2.024 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_transpose_k3_r2_it372_seed41687_sa valid=1 proxy=1.3405 wl=0.073 den=0.511 cong=2.024 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_transpose_k3_r1_it144_seed41687 valid=1 proxy=3.3287 wl=0.207 den=0.511 cong=5.732 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_mirror_x_k5_r1_it144_seed61633 valid=1 proxy=3.4740 wl=0.228 den=0.512 cong=5.979 overlaps=0
+[tune:dp-score:post_sa] dp_escape_anchor1_s44_jit2.35_k7_r1_it144_seed81579 valid=1 proxy=3.5690 wl=0.229 den=0.509 cong=6.170 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_transpose_k3_r0_it48_seed41687 valid=1 proxy=4.0022 wl=0.317 den=0.511 cong=6.860 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_mirror_x_k5_r0_it48_seed61633 valid=1 proxy=4.1009 wl=0.293 den=0.513 cong=7.102 overlaps=0
+[tune:dp-score:post_sa] dp_escape_anchor1_s44_jit2.35_k7_r0_it48_seed81579 valid=1 proxy=4.2548 wl=0.318 den=0.511 cong=7.363 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_k1_r0_it48_seed21741 valid=1 proxy=4.4411 wl=0.303 den=0.513 cong=7.764 overlaps=0
+[tune:dp-score:post_sa] dp_tight_anti_transpose_jit0.75_k2_r0_it48_seed31714 valid=1 proxy=4.5341 wl=0.315 den=0.526 cong=7.912 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_y_k4_r0_it48_seed51660 valid=1 proxy=4.6145 wl=0.307 den=0.511 cong=8.103 overlaps=0
+[tune:dp-score:post_sa] dp_fine_anchor3_s44_jit2.35_k6_r0_it48_seed71606 valid=1 proxy=5.0469 wl=0.341 den=0.508 cong=8.903 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment7_den0p66_pcof1p03_ibm10.eplace-mGP2D.pl valid=1 proxy=1.1304 wl=0.054 den=0.551 cong=1.601 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment3_den0p68_pcof1p03_ibm10.eplace-mGP2D.pl valid=1 proxy=1.1544 wl=0.053 den=0.554 cong=1.649 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment6_den0p68_pcof1p03_ibm10.eplace-mGP2D.pl valid=1 proxy=1.1544 wl=0.053 den=0.554 cong=1.649 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment12_den0p72_pcof1p08_ibm10.eplace-mGP2D.pl valid=1 proxy=1.1803 wl=0.052 den=0.573 cong=1.684 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment14_den0p74_pcof1p03_ibm10.eplace-mGP2D.pl valid=1 proxy=1.2069 wl=0.051 den=0.583 cong=1.729 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment5_den0p74_pcof1p08_ibm10.eplace-mGP2D.pl valid=1 proxy=1.2093 wl=0.051 den=0.592 cong=1.724 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment11_den0p74_pcof1p08_ibm10.eplace-mGP2D.pl valid=1 proxy=1.2093 wl=0.051 den=0.592 cong=1.724 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment9_den0p68_pcof1p08_ibm10.eplace-mGP2D.pl valid=1 proxy=1.3104 wl=0.054 den=0.693 cong=1.819 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment4_den0p72_pcof1p03_ibm10.eplace-mGP2D.pl valid=1 proxy=1.3195 wl=0.053 den=0.692 cong=1.842 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment16_den0p72_pcof1p03_ibm10.eplace-mGP2D.pl valid=1 proxy=1.3195 wl=0.053 den=0.692 cong=1.842 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment8_den0p7_pcof1p03_ibm10.eplace-mGP2D.pl valid=1 proxy=1.3208 wl=0.053 den=0.688 cong=1.847 overlaps=0
+[tune:dp-score:post_replace] dp_xspread_transpose_k3_r2_it372_seed41687 valid=1 proxy=1.3405 wl=0.073 den=0.511 cong=2.024 overlaps=0
+  ibm10... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm10/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 55, Row: 41
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm10/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 55, Row: 41
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.1304  (wl=0.054 den=0.551 cong=1.601)  VALID  [3931.98s]
+[tune:dp] ibm11  Placer 1/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=128  timeout=182s
+[tune:dp] ibm11  Placer 1/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 2/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=mirror_xy_jit2.35  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=64  timeout=182s
+[tune:dp] ibm11  Placer 2/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 3/16  round=0  iters=48  bins=128  td=0.782  tag=tight  start=mirror_y_jit2.35  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=128  timeout=182s
+[tune:dp] ibm11  Placer 3/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 4/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=mirror_x_jit0.75  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=64  timeout=182s
+[tune:dp] ibm11  Placer 4/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 5/16  round=0  iters=48  bins=128  td=0.797  tag=xtight  start=anti_transpose_jit1.25  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=128  timeout=182s
+[tune:dp] ibm11  Placer 5/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 6/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=transpose_jit0.75  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=64  timeout=182s
+[tune:dp] ibm11  Placer 6/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 7/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor3_s44_jit1.75  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=128  timeout=182s
+[tune:dp] ibm11  Placer 7/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 8/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=anchor1_s44_jit1.75  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=64  timeout=182s
+[tune:dp] ibm11  Placer 8/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 9/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=anchor2_s44_jit0.75  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=128  timeout=182s
+[tune:dp] ibm11  Placer 9/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 10/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=anchor0_s44_jit1.75  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=64  timeout=182s
+[tune:dp] ibm11  Placer 10/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 11/16  round=0  iters=48  bins=128  td=0.782  tag=tight  start=anchor5_s28_jit1.75  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=128  timeout=182s
+[tune:dp] ibm11  Placer 11/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 12/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anchor6_s44_jit2.35  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=64  timeout=182s
+[tune:dp] ibm11  Placer 12/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 13/16  round=0  iters=48  bins=128  td=0.797  tag=xtight  start=anchor4_s44_jit2.35  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=128  timeout=182s
+[tune:dp] ibm11  Placer 13/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 14/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=anchor7_s44_jit1.75  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=64  timeout=182s
+[tune:dp] ibm11  Placer 14/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 15/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=mirror_xy_jit1.75  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=128  timeout=182s
+[tune:dp] ibm11  Placer 15/16  round=0 finished  placement=ok
+[tune:dp] ibm11  Placer 16/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=182s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=48  bins=64  timeout=182s
+[tune:dp] ibm11  Placer 16/16  round=0 finished  placement=ok
+[tune:dp] ibm11  hyperband promote 6 after round 0: k5:coarse/transpose_jit0.75, k15:escape/mirror_xy_jit1.25, k0:base/native_jit, k4:xtight/anti_transpose_jit1.25, k1:spread/mirror_xy_jit2.35, k2:tight/mirror_y_jit2.35
+[tune:dp] ibm11  Placer 6/16  round=1  iters=144  bins=64  td=0.675  tag=coarse  start=transpose_jit0.75  timeout=547s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=144  bins=64  timeout=547s
+[tune:dp] ibm11  Placer 6/16  round=1 finished  placement=ok
+[tune:dp] ibm11  Placer 16/16  round=1  iters=144  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=547s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=144  bins=64  timeout=547s
+[tune:dp] ibm11  Placer 16/16  round=1 finished  placement=ok
+[tune:dp] ibm11  Placer 1/16  round=1  iters=144  bins=128  td=0.720  tag=base  start=native_jit  timeout=547s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=144  bins=128  timeout=547s
+[tune:dp] ibm11  Placer 1/16  round=1 finished  placement=ok
+[tune:dp] ibm11  Placer 5/16  round=1  iters=144  bins=128  td=0.797  tag=xtight  start=anti_transpose_jit1.25  timeout=547s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=144  bins=128  timeout=547s
+[tune:dp] ibm11  Placer 5/16  round=1 finished  placement=ok
+[tune:dp] ibm11  Placer 2/16  round=1  iters=144  bins=64  td=0.695  tag=spread  start=mirror_xy_jit2.35  timeout=547s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=144  bins=64  timeout=547s
+[tune:dp] ibm11  Placer 2/16  round=1 finished  placement=ok
+[tune:dp] ibm11  Placer 3/16  round=1  iters=144  bins=128  td=0.782  tag=tight  start=mirror_y_jit2.35  timeout=547s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=144  bins=128  timeout=547s
+[tune:dp] ibm11  Placer 3/16  round=1 finished  placement=ok
+[tune:dp] ibm11  hyperband promote 2 after round 1: k15:escape/mirror_xy_jit1.25, k4:xtight/anti_transpose_jit1.25
+[tune:dp] ibm11  Placer 16/16  round=2  iters=256  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=64  timeout=720s
+[tune:dp] ibm11  Placer 16/16  round=2 finished  placement=ok
+[tune:dp] ibm11  Placer 5/16  round=2  iters=256  bins=128  td=0.797  tag=xtight  start=anti_transpose_jit1.25  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=128  timeout=720s
+[tune:dp] ibm11  Placer 5/16  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_xtight_anti_transpose_jit1.25_k4_r2_it256_seed50460 valid=1 proxy=1.0387 wl=0.061 den=0.591 cong=1.364 overlaps=0
+[tune:dp-score:pre] dp_escape_mirror_xy_jit1.25_k15_r1_it144_seed160163 valid=1 proxy=1.5578 wl=0.093 den=0.606 cong=2.323 overlaps=0
+[tune:dp-score:pre] dp_xtight_anti_transpose_jit1.25_k4_r1_it144_seed50460 valid=1 proxy=1.5742 wl=0.104 den=0.606 cong=2.334 overlaps=0
+[tune:dp-score:pre] dp_tight_mirror_y_jit2.35_k2_r1_it144_seed30514 valid=1 proxy=1.5848 wl=0.102 den=0.610 cong=2.356 overlaps=0
+[tune:dp-score:pre] dp_base_native_jit_k0_r1_it144_seed10568 valid=1 proxy=1.6168 wl=0.106 den=0.608 cong=2.413 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_jit2.35_k1_r1_it144_seed20541 valid=1 proxy=1.6221 wl=0.098 den=0.604 cong=2.444 overlaps=0
+[tune:dp-score:pre] dp_coarse_transpose_jit0.75_k5_r1_it144_seed60433 valid=1 proxy=1.7750 wl=0.108 den=0.611 cong=2.723 overlaps=0
+[tune:dp-score:pre] dp_coarse_transpose_jit0.75_k5_r0_it48_seed60433 valid=1 proxy=3.2121 wl=0.268 den=0.605 cong=5.283 overlaps=0
+[tune:dp-score:pre] dp_escape_mirror_xy_jit1.25_k15_r0_it48_seed160163 valid=1 proxy=3.2414 wl=0.261 den=0.611 cong=5.350 overlaps=0
+[tune:dp-score:pre] dp_base_native_jit_k0_r0_it48_seed10568 valid=1 proxy=3.2754 wl=0.279 den=0.610 cong=5.382 overlaps=0
+[tune:dp-score:pre] dp_xtight_anti_transpose_jit1.25_k4_r0_it48_seed50460 valid=1 proxy=3.3076 wl=0.274 den=0.602 cong=5.465 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_jit2.35_k1_r0_it48_seed20541 valid=1 proxy=3.3403 wl=0.268 den=0.612 cong=5.531 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_anti_transpose_jit1.25_k4_r2_it256_seed50460 valid=1 proxy=1.0387 wl=0.061 den=0.591 cong=1.364 overlaps=0
+[tune:dp-score:post_sa] dp_escape_mirror_xy_jit1.25_k15_r1_it144_seed160163 valid=1 proxy=1.5578 wl=0.093 den=0.606 cong=2.323 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_anti_transpose_jit1.25_k4_r1_it144_seed50460 valid=1 proxy=1.5742 wl=0.104 den=0.606 cong=2.334 overlaps=0
+[tune:dp-score:post_sa] dp_tight_mirror_y_jit2.35_k2_r1_it144_seed30514 valid=1 proxy=1.5848 wl=0.102 den=0.610 cong=2.356 overlaps=0
+[tune:dp-score:post_sa] dp_base_native_jit_k0_r1_it144_seed10568 valid=1 proxy=1.6168 wl=0.106 den=0.608 cong=2.413 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_jit2.35_k1_r1_it144_seed20541 valid=1 proxy=1.6221 wl=0.098 den=0.604 cong=2.444 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_transpose_jit0.75_k5_r1_it144_seed60433 valid=1 proxy=1.7750 wl=0.108 den=0.611 cong=2.723 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_transpose_jit0.75_k5_r0_it48_seed60433 valid=1 proxy=3.2121 wl=0.268 den=0.605 cong=5.283 overlaps=0
+[tune:dp-score:post_sa] dp_escape_mirror_xy_jit1.25_k15_r0_it48_seed160163 valid=1 proxy=3.2414 wl=0.261 den=0.611 cong=5.350 overlaps=0
+[tune:dp-score:post_sa] dp_base_native_jit_k0_r0_it48_seed10568 valid=1 proxy=3.2754 wl=0.279 den=0.610 cong=5.382 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_anti_transpose_jit1.25_k4_r0_it48_seed50460 valid=1 proxy=3.3076 wl=0.274 den=0.602 cong=5.465 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_jit2.35_k1_r0_it48_seed20541 valid=1 proxy=3.3403 wl=0.268 den=0.612 cong=5.531 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment5_den0p74_pcof1p08_ibm11.eplace-mGP2D.pl valid=1 proxy=0.9698 wl=0.061 den=0.534 cong=1.283 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment6_den0p74_pcof1p08_ibm11.eplace-mGP2D.pl valid=1 proxy=0.9698 wl=0.061 den=0.534 cong=1.283 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment8_den0p76_pcof1p08_ibm11.eplace-mGP2D.pl valid=1 proxy=0.9807 wl=0.060 den=0.539 cong=1.301 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment9_den0p74_pcof1p03_ibm11.eplace-mGP2D.pl valid=1 proxy=0.9857 wl=0.062 den=0.553 cong=1.296 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment10_den0p74_pcof1p2_ibm11.eplace-mGP2D.pl valid=1 proxy=0.9938 wl=0.062 den=0.535 cong=1.329 overlaps=0
+[tune:dp-score:post_replace] dp_xtight_anti_transpose_jit1.25_k4_r2_it256_seed50460 valid=1 proxy=1.0387 wl=0.061 den=0.591 cong=1.364 overlaps=0
+[tune:dp-score:post_replace] dp_escape_mirror_xy_jit1.25_k15_r1_it144_seed160163 valid=1 proxy=1.5578 wl=0.093 den=0.606 cong=2.323 overlaps=0
+[tune:dp-score:post_replace] dp_xtight_anti_transpose_jit1.25_k4_r1_it144_seed50460 valid=1 proxy=1.5742 wl=0.104 den=0.606 cong=2.334 overlaps=0
+[tune:dp-score:post_replace] dp_tight_mirror_y_jit2.35_k2_r1_it144_seed30514 valid=1 proxy=1.5848 wl=0.102 den=0.610 cong=2.356 overlaps=0
+[tune:dp-score:post_replace] dp_base_native_jit_k0_r1_it144_seed10568 valid=1 proxy=1.6168 wl=0.106 den=0.608 cong=2.413 overlaps=0
+[tune:dp-score:post_replace] dp_spread_mirror_xy_jit2.35_k1_r1_it144_seed20541 valid=1 proxy=1.6221 wl=0.098 den=0.604 cong=2.444 overlaps=0
+[tune:dp-score:post_replace] dp_coarse_transpose_jit0.75_k5_r1_it144_seed60433 valid=1 proxy=1.7750 wl=0.108 den=0.611 cong=2.723 overlaps=0
+  ibm11... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm11/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 39, Row: 45
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm11/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 39, Row: 45
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=0.9698  (wl=0.061 den=0.534 cong=1.283)  VALID  [1096.81s]
+[tune:dp] ibm12  Placer 1/12  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=138s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=48  bins=128  timeout=138s
+[tune:dp] ibm12  Placer 1/12  round=0 finished  placement=ok
+[tune:dp] ibm12  Placer 2/12  round=0  iters=48  bins=64  td=0.667  tag=spread  start=mirror_xy_jit1.75  timeout=138s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=48  bins=64  timeout=138s
+[tune:dp] ibm12  Placer 2/12  round=0 finished  placement=ok
+[tune:dp] ibm12  Placer 3/12  round=0  iters=48  bins=128  td=0.720  tag=tight  start=transpose_jit1.25  timeout=138s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=48  bins=128  timeout=138s
+[tune:dp] ibm12  Placer 3/12  round=0 finished  placement=ok
+[tune:dp] ibm12  Placer 4/12  round=0  iters=48  bins=64  td=0.627  tag=xspread  start=anti_transpose_jit1.25  timeout=138s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=48  bins=64  timeout=138s
+[tune:dp] ibm12  Placer 4/12  round=0 finished  placement=ok
+[tune:dp] ibm12  Placer 5/12  round=0  iters=48  bins=128  td=0.735  tag=xtight  start=mirror_x_jit2.35  timeout=138s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=48  bins=128  timeout=138s
+[tune:dp] ibm12  Placer 5/12  round=0 finished  placement=ok
+[tune:dp] ibm12  Placer 6/12  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.25  timeout=138s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=48  bins=64  timeout=138s
+[tune:dp] ibm12  Placer 6/12  round=0 finished  placement=ok
+[tune:dp] ibm12  Placer 7/12  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit1.75  timeout=138s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=48  bins=128  timeout=138s
+[tune:dp] ibm12  Placer 7/12  round=0 finished  placement=ok
+[tune:dp] ibm12  Placer 8/12  round=0  iters=48  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit2.35  timeout=138s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=48  bins=64  timeout=138s
+[tune:dp] ibm12  Placer 8/12  round=0 finished  placement=ok
+[tune:dp] ibm12  Placer 9/12  round=0  iters=48  bins=128  td=0.720  tag=base  start=anchor3_s44_jit1.75  timeout=138s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=48  bins=128  timeout=138s
+[tune:dp] ibm12  Placer 9/12  round=0 finished  placement=ok
+[tune:dp] ibm12  Placer 10/12  round=0  iters=48  bins=64  td=0.667  tag=spread  start=anchor2_s44_jit2.35  timeout=138s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=48  bins=64  timeout=138s
+[tune:dp] ibm12  Placer 10/12  round=0 finished  placement=ok
+[tune:dp] ibm12  Placer 11/12  round=0  iters=48  bins=128  td=0.720  tag=tight  start=anchor4_s44_jit2.35  timeout=138s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=48  bins=128  timeout=138s
+[tune:dp] ibm12  Placer 11/12  round=0 finished  placement=ok
+[tune:dp] ibm12  Placer 12/12  round=0  iters=48  bins=64  td=0.627  tag=xspread  start=anchor5_s44_jit2.35  timeout=138s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=48  bins=64  timeout=138s
+[tune:dp] ibm12  Placer 12/12  round=0 finished  placement=ok
+[tune:dp] ibm12  hyperband promote 4 after round 0: k8:base/anchor3_s44_jit1.75, k2:tight/transpose_jit1.25, k3:xspread/anti_transpose_jit1.25, k4:xtight/mirror_x_jit2.35
+[tune:dp] ibm12  Placer 9/12  round=1  iters=144  bins=128  td=0.720  tag=base  start=anchor3_s44_jit1.75  timeout=415s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=144  bins=128  timeout=415s
+[tune:dp] ibm12  Placer 9/12  round=1 finished  placement=ok
+[tune:dp] ibm12  Placer 3/12  round=1  iters=144  bins=128  td=0.720  tag=tight  start=transpose_jit1.25  timeout=415s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=144  bins=128  timeout=415s
+[tune:dp] ibm12  Placer 3/12  round=1 finished  placement=ok
+[tune:dp] ibm12  Placer 4/12  round=1  iters=144  bins=64  td=0.627  tag=xspread  start=anti_transpose_jit1.25  timeout=415s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=144  bins=64  timeout=415s
+[tune:dp] ibm12  Placer 4/12  round=1 finished  placement=ok
+[tune:dp] ibm12  Placer 5/12  round=1  iters=144  bins=128  td=0.735  tag=xtight  start=mirror_x_jit2.35  timeout=415s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=144  bins=128  timeout=415s
+[tune:dp] ibm12  Placer 5/12  round=1 finished  placement=ok
+[tune:dp] ibm12  hyperband promote 2 after round 1: k2:tight/transpose_jit1.25, k4:xtight/mirror_x_jit2.35
+[tune:dp] ibm12  Placer 3/12  round=2  iters=337  bins=128  td=0.720  tag=tight  start=transpose_jit1.25  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=128  timeout=720s
+[tune:dp] ibm12  Placer 3/12  round=2 finished  placement=ok
+[tune:dp] ibm12  Placer 5/12  round=2  iters=337  bins=128  td=0.735  tag=xtight  start=mirror_x_jit2.35  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=128  timeout=720s
+[tune:dp] ibm12  Placer 5/12  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_tight_transpose_jit1.25_k2_r2_it337_seed31582 valid=1 proxy=1.5043 wl=0.069 den=0.530 cong=2.339 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_x_jit2.35_k4_r2_it337_seed51528 valid=1 proxy=1.5062 wl=0.070 den=0.528 cong=2.344 overlaps=0
+[tune:dp-score:pre] dp_tight_transpose_jit1.25_k2_r1_it144_seed31582 valid=1 proxy=4.2564 wl=0.259 den=0.531 cong=7.464 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_x_jit2.35_k4_r1_it144_seed51528 valid=1 proxy=4.4891 wl=0.267 den=0.531 cong=7.912 overlaps=0
+[tune:dp-score:pre] dp_xspread_anti_transpose_jit1.25_k3_r1_it144_seed41555 valid=1 proxy=4.5300 wl=0.237 den=0.531 cong=8.055 overlaps=0
+[tune:dp-score:pre] dp_base_anchor3_s44_jit1.75_k8_r1_it144_seed91420 valid=1 proxy=4.6839 wl=0.287 den=0.528 cong=8.266 overlaps=0
+[tune:dp-score:pre] dp_base_anchor3_s44_jit1.75_k8_r0_it48_seed91420 valid=1 proxy=4.8498 wl=0.347 den=0.532 cong=8.474 overlaps=0
+[tune:dp-score:pre] dp_tight_transpose_jit1.25_k2_r0_it48_seed31582 valid=1 proxy=4.8646 wl=0.340 den=0.531 cong=8.518 overlaps=0
+[tune:dp-score:pre] dp_xspread_anti_transpose_jit1.25_k3_r0_it48_seed41555 valid=1 proxy=4.8919 wl=0.338 den=0.527 cong=8.581 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_x_jit2.35_k4_r0_it48_seed51528 valid=1 proxy=4.9590 wl=0.348 den=0.532 cong=8.690 overlaps=0
+[tune:dp-score:pre] dp_coarse_mirror_y_jit1.25_k5_r0_it48_seed61501 valid=1 proxy=4.9758 wl=0.343 den=0.532 cong=8.734 overlaps=0
+[tune:dp-score:pre] dp_fine_anchor1_s44_jit1.75_k6_r0_it48_seed71474 valid=1 proxy=5.0659 wl=0.340 den=0.528 cong=8.923 overlaps=0
+[tune:dp-score:post_sa] dp_tight_transpose_jit1.25_k2_r2_it337_seed31582 valid=1 proxy=1.5043 wl=0.069 den=0.530 cong=2.339 overlaps=0
+[tune:dp-score:post_sa] dp_tight_transpose_jit1.25_k2_r2_it337_seed31582_sa valid=1 proxy=1.5043 wl=0.069 den=0.530 cong=2.339 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_x_jit2.35_k4_r2_it337_seed51528 valid=1 proxy=1.5062 wl=0.070 den=0.528 cong=2.344 overlaps=0
+[tune:dp-score:post_sa] dp_tight_transpose_jit1.25_k2_r1_it144_seed31582 valid=1 proxy=4.2564 wl=0.259 den=0.531 cong=7.464 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_x_jit2.35_k4_r1_it144_seed51528 valid=1 proxy=4.4891 wl=0.267 den=0.531 cong=7.912 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anti_transpose_jit1.25_k3_r1_it144_seed41555 valid=1 proxy=4.5300 wl=0.237 den=0.531 cong=8.055 overlaps=0
+[tune:dp-score:post_sa] dp_base_anchor3_s44_jit1.75_k8_r1_it144_seed91420 valid=1 proxy=4.6839 wl=0.287 den=0.528 cong=8.266 overlaps=0
+[tune:dp-score:post_sa] dp_base_anchor3_s44_jit1.75_k8_r0_it48_seed91420 valid=1 proxy=4.8498 wl=0.347 den=0.532 cong=8.474 overlaps=0
+[tune:dp-score:post_sa] dp_tight_transpose_jit1.25_k2_r0_it48_seed31582 valid=1 proxy=4.8646 wl=0.340 den=0.531 cong=8.518 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anti_transpose_jit1.25_k3_r0_it48_seed41555 valid=1 proxy=4.8919 wl=0.338 den=0.527 cong=8.581 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_x_jit2.35_k4_r0_it48_seed51528 valid=1 proxy=4.9590 wl=0.348 den=0.532 cong=8.690 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_mirror_y_jit1.25_k5_r0_it48_seed61501 valid=1 proxy=4.9758 wl=0.343 den=0.532 cong=8.734 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment17_den0p68_pcof1p2_ibm12.eplace-mGP2D.pl valid=1 proxy=1.3878 wl=0.068 den=0.528 cong=2.111 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment10_den0p72_pcof1p2_ibm12.eplace-mGP2D.pl valid=1 proxy=1.3971 wl=0.066 den=0.530 cong=2.131 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment9_den0p72_pcof1p08_ibm12.eplace-mGP2D.pl valid=1 proxy=1.4031 wl=0.066 den=0.528 cong=2.146 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment4_den0p72_pcof1p03_ibm12.eplace-mGP2D.pl valid=1 proxy=1.4110 wl=0.066 den=0.530 cong=2.161 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment6_den0p72_pcof1p03_ibm12.eplace-mGP2D.pl valid=1 proxy=1.4110 wl=0.066 den=0.530 cong=2.161 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment8_den0p74_pcof1p03_ibm12.eplace-mGP2D.pl valid=1 proxy=1.4114 wl=0.065 den=0.535 cong=2.158 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment13_den0p74_pcof1p2_ibm12.eplace-mGP2D.pl valid=1 proxy=1.4122 wl=0.065 den=0.532 cong=2.162 overlaps=0
+[tune:dp-score:post_replace] dp_tight_transpose_jit1.25_k2_r2_it337_seed31582 valid=1 proxy=1.5043 wl=0.069 den=0.530 cong=2.339 overlaps=0
+[tune:dp-score:post_replace] dp_tight_transpose_jit1.25_k2_r2_it337_seed31582_sa valid=1 proxy=1.5043 wl=0.069 den=0.530 cong=2.339 overlaps=0
+[tune:dp-score:post_replace] dp_xtight_mirror_x_jit2.35_k4_r2_it337_seed51528 valid=1 proxy=1.5062 wl=0.070 den=0.528 cong=2.344 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment5_den0p74_pcof1p08_ibm12.eplace-mGP2D.pl valid=1 proxy=1.6262 wl=0.066 den=0.717 cong=2.404 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment11_den0p74_pcof1p08_ibm12.eplace-mGP2D.pl valid=1 proxy=1.6262 wl=0.066 den=0.717 cong=2.404 overlaps=0
+  ibm12... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm12/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 47, Row: 47
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm12/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 47, Row: 47
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.3878  (wl=0.068 den=0.528 cong=2.111)  VALID  [3912.10s]
+[tune:dp] ibm13  Placer 1/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=128  timeout=177s
+[tune:dp] ibm13  Placer 1/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 2/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=mirror_xy_jit2.35  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=64  timeout=177s
+[tune:dp] ibm13  Placer 2/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 3/16  round=0  iters=48  bins=128  td=0.789  tag=tight  start=transpose_jit1.25  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=128  timeout=177s
+[tune:dp] ibm13  Placer 3/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 4/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anti_transpose  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=64  timeout=177s
+[tune:dp] ibm13  Placer 4/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 5/16  round=0  iters=48  bins=128  td=0.804  tag=xtight  start=mirror_x_jit0.75  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=128  timeout=177s
+[tune:dp] ibm13  Placer 5/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 6/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.25  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=64  timeout=177s
+[tune:dp] ibm13  Placer 6/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 7/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor3_s44_jit2.35  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=128  timeout=177s
+[tune:dp] ibm13  Placer 7/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 8/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=anchor1_s44_jit2.35  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=64  timeout=177s
+[tune:dp] ibm13  Placer 8/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 9/16  round=0  iters=48  bins=128  td=0.720  tag=base  start=anchor2_s44_jit1.75  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=128  timeout=177s
+[tune:dp] ibm13  Placer 9/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 10/16  round=0  iters=48  bins=64  td=0.695  tag=spread  start=anchor0_s44_jit0.75  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=64  timeout=177s
+[tune:dp] ibm13  Placer 10/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 11/16  round=0  iters=48  bins=128  td=0.789  tag=tight  start=anchor5_s44_jit1.75  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=128  timeout=177s
+[tune:dp] ibm13  Placer 11/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 12/16  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anchor6_s44_jit1.75  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=64  timeout=177s
+[tune:dp] ibm13  Placer 12/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 13/16  round=0  iters=48  bins=128  td=0.804  tag=xtight  start=anchor4_s44_jit0.75  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=128  timeout=177s
+[tune:dp] ibm13  Placer 13/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 14/16  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=anchor7_s44_jit1.75  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=64  timeout=177s
+[tune:dp] ibm13  Placer 14/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 15/16  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor3_s28_jit1.75  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=128  timeout=177s
+[tune:dp] ibm13  Placer 15/16  round=0 finished  placement=ok
+[tune:dp] ibm13  Placer 16/16  round=0  iters=48  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.75  timeout=177s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=48  bins=64  timeout=177s
+[tune:dp] ibm13  Placer 16/16  round=0 finished  placement=ok
+[tune:dp] ibm13  hyperband promote 6 after round 0: k11:xspread/anchor6_s44_jit1.75, k7:escape/anchor1_s44_jit2.35, k1:spread/mirror_xy_jit2.35, k14:fine/anchor3_s28_jit1.75, k8:base/anchor2_s44_jit1.75, k3:xspread/anti_transpose
+[tune:dp] ibm13  Placer 12/16  round=1  iters=144  bins=64  td=0.655  tag=xspread  start=anchor6_s44_jit1.75  timeout=530s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=144  bins=64  timeout=530s
+[tune:dp] ibm13  Placer 12/16  round=1 finished  placement=ok
+[tune:dp] ibm13  Placer 8/16  round=1  iters=144  bins=64  td=0.635  tag=escape  start=anchor1_s44_jit2.35  timeout=530s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=144  bins=64  timeout=530s
+[tune:dp] ibm13  Placer 8/16  round=1 finished  placement=ok
+[tune:dp] ibm13  Placer 2/16  round=1  iters=144  bins=64  td=0.695  tag=spread  start=mirror_xy_jit2.35  timeout=530s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=144  bins=64  timeout=530s
+[tune:dp] ibm13  Placer 2/16  round=1 finished  placement=ok
+[tune:dp] ibm13  Placer 15/16  round=1  iters=144  bins=128  td=0.705  tag=fine  start=anchor3_s28_jit1.75  timeout=530s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=144  bins=128  timeout=530s
+[tune:dp] ibm13  Placer 15/16  round=1 finished  placement=ok
+[tune:dp] ibm13  Placer 9/16  round=1  iters=144  bins=128  td=0.720  tag=base  start=anchor2_s44_jit1.75  timeout=530s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=144  bins=128  timeout=530s
+[tune:dp] ibm13  Placer 9/16  round=1 finished  placement=ok
+[tune:dp] ibm13  Placer 4/16  round=1  iters=144  bins=64  td=0.655  tag=xspread  start=anti_transpose  timeout=530s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=144  bins=64  timeout=530s
+[tune:dp] ibm13  Placer 4/16  round=1 finished  placement=ok
+[tune:dp] ibm13  hyperband promote 2 after round 1: k3:xspread/anti_transpose, k14:fine/anchor3_s28_jit1.75
+[tune:dp] ibm13  Placer 4/16  round=2  iters=264  bins=64  td=0.655  tag=xspread  start=anti_transpose  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=64  timeout=720s
+[tune:dp] ibm13  Placer 4/16  round=2 finished  placement=ok
+[tune:dp] ibm13  Placer 15/16  round=2  iters=264  bins=128  td=0.705  tag=fine  start=anchor3_s28_jit1.75  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=128  timeout=720s
+[tune:dp] ibm13  Placer 15/16  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_xspread_anti_transpose_k3_r2_it264_seed40644 valid=1 proxy=1.2538 wl=0.062 den=0.658 cong=1.726 overlaps=0
+[tune:dp-score:pre] dp_xspread_anti_transpose_k3_r1_it144_seed40644 valid=1 proxy=1.8196 wl=0.115 den=0.641 cong=2.769 overlaps=0
+[tune:dp-score:pre] dp_fine_anchor3_s28_jit1.75_k14_r1_it144_seed150347 valid=1 proxy=1.9542 wl=0.130 den=0.693 cong=2.954 overlaps=0
+[tune:dp-score:pre] dp_escape_anchor1_s44_jit2.35_k7_r1_it144_seed80536 valid=1 proxy=2.3170 wl=0.144 den=0.701 cong=3.646 overlaps=0
+[tune:dp-score:pre] dp_xspread_anchor6_s44_jit1.75_k11_r1_it144_seed120428 valid=1 proxy=2.5306 wl=0.148 den=0.632 cong=4.133 overlaps=0
+[tune:dp-score:pre] dp_xspread_anchor6_s44_jit1.75_k11_r0_it48_seed120428 valid=1 proxy=3.9270 wl=0.274 den=0.638 cong=6.669 overlaps=0
+[tune:dp-score:pre] dp_escape_anchor1_s44_jit2.35_k7_r0_it48_seed80536 valid=1 proxy=3.9741 wl=0.285 den=0.641 cong=6.738 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_jit2.35_k1_r0_it48_seed20698 valid=1 proxy=3.9950 wl=0.274 den=0.651 cong=6.790 overlaps=0
+[tune:dp-score:pre] dp_fine_anchor3_s28_jit1.75_k14_r0_it48_seed150347 valid=1 proxy=4.0098 wl=0.291 den=0.645 cong=6.793 overlaps=0
+[tune:dp-score:pre] dp_base_anchor2_s44_jit1.75_k8_r0_it48_seed90509 valid=1 proxy=4.0616 wl=0.295 den=0.663 cong=6.871 overlaps=0
+[tune:dp-score:pre] dp_xspread_anti_transpose_k3_r0_it48_seed40644 valid=1 proxy=4.0818 wl=0.263 den=0.649 cong=6.988 overlaps=0
+[tune:dp-score:pre] dp_tight_transpose_jit1.25_k2_r0_it48_seed30671 valid=1 proxy=4.1072 wl=0.291 den=0.641 cong=6.991 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anti_transpose_k3_r2_it264_seed40644 valid=1 proxy=1.2538 wl=0.062 den=0.658 cong=1.726 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anti_transpose_k3_r1_it144_seed40644 valid=1 proxy=1.8196 wl=0.115 den=0.641 cong=2.769 overlaps=0
+[tune:dp-score:post_sa] dp_fine_anchor3_s28_jit1.75_k14_r1_it144_seed150347 valid=1 proxy=1.9542 wl=0.130 den=0.693 cong=2.954 overlaps=0
+[tune:dp-score:post_sa] dp_escape_anchor1_s44_jit2.35_k7_r1_it144_seed80536 valid=1 proxy=2.3170 wl=0.144 den=0.701 cong=3.646 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anchor6_s44_jit1.75_k11_r1_it144_seed120428 valid=1 proxy=2.5306 wl=0.148 den=0.632 cong=4.133 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anchor6_s44_jit1.75_k11_r0_it48_seed120428 valid=1 proxy=3.9270 wl=0.274 den=0.638 cong=6.669 overlaps=0
+[tune:dp-score:post_sa] dp_escape_anchor1_s44_jit2.35_k7_r0_it48_seed80536 valid=1 proxy=3.9741 wl=0.285 den=0.641 cong=6.738 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_jit2.35_k1_r0_it48_seed20698 valid=1 proxy=3.9950 wl=0.274 den=0.651 cong=6.790 overlaps=0
+[tune:dp-score:post_sa] dp_fine_anchor3_s28_jit1.75_k14_r0_it48_seed150347 valid=1 proxy=4.0098 wl=0.291 den=0.645 cong=6.793 overlaps=0
+[tune:dp-score:post_sa] dp_base_anchor2_s44_jit1.75_k8_r0_it48_seed90509 valid=1 proxy=4.0616 wl=0.295 den=0.663 cong=6.871 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anti_transpose_k3_r0_it48_seed40644 valid=1 proxy=4.0818 wl=0.263 den=0.649 cong=6.988 overlaps=0
+[tune:dp-score:post_sa] dp_tight_transpose_jit1.25_k2_r0_it48_seed30671 valid=1 proxy=4.1072 wl=0.291 den=0.641 cong=6.991 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment9_den0p74_pcof1p03_ibm13.eplace-mGP2D.pl valid=1 proxy=1.0867 wl=0.059 den=0.552 cong=1.503 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment8_den0p76_pcof1p08_ibm13.eplace-mGP2D.pl valid=1 proxy=1.0922 wl=0.058 den=0.584 cong=1.485 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment5_den0p74_pcof1p08_ibm13.eplace-mGP2D.pl valid=1 proxy=1.0960 wl=0.060 den=0.575 cong=1.498 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment6_den0p74_pcof1p08_ibm13.eplace-mGP2D.pl valid=1 proxy=1.0960 wl=0.060 den=0.575 cong=1.498 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment10_den0p74_pcof1p2_ibm13.eplace-mGP2D.pl valid=1 proxy=1.1123 wl=0.060 den=0.554 cong=1.551 overlaps=0
+[tune:dp-score:post_replace] dp_xspread_anti_transpose_k3_r2_it264_seed40644 valid=1 proxy=1.2538 wl=0.062 den=0.658 cong=1.726 overlaps=0
+[tune:dp-score:post_replace] dp_xspread_anti_transpose_k3_r1_it144_seed40644 valid=1 proxy=1.8196 wl=0.115 den=0.641 cong=2.769 overlaps=0
+[tune:dp-score:post_replace] dp_fine_anchor3_s28_jit1.75_k14_r1_it144_seed150347 valid=1 proxy=1.9542 wl=0.130 den=0.693 cong=2.954 overlaps=0
+[tune:dp-score:post_replace] dp_escape_anchor1_s44_jit2.35_k7_r1_it144_seed80536 valid=1 proxy=2.3170 wl=0.144 den=0.701 cong=3.646 overlaps=0
+[tune:dp-score:post_replace] dp_xspread_anchor6_s44_jit1.75_k11_r1_it144_seed120428 valid=1 proxy=2.5306 wl=0.148 den=0.632 cong=4.133 overlaps=0
+[tune:dp-score:post_replace] dp_xspread_anchor6_s44_jit1.75_k11_r0_it48_seed120428 valid=1 proxy=3.9270 wl=0.274 den=0.638 cong=6.669 overlaps=0
+[tune:dp-score:post_replace] dp_escape_anchor1_s44_jit2.35_k7_r0_it48_seed80536 valid=1 proxy=3.9741 wl=0.285 den=0.641 cong=6.738 overlaps=0
+  ibm13... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm13/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 43, Row: 43
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm13/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 43, Row: 43
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.0867  (wl=0.059 den=0.552 cong=1.503)  VALID  [1307.12s]
+[tune:dp] ibm14  Placer 1/12  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=160s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=48  bins=128  timeout=160s
+[tune:dp] ibm14  Placer 1/12  round=0 finished  placement=ok
+[tune:dp] ibm14  Placer 2/12  round=0  iters=48  bins=64  td=0.695  tag=spread  start=mirror_xy  timeout=160s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=48  bins=64  timeout=160s
+[tune:dp] ibm14  Placer 2/12  round=0 finished  placement=ok
+[tune:dp] ibm14  Placer 3/12  round=0  iters=48  bins=128  td=0.872  tag=tight  start=transpose_jit1.25  timeout=160s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=48  bins=128  timeout=160s
+[tune:dp] ibm14  Placer 3/12  round=0 finished  placement=ok
+[tune:dp] ibm14  Placer 4/12  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anti_transpose_jit1.75  timeout=160s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=48  bins=64  timeout=160s
+[tune:dp] ibm14  Placer 4/12  round=0 finished  placement=ok
+[tune:dp] ibm14  Placer 5/12  round=0  iters=48  bins=128  td=0.880  tag=xtight  start=mirror_x_jit1.75  timeout=160s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=48  bins=128  timeout=160s
+[tune:dp] ibm14  Placer 5/12  round=0 finished  placement=ok
+[tune:dp] ibm14  Placer 6/12  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.75  timeout=160s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=48  bins=64  timeout=160s
+[tune:dp] ibm14  Placer 6/12  round=0 finished  placement=ok
+[tune:dp] ibm14  Placer 7/12  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit2.35  timeout=160s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=48  bins=128  timeout=160s
+[tune:dp] ibm14  Placer 7/12  round=0 finished  placement=ok
+[tune:dp] ibm14  Placer 8/12  round=0  iters=48  bins=64  td=0.690  tag=net_escape  start=anchor3_s44  timeout=160s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=48  bins=64  timeout=160s
+[tune:dp] ibm14  Placer 8/12  round=0 finished  placement=ok
+[tune:dp] ibm14  Placer 9/12  round=0  iters=48  bins=128  td=0.720  tag=base  start=anchor0_s44_jit2.35  timeout=160s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=48  bins=128  timeout=160s
+[tune:dp] ibm14  Placer 9/12  round=0 finished  placement=ok
+[tune:dp] ibm14  Placer 10/12  round=0  iters=48  bins=64  td=0.695  tag=spread  start=anchor2_s44_jit2.35  timeout=160s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=48  bins=64  timeout=160s
+[tune:dp] ibm14  Placer 10/12  round=0 finished  placement=ok
+[tune:dp] ibm14  Placer 11/12  round=0  iters=48  bins=128  td=0.872  tag=tight  start=anchor5_s44_jit2.35  timeout=160s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=48  bins=128  timeout=160s
+[tune:dp] ibm14  Placer 11/12  round=0 finished  placement=ok
+[tune:dp] ibm14  Placer 12/12  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anchor4_s44_jit1.75  timeout=160s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=48  bins=64  timeout=160s
+[tune:dp] ibm14  Placer 12/12  round=0 finished  placement=ok
+[tune:dp] ibm14  hyperband promote 4 after round 0: k8:base/anchor0_s44_jit2.35, k4:xtight/mirror_x_jit1.75, k10:tight/anchor5_s44_jit2.35, k5:coarse/mirror_y_jit1.75
+[tune:dp] ibm14  Placer 9/12  round=1  iters=144  bins=128  td=0.720  tag=base  start=anchor0_s44_jit2.35  timeout=481s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=144  bins=128  timeout=481s
+[tune:dp] ibm14  Placer 9/12  round=1 finished  placement=ok
+[tune:dp] ibm14  Placer 5/12  round=1  iters=144  bins=128  td=0.880  tag=xtight  start=mirror_x_jit1.75  timeout=481s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=144  bins=128  timeout=481s
+[tune:dp] ibm14  Placer 5/12  round=1 finished  placement=ok
+[tune:dp] ibm14  Placer 11/12  round=1  iters=144  bins=128  td=0.872  tag=tight  start=anchor5_s44_jit2.35  timeout=481s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=144  bins=128  timeout=481s
+[tune:dp] ibm14  Placer 11/12  round=1 finished  placement=ok
+[tune:dp] ibm14  Placer 6/12  round=1  iters=144  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.75  timeout=481s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=144  bins=64  timeout=481s
+[tune:dp] ibm14  Placer 6/12  round=1 finished  placement=ok
+[tune:dp] ibm14  hyperband promote 2 after round 1: k8:base/anchor0_s44_jit2.35, k4:xtight/mirror_x_jit1.75
+[tune:dp] ibm14  Placer 9/12  round=2  iters=291  bins=128  td=0.720  tag=base  start=anchor0_s44_jit2.35  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=128  timeout=720s
+[tune:dp] ibm14  Placer 9/12  round=2 finished  placement=ok
+[tune:dp] ibm14  Placer 5/12  round=2  iters=291  bins=128  td=0.880  tag=xtight  start=mirror_x_jit1.75  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=128  timeout=720s
+[tune:dp] ibm14  Placer 5/12  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_base_anchor0_s44_jit2.35_k8_r2_it291_seed90927 valid=1 proxy=1.4479 wl=0.063 den=0.661 cong=2.110 overlaps=0
+[tune:dp-score:pre] dp_base_anchor0_s44_jit2.35_k8_r1_it144_seed90927 valid=1 proxy=1.5122 wl=0.062 den=0.659 cong=2.241 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_x_jit1.75_k4_r2_it291_seed51035 valid=1 proxy=1.5222 wl=0.063 den=0.672 cong=2.246 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_x_jit1.75_k4_r1_it144_seed51035 valid=1 proxy=1.5983 wl=0.066 den=0.687 cong=2.379 overlaps=0
+[tune:dp-score:pre] dp_tight_anchor5_s44_jit2.35_k10_r1_it144_seed110873 valid=1 proxy=1.6224 wl=0.062 den=0.668 cong=2.453 overlaps=0
+[tune:dp-score:pre] dp_base_anchor0_s44_jit2.35_k8_r0_it48_seed90927 valid=1 proxy=1.6684 wl=0.066 den=0.688 cong=2.517 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_x_jit1.75_k4_r0_it48_seed51035 valid=1 proxy=1.8068 wl=0.069 den=0.700 cong=2.776 overlaps=0
+[tune:dp-score:pre] dp_tight_anchor5_s44_jit2.35_k10_r0_it48_seed110873 valid=1 proxy=2.4634 wl=0.085 den=0.671 cong=4.087 overlaps=0
+[tune:dp-score:pre] dp_coarse_mirror_y_jit1.75_k5_r1_it144_seed61008 valid=1 proxy=4.5978 wl=0.183 den=0.675 cong=8.155 overlaps=0
+[tune:dp-score:pre] dp_coarse_mirror_y_jit1.75_k5_r0_it48_seed61008 valid=1 proxy=6.2961 wl=0.257 den=0.665 cong=11.414 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_k1_r0_it48_seed21116 valid=1 proxy=6.3588 wl=0.257 den=0.671 cong=11.533 overlaps=0
+[tune:dp-score:pre] dp_spread_anchor2_s44_jit2.35_k9_r0_it48_seed100900 valid=1 proxy=6.6897 wl=0.250 den=0.673 cong=12.207 overlaps=0
+[tune:dp-score:post_sa] dp_base_anchor0_s44_jit2.35_k8_r2_it291_seed90927 valid=1 proxy=1.4479 wl=0.063 den=0.661 cong=2.110 overlaps=0
+[tune:dp-score:post_sa] dp_base_anchor0_s44_jit2.35_k8_r1_it144_seed90927 valid=1 proxy=1.5122 wl=0.062 den=0.659 cong=2.241 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_x_jit1.75_k4_r2_it291_seed51035 valid=1 proxy=1.5222 wl=0.063 den=0.672 cong=2.246 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_x_jit1.75_k4_r1_it144_seed51035 valid=1 proxy=1.5983 wl=0.066 den=0.687 cong=2.379 overlaps=0
+[tune:dp-score:post_sa] dp_tight_anchor5_s44_jit2.35_k10_r1_it144_seed110873 valid=1 proxy=1.6224 wl=0.062 den=0.668 cong=2.453 overlaps=0
+[tune:dp-score:post_sa] dp_base_anchor0_s44_jit2.35_k8_r0_it48_seed90927 valid=1 proxy=1.6684 wl=0.066 den=0.688 cong=2.517 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_x_jit1.75_k4_r0_it48_seed51035 valid=1 proxy=1.8068 wl=0.069 den=0.700 cong=2.776 overlaps=0
+[tune:dp-score:post_sa] dp_tight_anchor5_s44_jit2.35_k10_r0_it48_seed110873 valid=1 proxy=2.4634 wl=0.085 den=0.671 cong=4.087 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_mirror_y_jit1.75_k5_r1_it144_seed61008 valid=1 proxy=4.5978 wl=0.183 den=0.675 cong=8.155 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_mirror_y_jit1.75_k5_r0_it48_seed61008 valid=1 proxy=6.2961 wl=0.257 den=0.665 cong=11.414 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_k1_r0_it48_seed21116 valid=1 proxy=6.3588 wl=0.257 den=0.671 cong=11.533 overlaps=0
+[tune:dp-score:post_sa] dp_spread_anchor2_s44_jit2.35_k9_r0_it48_seed100900 valid=1 proxy=6.6897 wl=0.250 den=0.673 cong=12.207 overlaps=0
+  ibm14... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm14/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 49, Row: 44
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm14/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 49, Row: 44
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.4479  (wl=0.063 den=0.661 cong=2.110)  VALID  [2136.49s]
+[tune:dp] ibm15  Placer 1/16  round=0  iters=48  bins=128  td=0.760  tag=wire  start=native_jit  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=128  timeout=180s
+[tune:dp] ibm15  Placer 1/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 2/16  round=0  iters=48  bins=128  td=0.800  tag=wire_tight  start=anchor1_s26_jit0.70  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=128  timeout=180s
+[tune:dp] ibm15  Placer 2/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 3/16  round=0  iters=48  bins=64  td=0.720  tag=wire_loose  start=anchor3_s26_jit0.70  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=64  timeout=180s
+[tune:dp] ibm15  Placer 3/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 4/16  round=0  iters=48  bins=64  td=0.760  tag=wire_coarse  start=anchor0_s26_jit1.40  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=64  timeout=180s
+[tune:dp] ibm15  Placer 4/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 5/16  round=0  iters=48  bins=128  td=0.780  tag=wire_fine  start=anchor2_s26_jit1.40  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=128  timeout=180s
+[tune:dp] ibm15  Placer 5/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 6/16  round=0  iters=48  bins=128  td=0.740  tag=mild_spread  start=anchor5_s18_jit1.40  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=128  timeout=180s
+[tune:dp] ibm15  Placer 6/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 7/16  round=0  iters=48  bins=128  td=0.820  tag=dense_wire  start=anchor4_s26_jit0.35  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=128  timeout=180s
+[tune:dp] ibm15  Placer 7/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 8/16  round=0  iters=48  bins=64  td=0.700  tag=soft_relax  start=anchor6_s26_jit1.40  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=64  timeout=180s
+[tune:dp] ibm15  Placer 8/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 9/16  round=0  iters=48  bins=128  td=0.760  tag=wire  start=anchor7_s26_jit1.40  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=128  timeout=180s
+[tune:dp] ibm15  Placer 9/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 10/16  round=0  iters=48  bins=128  td=0.800  tag=wire_tight  start=anchor3_s10_jit1.05  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=128  timeout=180s
+[tune:dp] ibm15  Placer 10/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 11/16  round=0  iters=48  bins=64  td=0.720  tag=wire_loose  start=anchor1_s10_jit1.05  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=64  timeout=180s
+[tune:dp] ibm15  Placer 11/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 12/16  round=0  iters=48  bins=64  td=0.760  tag=wire_coarse  start=anchor1_s18_jit1.40  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=64  timeout=180s
+[tune:dp] ibm15  Placer 12/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 13/16  round=0  iters=48  bins=128  td=0.780  tag=wire_fine  start=anchor5_s26_jit1.05  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=128  timeout=180s
+[tune:dp] ibm15  Placer 13/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 14/16  round=0  iters=48  bins=128  td=0.740  tag=mild_spread  start=anchor3_s18_jit1.40  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=128  timeout=180s
+[tune:dp] ibm15  Placer 14/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 15/16  round=0  iters=48  bins=128  td=0.820  tag=dense_wire  start=anchor0_s10_jit1.40  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=128  timeout=180s
+[tune:dp] ibm15  Placer 15/16  round=0 finished  placement=ok
+[tune:dp] ibm15  Placer 16/16  round=0  iters=48  bins=64  td=0.700  tag=soft_relax  start=anchor4_s18_jit1.05  timeout=180s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=48  bins=64  timeout=180s
+[tune:dp] ibm15  Placer 16/16  round=0 finished  placement=ok
+[tune:dp] ibm15  hyperband promote 6 after round 0: k5:mild_spread/anchor5_s18_jit1.40, k13:mild_spread/anchor3_s18_jit1.40, k15:soft_relax/anchor4_s18_jit1.05, k4:wire_fine/anchor2_s26_jit1.40, k12:wire_fine/anchor5_s26_jit1.05, k8:wire/anchor7_s26_jit1.40
+[tune:dp] ibm15  Placer 6/16  round=1  iters=144  bins=128  td=0.740  tag=mild_spread  start=anchor5_s18_jit1.40  timeout=540s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=144  bins=128  timeout=540s
+[tune:dp] ibm15  Placer 6/16  round=1 finished  placement=ok
+[tune:dp] ibm15  Placer 14/16  round=1  iters=144  bins=128  td=0.740  tag=mild_spread  start=anchor3_s18_jit1.40  timeout=540s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=144  bins=128  timeout=540s
+[tune:dp] ibm15  Placer 14/16  round=1 finished  placement=ok
+[tune:dp] ibm15  Placer 16/16  round=1  iters=144  bins=64  td=0.700  tag=soft_relax  start=anchor4_s18_jit1.05  timeout=540s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=144  bins=64  timeout=540s
+[tune:dp] ibm15  Placer 16/16  round=1 finished  placement=ok
+[tune:dp] ibm15  Placer 5/16  round=1  iters=144  bins=128  td=0.780  tag=wire_fine  start=anchor2_s26_jit1.40  timeout=540s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=144  bins=128  timeout=540s
+[tune:dp] ibm15  Placer 5/16  round=1 finished  placement=ok
+[tune:dp] ibm15  Placer 13/16  round=1  iters=144  bins=128  td=0.780  tag=wire_fine  start=anchor5_s26_jit1.05  timeout=540s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=144  bins=128  timeout=540s
+[tune:dp] ibm15  Placer 13/16  round=1 finished  placement=ok
+[tune:dp] ibm15  Placer 9/16  round=1  iters=144  bins=128  td=0.760  tag=wire  start=anchor7_s26_jit1.40  timeout=540s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=144  bins=128  timeout=540s
+[tune:dp] ibm15  Placer 9/16  round=1 finished  placement=ok
+[tune:dp] ibm15  hyperband promote 2 after round 1: k15:soft_relax/anchor4_s18_jit1.05, k12:wire_fine/anchor5_s26_jit1.05
+[tune:dp] ibm15  Placer 16/16  round=2  iters=259  bins=64  td=0.700  tag=soft_relax  start=anchor4_s18_jit1.05  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=64  timeout=720s
+[tune:dp] ibm15  Placer 16/16  round=2 finished  placement=ok
+[tune:dp] ibm15  Placer 13/16  round=2  iters=259  bins=128  td=0.780  tag=wire_fine  start=anchor5_s26_jit1.05  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=128  timeout=720s
+[tune:dp] ibm15  Placer 13/16  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_wire_fine_anchor5_s26_jit1.05_k12_r2_it259_seed130207 valid=1 proxy=2.1125 wl=0.106 den=0.701 cong=3.312 overlaps=0
+[tune:dp-score:pre] dp_mild_spread_anchor5_s18_jit1.40_k5_r0_it48_seed60396 valid=1 proxy=4.6868 wl=0.285 den=0.696 cong=8.107 overlaps=0
+[tune:dp-score:pre] dp_mild_spread_anchor3_s18_jit1.40_k13_r0_it48_seed140180 valid=1 proxy=4.7185 wl=0.291 den=0.702 cong=8.152 overlaps=0
+[tune:dp-score:pre] dp_soft_relax_anchor4_s18_jit1.05_k15_r1_it144_seed160126 valid=1 proxy=4.7223 wl=0.234 den=0.704 cong=8.273 overlaps=0
+[tune:dp-score:pre] dp_wire_fine_anchor5_s26_jit1.05_k12_r1_it144_seed130207 valid=1 proxy=4.7314 wl=0.241 den=0.699 cong=8.281 overlaps=0
+[tune:dp-score:pre] dp_soft_relax_anchor4_s18_jit1.05_k15_r0_it48_seed160126 valid=1 proxy=4.7614 wl=0.286 den=0.707 cong=8.244 overlaps=0
+[tune:dp-score:pre] dp_wire_fine_anchor2_s26_jit1.40_k4_r0_it48_seed50423 valid=1 proxy=4.7700 wl=0.293 den=0.688 cong=8.265 overlaps=0
+[tune:dp-score:pre] dp_wire_fine_anchor5_s26_jit1.05_k12_r0_it48_seed130207 valid=1 proxy=4.7981 wl=0.291 den=0.700 cong=8.314 overlaps=0
+[tune:dp-score:pre] dp_wire_fine_anchor2_s26_jit1.40_k4_r1_it144_seed50423 valid=1 proxy=4.8290 wl=0.238 den=0.728 cong=8.454 overlaps=0
+[tune:dp-score:pre] dp_wire_anchor7_s26_jit1.40_k8_r0_it48_seed90315 valid=1 proxy=4.8824 wl=0.276 den=0.684 cong=8.529 overlaps=0
+[tune:dp-score:pre] dp_wire_tight_anchor1_s26_jit0.70_k1_r0_it48_seed20504 valid=1 proxy=4.9126 wl=0.270 den=0.694 cong=8.590 overlaps=0
+[tune:dp-score:pre] dp_wire_coarse_anchor0_s26_jit1.40_k3_r0_it48_seed40450 valid=1 proxy=4.9165 wl=0.290 den=0.702 cong=8.551 overlaps=0
+[tune:dp-score:post_sa] dp_wire_fine_anchor5_s26_jit1.05_k12_r2_it259_seed130207 valid=1 proxy=2.1125 wl=0.106 den=0.701 cong=3.312 overlaps=0
+[tune:dp-score:post_sa] dp_mild_spread_anchor5_s18_jit1.40_k5_r0_it48_seed60396 valid=1 proxy=4.6868 wl=0.285 den=0.696 cong=8.107 overlaps=0
+[tune:dp-score:post_sa] dp_mild_spread_anchor3_s18_jit1.40_k13_r0_it48_seed140180 valid=1 proxy=4.7185 wl=0.291 den=0.702 cong=8.152 overlaps=0
+[tune:dp-score:post_sa] dp_soft_relax_anchor4_s18_jit1.05_k15_r1_it144_seed160126 valid=1 proxy=4.7223 wl=0.234 den=0.704 cong=8.273 overlaps=0
+[tune:dp-score:post_sa] dp_wire_fine_anchor5_s26_jit1.05_k12_r1_it144_seed130207 valid=1 proxy=4.7314 wl=0.241 den=0.699 cong=8.281 overlaps=0
+[tune:dp-score:post_sa] dp_soft_relax_anchor4_s18_jit1.05_k15_r0_it48_seed160126 valid=1 proxy=4.7614 wl=0.286 den=0.707 cong=8.244 overlaps=0
+[tune:dp-score:post_sa] dp_wire_fine_anchor2_s26_jit1.40_k4_r0_it48_seed50423 valid=1 proxy=4.7700 wl=0.293 den=0.688 cong=8.265 overlaps=0
+[tune:dp-score:post_sa] dp_wire_fine_anchor5_s26_jit1.05_k12_r0_it48_seed130207 valid=1 proxy=4.7981 wl=0.291 den=0.700 cong=8.314 overlaps=0
+[tune:dp-score:post_sa] dp_wire_fine_anchor2_s26_jit1.40_k4_r1_it144_seed50423 valid=1 proxy=4.8290 wl=0.238 den=0.728 cong=8.454 overlaps=0
+[tune:dp-score:post_sa] dp_wire_anchor7_s26_jit1.40_k8_r0_it48_seed90315 valid=1 proxy=4.8824 wl=0.276 den=0.684 cong=8.529 overlaps=0
+[tune:dp-score:post_sa] dp_wire_tight_anchor1_s26_jit0.70_k1_r0_it48_seed20504 valid=1 proxy=4.9126 wl=0.270 den=0.694 cong=8.590 overlaps=0
+[tune:dp-score:post_sa] dp_wire_coarse_anchor0_s26_jit1.40_k3_r0_it48_seed40450 valid=1 proxy=4.9165 wl=0.290 den=0.702 cong=8.551 overlaps=0
+  ibm15... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm15/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 57, Row: 38
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm15/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 57, Row: 38
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=2.1125  (wl=0.106 den=0.701 cong=3.312)  VALID  [1397.60s]
+[tune:dp] ibm16  Placer 1/12  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=173s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=48  bins=128  timeout=173s
+[tune:dp] ibm16  Placer 1/12  round=0 finished  placement=ok
+[tune:dp] ibm16  Placer 2/12  round=0  iters=48  bins=64  td=0.695  tag=spread  start=mirror_xy_jit0.75  timeout=173s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=48  bins=64  timeout=173s
+[tune:dp] ibm16  Placer 2/12  round=0 finished  placement=ok
+[tune:dp] ibm16  Placer 3/12  round=0  iters=48  bins=128  td=0.781  tag=tight  start=anti_transpose_jit1.75  timeout=173s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=48  bins=128  timeout=173s
+[tune:dp] ibm16  Placer 3/12  round=0 finished  placement=ok
+[tune:dp] ibm16  Placer 4/12  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=mirror_x_jit1.25  timeout=173s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=48  bins=64  timeout=173s
+[tune:dp] ibm16  Placer 4/12  round=0 finished  placement=ok
+[tune:dp] ibm16  Placer 5/12  round=0  iters=48  bins=128  td=0.796  tag=xtight  start=transpose_jit0.75  timeout=173s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=48  bins=128  timeout=173s
+[tune:dp] ibm16  Placer 5/12  round=0 finished  placement=ok
+[tune:dp] ibm16  Placer 6/12  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=mirror_y_jit0.75  timeout=173s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=48  bins=64  timeout=173s
+[tune:dp] ibm16  Placer 6/12  round=0 finished  placement=ok
+[tune:dp] ibm16  Placer 7/12  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit1.25  timeout=173s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=48  bins=128  timeout=173s
+[tune:dp] ibm16  Placer 7/12  round=0 finished  placement=ok
+[tune:dp] ibm16  Placer 8/12  round=0  iters=48  bins=64  td=0.690  tag=net_escape  start=anchor3_s44_jit1.75  timeout=173s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=48  bins=64  timeout=173s
+[tune:dp] ibm16  Placer 8/12  round=0 finished  placement=ok
+[tune:dp] ibm16  Placer 9/12  round=0  iters=48  bins=128  td=0.720  tag=base  start=anchor0_s44_jit1.75  timeout=173s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=48  bins=128  timeout=173s
+[tune:dp] ibm16  Placer 9/12  round=0 finished  placement=ok
+[tune:dp] ibm16  Placer 10/12  round=0  iters=48  bins=64  td=0.695  tag=spread  start=anchor2_s44_jit1.25  timeout=173s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=48  bins=64  timeout=173s
+[tune:dp] ibm16  Placer 10/12  round=0 finished  placement=ok
+[tune:dp] ibm16  Placer 11/12  round=0  iters=48  bins=128  td=0.781  tag=tight  start=anchor5_s44_jit2.35  timeout=173s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=48  bins=128  timeout=173s
+[tune:dp] ibm16  Placer 11/12  round=0 finished  placement=ok
+[tune:dp] ibm16  Placer 12/12  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anchor4_s44_jit0.75  timeout=173s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=48  bins=64  timeout=173s
+[tune:dp] ibm16  Placer 12/12  round=0 finished  placement=ok
+[tune:dp] ibm16  hyperband promote 4 after round 0: k1:spread/mirror_xy_jit0.75, k3:xspread/mirror_x_jit1.25, k5:coarse/mirror_y_jit0.75, k4:xtight/transpose_jit0.75
+[tune:dp] ibm16  Placer 2/12  round=1  iters=144  bins=64  td=0.695  tag=spread  start=mirror_xy_jit0.75  timeout=520s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=144  bins=64  timeout=520s
+[tune:dp] ibm16  Placer 2/12  round=1 finished  placement=ok
+[tune:dp] ibm16  Placer 4/12  round=1  iters=144  bins=64  td=0.655  tag=xspread  start=mirror_x_jit1.25  timeout=520s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=144  bins=64  timeout=520s
+[tune:dp] ibm16  Placer 4/12  round=1 finished  placement=ok
+[tune:dp] ibm16  Placer 6/12  round=1  iters=144  bins=64  td=0.675  tag=coarse  start=mirror_y_jit0.75  timeout=520s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=144  bins=64  timeout=520s
+[tune:dp] ibm16  Placer 6/12  round=1 finished  placement=ok
+[tune:dp] ibm16  Placer 5/12  round=1  iters=144  bins=128  td=0.796  tag=xtight  start=transpose_jit0.75  timeout=520s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=144  bins=128  timeout=520s
+[tune:dp] ibm16  Placer 5/12  round=1 finished  placement=ok
+[tune:dp] ibm16  hyperband promote 2 after round 1: k3:xspread/mirror_x_jit1.25, k1:spread/mirror_xy_jit0.75
+[tune:dp] ibm16  Placer 4/12  round=2  iters=269  bins=64  td=0.655  tag=xspread  start=mirror_x_jit1.25  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=64  timeout=720s
+[tune:dp] ibm16  Placer 4/12  round=2 finished  placement=ok
+[tune:dp] ibm16  Placer 2/12  round=2  iters=269  bins=64  td=0.695  tag=spread  start=mirror_xy_jit0.75  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=64  timeout=720s
+[tune:dp] ibm16  Placer 2/12  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_xspread_mirror_x_jit1.25_k3_r2_it269_seed40692 valid=1 proxy=2.0495 wl=0.088 den=0.699 cong=3.224 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_jit0.75_k1_r2_it269_seed20746 valid=1 proxy=2.0735 wl=0.084 den=0.821 cong=3.158 overlaps=0
+[tune:dp-score:pre] dp_xspread_mirror_x_jit1.25_k3_r1_it144_seed40692 valid=1 proxy=4.6364 wl=0.184 den=0.687 cong=8.218 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_jit0.75_k1_r1_it144_seed20746 valid=1 proxy=4.7216 wl=0.191 den=0.626 cong=8.436 overlaps=0
+[tune:dp-score:pre] dp_coarse_mirror_y_jit0.75_k5_r1_it144_seed60638 valid=1 proxy=5.0847 wl=0.203 den=0.573 cong=9.190 overlaps=0
+[tune:dp-score:pre] dp_xtight_transpose_jit0.75_k4_r1_it144_seed50665 valid=1 proxy=5.4776 wl=0.206 den=0.569 cong=9.975 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_jit0.75_k1_r0_it48_seed20746 valid=1 proxy=6.3433 wl=0.253 den=0.688 cong=11.492 overlaps=0
+[tune:dp-score:pre] dp_xspread_mirror_x_jit1.25_k3_r0_it48_seed40692 valid=1 proxy=6.4104 wl=0.256 den=0.571 cong=11.738 overlaps=0
+[tune:dp-score:pre] dp_coarse_mirror_y_jit0.75_k5_r0_it48_seed60638 valid=1 proxy=6.5830 wl=0.258 den=0.574 cong=12.077 overlaps=0
+[tune:dp-score:pre] dp_xtight_transpose_jit0.75_k4_r0_it48_seed50665 valid=1 proxy=6.7104 wl=0.264 den=0.572 cong=12.321 overlaps=0
+[tune:dp-score:pre] dp_base_anchor0_s44_jit1.75_k8_r0_it48_seed90557 valid=1 proxy=6.7798 wl=0.279 den=0.578 cong=12.424 overlaps=0
+[tune:dp-score:pre] dp_fine_anchor1_s44_jit1.25_k6_r0_it48_seed70611 valid=1 proxy=6.8957 wl=0.273 den=0.573 cong=12.672 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_mirror_x_jit1.25_k3_r2_it269_seed40692 valid=1 proxy=2.0495 wl=0.088 den=0.699 cong=3.224 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_mirror_x_jit1.25_k3_r2_it269_seed40692_sa valid=1 proxy=2.0497 wl=0.088 den=0.700 cong=3.224 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_jit0.75_k1_r2_it269_seed20746 valid=1 proxy=2.0735 wl=0.084 den=0.821 cong=3.158 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_mirror_x_jit1.25_k3_r1_it144_seed40692 valid=1 proxy=4.6364 wl=0.184 den=0.687 cong=8.218 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_jit0.75_k1_r1_it144_seed20746 valid=1 proxy=4.7216 wl=0.191 den=0.626 cong=8.436 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_mirror_y_jit0.75_k5_r1_it144_seed60638 valid=1 proxy=5.0847 wl=0.203 den=0.573 cong=9.190 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_transpose_jit0.75_k4_r1_it144_seed50665 valid=1 proxy=5.4776 wl=0.206 den=0.569 cong=9.975 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_jit0.75_k1_r0_it48_seed20746 valid=1 proxy=6.3433 wl=0.253 den=0.688 cong=11.492 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_mirror_x_jit1.25_k3_r0_it48_seed40692 valid=1 proxy=6.4104 wl=0.256 den=0.571 cong=11.738 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_mirror_y_jit0.75_k5_r0_it48_seed60638 valid=1 proxy=6.5830 wl=0.258 den=0.574 cong=12.077 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_transpose_jit0.75_k4_r0_it48_seed50665 valid=1 proxy=6.7104 wl=0.264 den=0.572 cong=12.321 overlaps=0
+[tune:dp-score:post_sa] dp_base_anchor0_s44_jit1.75_k8_r0_it48_seed90557 valid=1 proxy=6.7798 wl=0.279 den=0.578 cong=12.424 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment5_den0p74_pcof1p08_ibm16.eplace-mGP2D.pl valid=1 proxy=1.2326 wl=0.057 den=0.518 cong=1.833 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment6_den0p74_pcof1p08_ibm16.eplace-mGP2D.pl valid=1 proxy=1.2326 wl=0.057 den=0.518 cong=1.833 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment8_den0p76_pcof1p08_ibm16.eplace-mGP2D.pl valid=1 proxy=1.2382 wl=0.056 den=0.523 cong=1.842 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment10_den0p74_pcof1p2_ibm16.eplace-mGP2D.pl valid=1 proxy=1.2411 wl=0.057 den=0.523 cong=1.844 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment13_den0p72_pcof1p2_ibm16.eplace-mGP2D.pl valid=1 proxy=1.2603 wl=0.059 den=0.514 cong=1.889 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment7_den0p72_pcof1p08_ibm16.eplace-mGP2D.pl valid=1 proxy=1.4569 wl=0.060 den=0.673 cong=2.121 overlaps=0
+[tune:dp-score:post_replace] dp_xspread_mirror_x_jit1.25_k3_r2_it269_seed40692 valid=1 proxy=2.0495 wl=0.088 den=0.699 cong=3.224 overlaps=0
+[tune:dp-score:post_replace] dp_xspread_mirror_x_jit1.25_k3_r2_it269_seed40692_sa valid=1 proxy=2.0497 wl=0.088 den=0.700 cong=3.224 overlaps=0
+[tune:dp-score:post_replace] dp_spread_mirror_xy_jit0.75_k1_r2_it269_seed20746 valid=1 proxy=2.0735 wl=0.084 den=0.821 cong=3.158 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment4_den0p72_pcof1p03_ibm16.eplace-mGP2D.pl valid=1 proxy=2.1852 wl=0.035 den=1.875 cong=2.426 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment11_den0p72_pcof1p03_ibm16.eplace-mGP2D.pl valid=1 proxy=2.1852 wl=0.035 den=1.875 cong=2.426 overlaps=0
+[tune:dp-score:post_replace] replace_rescue_experiment9_den0p74_pcof1p03_ibm16.eplace-mGP2D.pl valid=1 proxy=2.1958 wl=0.034 den=1.898 cong=2.425 overlaps=0
+  ibm16... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm16/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 45, Row: 48
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm16/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 45, Row: 48
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.2326  (wl=0.057 den=0.518 cong=1.833)  VALID  [4979.81s]
+[tune:dp] ibm17  Placer 1/8  round=0  iters=48  bins=128  td=0.720  tag=base  start=native_jit  timeout=150s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=48  bins=128  timeout=150s
+[tune:dp] ibm17  Placer 1/8  round=0 finished  placement=ok
+[tune:dp] ibm17  Placer 2/8  round=0  iters=48  bins=64  td=0.695  tag=spread  start=mirror_xy  timeout=150s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=48  bins=64  timeout=150s
+[tune:dp] ibm17  Placer 2/8  round=0 finished  placement=ok
+[tune:dp] ibm17  Placer 3/8  round=0  iters=48  bins=128  td=0.884  tag=tight  start=transpose_jit0.75  timeout=150s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=48  bins=128  timeout=150s
+[tune:dp] ibm17  Placer 3/8  round=0 finished  placement=ok
+[tune:dp] ibm17  Placer 4/8  round=0  iters=48  bins=64  td=0.655  tag=xspread  start=anti_transpose_jit2.35  timeout=150s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=48  bins=64  timeout=150s
+[tune:dp] ibm17  Placer 4/8  round=0 finished  placement=ok
+[tune:dp] ibm17  Placer 5/8  round=0  iters=48  bins=128  td=0.880  tag=xtight  start=mirror_x_jit1.25  timeout=150s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=48  bins=128  timeout=150s
+[tune:dp] ibm17  Placer 5/8  round=0 finished  placement=ok
+[tune:dp] ibm17  Placer 6/8  round=0  iters=48  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.25  timeout=150s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=48  bins=64  timeout=150s
+[tune:dp] ibm17  Placer 6/8  round=0 finished  placement=ok
+[tune:dp] ibm17  Placer 7/8  round=0  iters=48  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit1.25  timeout=150s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=48  bins=128  timeout=150s
+[tune:dp] ibm17  Placer 7/8  round=0 finished  placement=ok
+[tune:dp] ibm17  Placer 8/8  round=0  iters=48  bins=64  td=0.690  tag=net_escape  start=anchor3_s44_jit2.35  timeout=150s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=48  bins=64  timeout=150s
+[tune:dp] ibm17  Placer 8/8  round=0 finished  placement=ok
+[tune:dp] ibm17  hyperband promote 3 after round 0: k6:fine/anchor1_s44_jit1.25, k3:xspread/anti_transpose_jit2.35, k2:tight/transpose_jit0.75
+[tune:dp] ibm17  Placer 7/8  round=1  iters=144  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit1.25  timeout=449s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=144  bins=128  timeout=449s
+[tune:dp] ibm17  Placer 7/8  round=1 finished  placement=ok
+[tune:dp] ibm17  Placer 4/8  round=1  iters=144  bins=64  td=0.655  tag=xspread  start=anti_transpose_jit2.35  timeout=449s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=144  bins=64  timeout=449s
+[tune:dp] ibm17  Placer 4/8  round=1 finished  placement=ok
+[tune:dp] ibm17  Placer 3/8  round=1  iters=144  bins=128  td=0.884  tag=tight  start=transpose_jit0.75  timeout=449s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=144  bins=128  timeout=449s
+[tune:dp] ibm17  Placer 3/8  round=1 finished  placement=ok
+[tune:dp] ibm17  hyperband promote 1 after round 1: k6:fine/anchor1_s44_jit1.25
+[tune:dp] ibm17  Placer 7/8  round=2  iters=312  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit1.25  timeout=720s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=312  bins=128  timeout=720s
+[tune:dp] ibm17  Placer 7/8  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_fine_anchor1_s44_jit1.25_k6_r2_it312_seed71442 valid=1 proxy=1.6691 wl=0.063 den=0.632 cong=2.579 overlaps=0
+[tune:dp-score:pre] dp_fine_anchor1_s44_jit1.25_k6_r1_it144_seed71442 valid=1 proxy=1.7946 wl=0.064 den=0.648 cong=2.813 overlaps=0
+[tune:dp-score:pre] dp_tight_transpose_jit0.75_k2_r1_it144_seed31550 valid=1 proxy=1.8201 wl=0.066 den=0.651 cong=2.857 overlaps=0
+[tune:dp-score:pre] dp_fine_anchor1_s44_jit1.25_k6_r0_it48_seed71442 valid=1 proxy=1.8801 wl=0.070 den=0.665 cong=2.956 overlaps=0
+[tune:dp-score:pre] dp_xspread_anti_transpose_jit2.35_k3_r0_it48_seed41523 valid=1 proxy=1.9108 wl=0.072 den=0.655 cong=3.022 overlaps=0
+[tune:dp-score:pre] dp_tight_transpose_jit0.75_k2_r0_it48_seed31550 valid=1 proxy=1.9119 wl=0.072 den=0.669 cong=3.010 overlaps=0
+[tune:dp-score:pre] dp_base_native_jit_k0_r0_it48_seed11604 valid=1 proxy=1.9398 wl=0.067 den=0.683 cong=3.062 overlaps=0
+[tune:dp-score:pre] dp_xtight_mirror_x_jit1.25_k4_r0_it48_seed51496 valid=1 proxy=1.9789 wl=0.081 den=0.654 cong=3.142 overlaps=0
+[tune:dp-score:pre] dp_spread_mirror_xy_k1_r0_it48_seed21577 valid=1 proxy=1.9861 wl=0.075 den=0.687 cong=3.136 overlaps=0
+[tune:dp-score:pre] dp_net_escape_anchor3_s44_jit2.35_k7_r0_it48_seed81415 valid=1 proxy=1.9938 wl=0.077 den=0.686 cong=3.148 overlaps=0
+[tune:dp-score:pre] dp_coarse_mirror_y_jit1.25_k5_r0_it48_seed61469 valid=0 proxy=inf wl=inf den=inf cong=inf overlaps=0
+[tune:dp-score:pre] dp_xspread_anti_transpose_jit2.35_k3_r1_it144_seed41523 valid=0 proxy=inf wl=inf den=inf cong=inf overlaps=0
+[tune:dp-score:post_sa] dp_fine_anchor1_s44_jit1.25_k6_r2_it312_seed71442 valid=1 proxy=1.6691 wl=0.063 den=0.632 cong=2.579 overlaps=0
+[tune:dp-score:post_sa] dp_fine_anchor1_s44_jit1.25_k6_r2_it312_seed71442_sa valid=1 proxy=1.6691 wl=0.063 den=0.632 cong=2.579 overlaps=0
+[tune:dp-score:post_sa] dp_fine_anchor1_s44_jit1.25_k6_r1_it144_seed71442 valid=1 proxy=1.7946 wl=0.064 den=0.648 cong=2.813 overlaps=0
+[tune:dp-score:post_sa] dp_tight_transpose_jit0.75_k2_r1_it144_seed31550 valid=1 proxy=1.8201 wl=0.066 den=0.651 cong=2.857 overlaps=0
+[tune:dp-score:post_sa] dp_fine_anchor1_s44_jit1.25_k6_r0_it48_seed71442 valid=1 proxy=1.8801 wl=0.070 den=0.665 cong=2.956 overlaps=0
+[tune:dp-score:post_sa] dp_xspread_anti_transpose_jit2.35_k3_r0_it48_seed41523 valid=1 proxy=1.9108 wl=0.072 den=0.655 cong=3.022 overlaps=0
+[tune:dp-score:post_sa] dp_tight_transpose_jit0.75_k2_r0_it48_seed31550 valid=1 proxy=1.9119 wl=0.072 den=0.669 cong=3.010 overlaps=0
+[tune:dp-score:post_sa] dp_base_native_jit_k0_r0_it48_seed11604 valid=1 proxy=1.9398 wl=0.067 den=0.683 cong=3.062 overlaps=0
+[tune:dp-score:post_sa] dp_xtight_mirror_x_jit1.25_k4_r0_it48_seed51496 valid=1 proxy=1.9789 wl=0.081 den=0.654 cong=3.142 overlaps=0
+[tune:dp-score:post_sa] dp_spread_mirror_xy_k1_r0_it48_seed21577 valid=1 proxy=1.9861 wl=0.075 den=0.687 cong=3.136 overlaps=0
+[tune:dp-score:post_sa] dp_net_escape_anchor3_s44_jit2.35_k7_r0_it48_seed81415 valid=1 proxy=1.9938 wl=0.077 den=0.686 cong=3.148 overlaps=0
+[tune:dp-score:post_sa] dp_coarse_mirror_y_jit1.25_k5_r0_it48_seed61469 valid=0 proxy=inf wl=inf den=inf cong=inf overlaps=0
+  ibm17... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm17/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 51, Row: 44
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm17/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 51, Row: 44
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.6691  (wl=0.063 den=0.632 cong=2.579)  VALID  [2646.99s]
+[tune:dp] ibm18  Placer 1/16  round=0  iters=48  bins=128  td=0.760  tag=wire  start=native_jit  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm18  Placer 1/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 2/16  round=0  iters=48  bins=128  td=0.800  tag=wire_tight  start=anchor1_s26_jit0.70  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm18  Placer 2/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 3/16  round=0  iters=48  bins=64  td=0.720  tag=wire_loose  start=anchor0_s26_jit0.70  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm18  Placer 3/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 4/16  round=0  iters=48  bins=64  td=0.760  tag=wire_coarse  start=anchor3_s26_jit0.35  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm18  Placer 4/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 5/16  round=0  iters=48  bins=128  td=0.780  tag=wire_fine  start=anchor2_s26_jit1.40  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm18  Placer 5/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 6/16  round=0  iters=48  bins=128  td=0.740  tag=mild_spread  start=anchor4_s18_jit1.40  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm18  Placer 6/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 7/16  round=0  iters=48  bins=128  td=0.820  tag=dense_wire  start=anchor5_s26_jit1.40  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm18  Placer 7/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 8/16  round=0  iters=48  bins=64  td=0.700  tag=soft_relax  start=anchor7_s26  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm18  Placer 8/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 9/16  round=0  iters=48  bins=128  td=0.760  tag=wire  start=anchor0_s10  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm18  Placer 9/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 10/16  round=0  iters=48  bins=128  td=0.800  tag=wire_tight  start=anchor6_s26_jit1.05  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm18  Placer 10/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 11/16  round=0  iters=48  bins=64  td=0.720  tag=wire_loose  start=anchor1_s10_jit1.05  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm18  Placer 11/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 12/16  round=0  iters=48  bins=64  td=0.760  tag=wire_coarse  start=anchor4_s26_jit1.40  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm18  Placer 12/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 13/16  round=0  iters=48  bins=128  td=0.780  tag=wire_fine  start=anchor1_s18_jit0.70  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm18  Placer 13/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 14/16  round=0  iters=48  bins=128  td=0.740  tag=mild_spread  start=anchor0_s18_jit1.40  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm18  Placer 14/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 15/16  round=0  iters=48  bins=128  td=0.820  tag=dense_wire  start=anchor3_s10_jit1.40  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=128  timeout=191s
+[tune:dp] ibm18  Placer 15/16  round=0 finished  placement=ok
+[tune:dp] ibm18  Placer 16/16  round=0  iters=48  bins=64  td=0.700  tag=soft_relax  start=anchor2_s10_jit0.70  timeout=191s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=48  bins=64  timeout=191s
+[tune:dp] ibm18  Placer 16/16  round=0 finished  placement=ok
+[tune:dp] ibm18  hyperband promote 6 after round 0: k9:wire_tight/anchor6_s26_jit1.05, k1:wire_tight/anchor1_s26_jit0.70, k4:wire_fine/anchor2_s26_jit1.40, k3:wire_coarse/anchor3_s26_jit0.35, k6:dense_wire/anchor5_s26_jit1.40, k7:soft_relax/anchor7_s26
+[tune:dp] ibm18  Placer 10/16  round=1  iters=144  bins=128  td=0.800  tag=wire_tight  start=anchor6_s26_jit1.05  timeout=574s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=144  bins=128  timeout=574s
+[tune:dp] ibm18  Placer 10/16  round=1 finished  placement=ok
+[tune:dp] ibm18  Placer 2/16  round=1  iters=144  bins=128  td=0.800  tag=wire_tight  start=anchor1_s26_jit0.70  timeout=574s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=144  bins=128  timeout=574s
+[tune:dp] ibm18  Placer 2/16  round=1 finished  placement=ok
+[tune:dp] ibm18  Placer 5/16  round=1  iters=144  bins=128  td=0.780  tag=wire_fine  start=anchor2_s26_jit1.40  timeout=574s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=144  bins=128  timeout=574s
+[tune:dp] ibm18  Placer 5/16  round=1 finished  placement=ok
+[tune:dp] ibm18  Placer 4/16  round=1  iters=144  bins=64  td=0.760  tag=wire_coarse  start=anchor3_s26_jit0.35  timeout=574s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=144  bins=64  timeout=574s
+[tune:dp] ibm18  Placer 4/16  round=1 finished  placement=ok
+[tune:dp] ibm18  Placer 7/16  round=1  iters=144  bins=128  td=0.820  tag=dense_wire  start=anchor5_s26_jit1.40  timeout=574s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=144  bins=128  timeout=574s
+[tune:dp] ibm18  Placer 7/16  round=1 finished  placement=ok
+[tune:dp] ibm18  Placer 8/16  round=1  iters=144  bins=64  td=0.700  tag=soft_relax  start=anchor7_s26  timeout=574s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=144  bins=64  timeout=574s
+[tune:dp] ibm18  Placer 8/16  round=1 finished  placement=ok
+[tune:dp] ibm18  hyperband promote 2 after round 1: k4:wire_fine/anchor2_s26_jit1.40, k9:wire_tight/anchor6_s26_jit1.05
+[tune:dp] ibm18  Placer 5/16  round=2  iters=244  bins=128  td=0.780  tag=wire_fine  start=anchor2_s26_jit1.40  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm18  Placer 5/16  round=2 finished  placement=ok
+[tune:dp] ibm18  Placer 10/16  round=2  iters=244  bins=128  td=0.800  tag=wire_tight  start=anchor6_s26_jit1.05  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm18  Placer 10/16  round=2 finished  placement=ok
+[tune:dp-score:pre] dp_wire_fine_anchor2_s26_jit1.40_k4_r2_it244_seed50206 valid=1 proxy=1.6372 wl=0.070 den=0.759 cong=2.376 overlaps=0
+[tune:dp-score:pre] dp_wire_fine_anchor2_s26_jit1.40_k4_r1_it144_seed50206 valid=1 proxy=1.7102 wl=0.070 den=0.759 cong=2.522 overlaps=0
+[tune:dp-score:pre] dp_wire_tight_anchor6_s26_jit1.05_k9_r1_it144_seed100071 valid=1 proxy=1.8020 wl=0.080 den=0.768 cong=2.676 overlaps=0
+[tune:dp-score:pre] dp_wire_coarse_anchor3_s26_jit0.35_k3_r1_it144_seed40233 valid=1 proxy=1.8352 wl=0.072 den=0.762 cong=2.765 overlaps=0
+[tune:dp-score:pre] dp_soft_relax_anchor7_s26_k7_r1_it144_seed80125 valid=1 proxy=1.9348 wl=0.073 den=0.772 cong=2.952 overlaps=0
+[tune:dp-score:pre] dp_wire_tight_anchor6_s26_jit1.05_k9_r0_it48_seed100071 valid=1 proxy=1.9406 wl=0.081 den=0.767 cong=2.953 overlaps=0
+[tune:dp-score:pre] dp_wire_tight_anchor1_s26_jit0.70_k1_r0_it48_seed20287 valid=1 proxy=1.9629 wl=0.076 den=0.778 cong=2.996 overlaps=0
+[tune:dp-score:pre] dp_wire_fine_anchor2_s26_jit1.40_k4_r0_it48_seed50206 valid=1 proxy=1.9841 wl=0.077 den=0.766 cong=3.049 overlaps=0
+[tune:dp-score:pre] dp_wire_coarse_anchor3_s26_jit0.35_k3_r0_it48_seed40233 valid=1 proxy=1.9886 wl=0.073 den=0.829 cong=3.002 overlaps=0
+[tune:dp-score:pre] dp_dense_wire_anchor5_s26_jit1.40_k6_r0_it48_seed70152 valid=1 proxy=1.9906 wl=0.076 den=0.768 cong=3.061 overlaps=0
+[tune:dp-score:pre] dp_soft_relax_anchor7_s26_k7_r0_it48_seed80125 valid=1 proxy=1.9966 wl=0.076 den=0.791 cong=3.049 overlaps=0
+[tune:dp-score:pre] dp_dense_wire_anchor3_s10_jit1.40_k14_r0_it48_seed149936 valid=1 proxy=2.1149 wl=0.076 den=0.791 cong=3.286 overlaps=0
+[tune:dp-score:post_sa] dp_wire_fine_anchor2_s26_jit1.40_k4_r2_it244_seed50206 valid=1 proxy=1.6372 wl=0.070 den=0.759 cong=2.376 overlaps=0
+[tune:dp-score:post_sa] dp_wire_fine_anchor2_s26_jit1.40_k4_r1_it144_seed50206 valid=1 proxy=1.7102 wl=0.070 den=0.759 cong=2.522 overlaps=0
+[tune:dp-score:post_sa] dp_wire_tight_anchor6_s26_jit1.05_k9_r1_it144_seed100071 valid=1 proxy=1.8020 wl=0.080 den=0.768 cong=2.676 overlaps=0
+[tune:dp-score:post_sa] dp_wire_coarse_anchor3_s26_jit0.35_k3_r1_it144_seed40233 valid=1 proxy=1.8352 wl=0.072 den=0.762 cong=2.765 overlaps=0
+[tune:dp-score:post_sa] dp_soft_relax_anchor7_s26_k7_r1_it144_seed80125 valid=1 proxy=1.9348 wl=0.073 den=0.772 cong=2.952 overlaps=0
+[tune:dp-score:post_sa] dp_wire_tight_anchor6_s26_jit1.05_k9_r0_it48_seed100071 valid=1 proxy=1.9406 wl=0.081 den=0.767 cong=2.953 overlaps=0
+[tune:dp-score:post_sa] dp_wire_tight_anchor1_s26_jit0.70_k1_r0_it48_seed20287 valid=1 proxy=1.9629 wl=0.076 den=0.778 cong=2.996 overlaps=0
+[tune:dp-score:post_sa] dp_wire_fine_anchor2_s26_jit1.40_k4_r0_it48_seed50206 valid=1 proxy=1.9841 wl=0.077 den=0.766 cong=3.049 overlaps=0
+[tune:dp-score:post_sa] dp_wire_coarse_anchor3_s26_jit0.35_k3_r0_it48_seed40233 valid=1 proxy=1.9886 wl=0.073 den=0.829 cong=3.002 overlaps=0
+[tune:dp-score:post_sa] dp_dense_wire_anchor5_s26_jit1.40_k6_r0_it48_seed70152 valid=1 proxy=1.9906 wl=0.076 den=0.768 cong=3.061 overlaps=0
+[tune:dp-score:post_sa] dp_soft_relax_anchor7_s26_k7_r0_it48_seed80125 valid=1 proxy=1.9966 wl=0.076 den=0.791 cong=3.049 overlaps=0
+[tune:dp-score:post_sa] dp_dense_wire_anchor3_s10_jit1.40_k14_r0_it48_seed149936 valid=1 proxy=2.1149 wl=0.076 den=0.791 cong=3.286 overlaps=0
+  ibm18... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm18/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 55, Row: 39
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm18/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 55, Row: 39
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.6372  (wl=0.070 den=0.759 cong=2.376)  VALID  [1882.05s]
+
+--------------------------------------------------------------------------------
+    Benchmark     Proxy        SA   RePlAce     vs SA  vs RePlAce  Overlaps
+--------------------------------------------------------------------------------
+        ibm01    0.9219    1.3166    0.9976    +30.0%       +7.6%         0
+        ibm02    1.3523    1.9072    1.8370    +29.1%      +26.4%         0
+        ibm03    1.1276    1.7401    1.3222    +35.2%      +14.7%         0
+        ibm04    1.1649    1.5037    1.3024    +22.5%      +10.6%         0
+        ibm06    1.3896    2.5057    1.6187    +44.5%      +14.2%         0
+        ibm07    4.0552    2.0229    1.4633   -100.5%     -177.1%         0
+        ibm08    1.2929    1.9239    1.4285    +32.8%       +9.5%         0
+        ibm09    0.9360    1.3875    1.1194    +32.5%      +16.4%         0
+        ibm10    1.1304    2.1108    1.5009    +46.4%      +24.7%         0
+        ibm11    0.9698    1.7111    1.1774    +43.3%      +17.6%         0
+        ibm12    1.3878    2.8261    1.7261    +50.9%      +19.6%         0
+        ibm13    1.0867    1.9141    1.3355    +43.2%      +18.6%         0
+        ibm14    1.4479    2.2750    1.5436    +36.4%       +6.2%         0
+        ibm15    2.1125    2.3000    1.5159     +8.2%      -39.4%         0
+        ibm16    1.2326    2.2337    1.4780    +44.8%      +16.6%         0
+        ibm17    1.6691    3.6726    1.6446    +54.6%       -1.5%         0
+        ibm18    1.6372    2.7755    1.7722    +41.0%       +7.6%         0
+--------------------------------------------------------------------------------
+          AVG    1.4656    2.1251    1.4578    +31.0%       -0.5%         0
+
+Total runtime: 28582.66s
+
+Done: Wed May 13 13:31:09 UTC 2026

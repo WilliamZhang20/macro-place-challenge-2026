@@ -1,0 +1,993 @@
+Host: watgpu1008  Job: 1437819  Start: Wed May 13 04:29:37 UTC 2026
+Repo: /u5/w223zhan/macro-place-challenge-2026
+nvcc: /u5/w223zhan/.conda/envs/myenv/bin/nvcc  (Cuda compilation tools, release 12.8, V12.8.93)
+python: /u5/w223zhan/.conda/envs/myenv/bin/python
+DREAMPlace install: /u5/w223zhan/macro-place-challenge-2026/external/DREAMPlace/install  ok=True  msg=ok
+MACRO_PLACE_DP_CONFIG=
+MACRO_PLACE_DP_GPU=1
+Running: /u5/w223zhan/.conda/envs/myenv/bin/python -m macro_place.evaluate submissions/dreamplace_pipeline_placer.py --all
+Log: sweep_logs/dreamplace_pipeline_1437819_20260513_042938.log
+================================================================================
+evaluate · DreamplacePipelinePlacer  (submissions/dreamplace_pipeline_placer.py)
+================================================================================
+
+[tune:dp] ibm01  Placer 1/16  iters=240  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm01  Placer 1/16  finished  placement=ok
+[tune:dp] ibm01  Placer 2/16  iters=240  bins=64  td=0.695  tag=spread  start=mirror_xy  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm01  Placer 2/16  finished  placement=ok
+[tune:dp] ibm01  Placer 3/16  iters=240  bins=128  td=0.756  tag=tight  start=transpose_jit0.75  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm01  Placer 3/16  finished  placement=ok
+[tune:dp] ibm01  Placer 4/16  iters=240  bins=64  td=0.655  tag=xspread  start=anti_transpose  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm01  Placer 4/16  finished  placement=ok
+[tune:dp] ibm01  Placer 5/16  iters=240  bins=128  td=0.771  tag=xtight  start=mirror_x_jit1.25  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm01  Placer 5/16  finished  placement=ok
+[tune:dp] ibm01  Placer 6/16  iters=240  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.25  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm01  Placer 6/16  finished  placement=ok
+[tune:dp] ibm01  Placer 7/16  iters=240  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit2.35  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm01  Placer 7/16  finished  placement=ok
+[tune:dp] ibm01  Placer 8/16  iters=240  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit1.75  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm01  Placer 8/16  finished  placement=ok
+[tune:dp] ibm01  Placer 9/16  iters=240  bins=128  td=0.720  tag=base  start=anchor3_s44_jit2.35  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm01  Placer 9/16  finished  placement=ok
+[tune:dp] ibm01  Placer 10/16  iters=240  bins=64  td=0.695  tag=spread  start=anchor2_s44_jit1.75  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm01  Placer 10/16  finished  placement=ok
+[tune:dp] ibm01  Placer 11/16  iters=240  bins=128  td=0.756  tag=tight  start=anchor4_s44_jit1.25  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm01  Placer 11/16  finished  placement=ok
+[tune:dp] ibm01  Placer 12/16  iters=240  bins=64  td=0.655  tag=xspread  start=anchor5_s44_jit2.35  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm01  Placer 12/16  finished  placement=ok
+[tune:dp] ibm01  Placer 13/16  iters=240  bins=128  td=0.771  tag=xtight  start=anchor7_s44_jit2.35  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm01  Placer 13/16  finished  placement=ok
+[tune:dp] ibm01  Placer 14/16  iters=240  bins=64  td=0.675  tag=coarse  start=anchor6_s44_jit2.35  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm01  Placer 14/16  finished  placement=ok
+[tune:dp] ibm01  Placer 15/16  iters=240  bins=128  td=0.705  tag=fine  start=mirror_xy_jit2.35  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm01  Placer 15/16  finished  placement=ok
+[tune:dp] ibm01  Placer 16/16  iters=240  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.75  timeout=720s
+[tune:dp] ibm01  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm01  Placer 16/16  finished  placement=ok
+  ibm01... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm01/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 45, Row: 41
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm01/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 45, Row: 41
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=0.9219  (wl=0.066 den=0.598 cong=1.113)  VALID  [565.97s]
+[tune:dp] ibm02  Placer 1/16  iters=309  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=128  timeout=720s
+[tune:dp] ibm02  Placer 1/16  finished  placement=ok
+[tune:dp] ibm02  Placer 2/16  iters=309  bins=64  td=0.648  tag=spread  start=mirror_xy_jit1.25  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=64  timeout=720s
+[tune:dp] ibm02  Placer 2/16  finished  placement=ok
+[tune:dp] ibm02  Placer 3/16  iters=309  bins=128  td=0.720  tag=tight  start=mirror_x_jit1.25  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=128  timeout=720s
+[tune:dp] ibm02  Placer 3/16  finished  placement=ok
+[tune:dp] ibm02  Placer 4/16  iters=309  bins=64  td=0.608  tag=xspread  start=mirror_y_jit1.75  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=64  timeout=720s
+[tune:dp] ibm02  Placer 4/16  finished  placement=ok
+[tune:dp] ibm02  Placer 5/16  iters=309  bins=128  td=0.735  tag=xtight  start=transpose_jit1.75  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=128  timeout=720s
+[tune:dp] ibm02  Placer 5/16  finished  placement=ok
+[tune:dp] ibm02  Placer 6/16  iters=309  bins=64  td=0.675  tag=coarse  start=anti_transpose_jit2.35  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=64  timeout=720s
+[tune:dp] ibm02  Placer 6/16  finished  placement=ok
+[tune:dp] ibm02  Placer 7/16  iters=309  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit1.25  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=128  timeout=720s
+[tune:dp] ibm02  Placer 7/16  finished  placement=ok
+[tune:dp] ibm02  Placer 8/16  iters=309  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit1.75  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=64  timeout=720s
+[tune:dp] ibm02  Placer 8/16  finished  placement=ok
+[tune:dp] ibm02  Placer 9/16  iters=309  bins=128  td=0.720  tag=base  start=anchor3_s44_jit2.35  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=128  timeout=720s
+[tune:dp] ibm02  Placer 9/16  finished  placement=ok
+[tune:dp] ibm02  Placer 10/16  iters=309  bins=64  td=0.648  tag=spread  start=anchor2_s44_jit1.75  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=64  timeout=720s
+[tune:dp] ibm02  Placer 10/16  finished  placement=ok
+[tune:dp] ibm02  Placer 11/16  iters=309  bins=128  td=0.720  tag=tight  start=anchor4_s44_jit2.35  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=128  timeout=720s
+[tune:dp] ibm02  Placer 11/16  finished  placement=ok
+[tune:dp] ibm02  Placer 12/16  iters=309  bins=64  td=0.608  tag=xspread  start=anchor5_s44_jit2.35  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=64  timeout=720s
+[tune:dp] ibm02  Placer 12/16  finished  placement=ok
+[tune:dp] ibm02  Placer 13/16  iters=309  bins=128  td=0.735  tag=xtight  start=anchor7_s44_jit2.35  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=128  timeout=720s
+[tune:dp] ibm02  Placer 13/16  finished  placement=ok
+[tune:dp] ibm02  Placer 14/16  iters=309  bins=64  td=0.675  tag=coarse  start=anchor6_s44_jit2.35  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=64  timeout=720s
+[tune:dp] ibm02  Placer 14/16  finished  placement=ok
+[tune:dp] ibm02  Placer 15/16  iters=309  bins=128  td=0.705  tag=fine  start=anchor1_s28_jit2.35  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=128  timeout=720s
+[tune:dp] ibm02  Placer 15/16  finished  placement=ok
+[tune:dp] ibm02  Placer 16/16  iters=309  bins=64  td=0.635  tag=escape  start=mirror_xy_jit2.35  timeout=720s
+[tune:dp] ibm02  spawning Placer  gpu=1  iters=309  bins=64  timeout=720s
+[tune:dp] ibm02  Placer 16/16  finished  placement=ok
+  ibm02... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm02/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 30, Row: 27
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm02/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 30, Row: 27
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.3523  (wl=0.081 den=0.509 cong=2.035)  VALID  [647.92s]
+[tune:dp] ibm03  Placer 1/16  iters=273  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=128  timeout=720s
+[tune:dp] ibm03  Placer 1/16  finished  placement=ok
+[tune:dp] ibm03  Placer 2/16  iters=273  bins=64  td=0.675  tag=spread  start=mirror_xy_jit1.75  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=64  timeout=720s
+[tune:dp] ibm03  Placer 2/16  finished  placement=ok
+[tune:dp] ibm03  Placer 3/16  iters=273  bins=128  td=0.720  tag=tight  start=mirror_x_jit1.75  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=128  timeout=720s
+[tune:dp] ibm03  Placer 3/16  finished  placement=ok
+[tune:dp] ibm03  Placer 4/16  iters=273  bins=64  td=0.635  tag=xspread  start=mirror_y  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=64  timeout=720s
+[tune:dp] ibm03  Placer 4/16  finished  placement=ok
+[tune:dp] ibm03  Placer 5/16  iters=273  bins=128  td=0.735  tag=xtight  start=transpose_jit1.25  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=128  timeout=720s
+[tune:dp] ibm03  Placer 5/16  finished  placement=ok
+[tune:dp] ibm03  Placer 6/16  iters=273  bins=64  td=0.675  tag=coarse  start=anti_transpose  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=64  timeout=720s
+[tune:dp] ibm03  Placer 6/16  finished  placement=ok
+[tune:dp] ibm03  Placer 7/16  iters=273  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit2.35  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=128  timeout=720s
+[tune:dp] ibm03  Placer 7/16  finished  placement=ok
+[tune:dp] ibm03  Placer 8/16  iters=273  bins=64  td=0.635  tag=escape  start=anchor3_s44_jit2.35  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=64  timeout=720s
+[tune:dp] ibm03  Placer 8/16  finished  placement=ok
+[tune:dp] ibm03  Placer 9/16  iters=273  bins=128  td=0.720  tag=base  start=anchor0_s44_jit2.35  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=128  timeout=720s
+[tune:dp] ibm03  Placer 9/16  finished  placement=ok
+[tune:dp] ibm03  Placer 10/16  iters=273  bins=64  td=0.675  tag=spread  start=anchor2_s44_jit1.75  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=64  timeout=720s
+[tune:dp] ibm03  Placer 10/16  finished  placement=ok
+[tune:dp] ibm03  Placer 11/16  iters=273  bins=128  td=0.720  tag=tight  start=anchor5_s44_jit2.35  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=128  timeout=720s
+[tune:dp] ibm03  Placer 11/16  finished  placement=ok
+[tune:dp] ibm03  Placer 12/16  iters=273  bins=64  td=0.635  tag=xspread  start=anchor4_s44_jit2.35  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=64  timeout=720s
+[tune:dp] ibm03  Placer 12/16  finished  placement=ok
+[tune:dp] ibm03  Placer 13/16  iters=273  bins=128  td=0.735  tag=xtight  start=anchor6_s44_jit2.35  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=128  timeout=720s
+[tune:dp] ibm03  Placer 13/16  finished  placement=ok
+[tune:dp] ibm03  Placer 14/16  iters=273  bins=64  td=0.675  tag=coarse  start=anchor7_s44_jit1.75  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=64  timeout=720s
+[tune:dp] ibm03  Placer 14/16  finished  placement=ok
+[tune:dp] ibm03  Placer 15/16  iters=273  bins=128  td=0.705  tag=fine  start=mirror_xy_jit2.35  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=128  timeout=720s
+[tune:dp] ibm03  Placer 15/16  finished  placement=ok
+[tune:dp] ibm03  Placer 16/16  iters=273  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=720s
+[tune:dp] ibm03  spawning Placer  gpu=1  iters=273  bins=64  timeout=720s
+[tune:dp] ibm03  Placer 16/16  finished  placement=ok
+  ibm03... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm03/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 32, Row: 29
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm03/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 32, Row: 29
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.1276  (wl=0.084 den=0.504 cong=1.583)  VALID  [354.92s]
+[tune:dp] ibm04  Placer 1/16  iters=245  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=128  timeout=720s
+[tune:dp] ibm04  Placer 1/16  finished  placement=ok
+[tune:dp] ibm04  Placer 2/16  iters=245  bins=64  td=0.695  tag=spread  start=mirror_xy_jit1.75  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=64  timeout=720s
+[tune:dp] ibm04  Placer 2/16  finished  placement=ok
+[tune:dp] ibm04  Placer 3/16  iters=245  bins=128  td=0.760  tag=tight  start=transpose_jit1.25  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=128  timeout=720s
+[tune:dp] ibm04  Placer 3/16  finished  placement=ok
+[tune:dp] ibm04  Placer 4/16  iters=245  bins=64  td=0.655  tag=xspread  start=anti_transpose_jit1.75  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=64  timeout=720s
+[tune:dp] ibm04  Placer 4/16  finished  placement=ok
+[tune:dp] ibm04  Placer 5/16  iters=245  bins=128  td=0.775  tag=xtight  start=mirror_x_jit2.35  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=128  timeout=720s
+[tune:dp] ibm04  Placer 5/16  finished  placement=ok
+[tune:dp] ibm04  Placer 6/16  iters=245  bins=64  td=0.675  tag=coarse  start=mirror_y  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=64  timeout=720s
+[tune:dp] ibm04  Placer 6/16  finished  placement=ok
+[tune:dp] ibm04  Placer 7/16  iters=245  bins=128  td=0.705  tag=fine  start=anchor3_s44_jit1.25  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=128  timeout=720s
+[tune:dp] ibm04  Placer 7/16  finished  placement=ok
+[tune:dp] ibm04  Placer 8/16  iters=245  bins=64  td=0.635  tag=escape  start=anchor1_s44_jit1.25  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=64  timeout=720s
+[tune:dp] ibm04  Placer 8/16  finished  placement=ok
+[tune:dp] ibm04  Placer 9/16  iters=245  bins=128  td=0.720  tag=base  start=anchor2_s44_jit0.75  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=128  timeout=720s
+[tune:dp] ibm04  Placer 9/16  finished  placement=ok
+[tune:dp] ibm04  Placer 10/16  iters=245  bins=64  td=0.695  tag=spread  start=anchor0_s44_jit2.35  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=64  timeout=720s
+[tune:dp] ibm04  Placer 10/16  finished  placement=ok
+[tune:dp] ibm04  Placer 11/16  iters=245  bins=128  td=0.760  tag=tight  start=anchor5_s44_jit2.35  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=128  timeout=720s
+[tune:dp] ibm04  Placer 11/16  finished  placement=ok
+[tune:dp] ibm04  Placer 12/16  iters=245  bins=64  td=0.655  tag=xspread  start=anchor6_s44_jit0.75  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=64  timeout=720s
+[tune:dp] ibm04  Placer 12/16  finished  placement=ok
+[tune:dp] ibm04  Placer 13/16  iters=245  bins=128  td=0.775  tag=xtight  start=anchor4_s44_jit2.35  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=128  timeout=720s
+[tune:dp] ibm04  Placer 13/16  finished  placement=ok
+[tune:dp] ibm04  Placer 14/16  iters=245  bins=64  td=0.675  tag=coarse  start=anchor7_s44_jit1.75  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=64  timeout=720s
+[tune:dp] ibm04  Placer 14/16  finished  placement=ok
+[tune:dp] ibm04  Placer 15/16  iters=245  bins=128  td=0.705  tag=fine  start=mirror_xy_jit2.35  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=128  timeout=720s
+[tune:dp] ibm04  Placer 15/16  finished  placement=ok
+[tune:dp] ibm04  Placer 16/16  iters=245  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=720s
+[tune:dp] ibm04  spawning Placer  gpu=1  iters=245  bins=64  timeout=720s
+[tune:dp] ibm04  Placer 16/16  finished  placement=ok
+  ibm04... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm04/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 31, Row: 30
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm04/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 31, Row: 30
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.1649  (wl=0.079 den=0.525 cong=1.646)  VALID  [377.70s]
+[tune:dp] ibm06  Placer 1/16  iters=240  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm06  Placer 1/16  finished  placement=ok
+[tune:dp] ibm06  Placer 2/16  iters=240  bins=64  td=0.695  tag=spread  start=mirror_xy  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm06  Placer 2/16  finished  placement=ok
+[tune:dp] ibm06  Placer 3/16  iters=240  bins=128  td=0.743  tag=tight  start=transpose_jit2.35  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm06  Placer 3/16  finished  placement=ok
+[tune:dp] ibm06  Placer 4/16  iters=240  bins=64  td=0.655  tag=xspread  start=anti_transpose_jit2.35  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm06  Placer 4/16  finished  placement=ok
+[tune:dp] ibm06  Placer 5/16  iters=240  bins=128  td=0.758  tag=xtight  start=mirror_x_jit2.35  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm06  Placer 5/16  finished  placement=ok
+[tune:dp] ibm06  Placer 6/16  iters=240  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.25  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm06  Placer 6/16  finished  placement=ok
+[tune:dp] ibm06  Placer 7/16  iters=240  bins=128  td=0.705  tag=fine  start=anchor2_s44_jit1.75  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm06  Placer 7/16  finished  placement=ok
+[tune:dp] ibm06  Placer 8/16  iters=240  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit2.35  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm06  Placer 8/16  finished  placement=ok
+[tune:dp] ibm06  Placer 9/16  iters=240  bins=128  td=0.720  tag=base  start=anchor3_s44_jit2.35  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm06  Placer 9/16  finished  placement=ok
+[tune:dp] ibm06  Placer 10/16  iters=240  bins=64  td=0.695  tag=spread  start=anchor1_s44_jit0.75  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm06  Placer 10/16  finished  placement=ok
+[tune:dp] ibm06  Placer 11/16  iters=240  bins=128  td=0.743  tag=tight  start=anchor7_s44_jit2.35  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm06  Placer 11/16  finished  placement=ok
+[tune:dp] ibm06  Placer 12/16  iters=240  bins=64  td=0.655  tag=xspread  start=anchor6_s44_jit2.35  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm06  Placer 12/16  finished  placement=ok
+[tune:dp] ibm06  Placer 13/16  iters=240  bins=128  td=0.758  tag=xtight  start=anchor4_s44_jit1.75  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm06  Placer 13/16  finished  placement=ok
+[tune:dp] ibm06  Placer 14/16  iters=240  bins=64  td=0.675  tag=coarse  start=anchor5_s44_jit0.75  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm06  Placer 14/16  finished  placement=ok
+[tune:dp] ibm06  Placer 15/16  iters=240  bins=128  td=0.705  tag=fine  start=mirror_xy_jit2.35  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm06  Placer 15/16  finished  placement=ok
+[tune:dp] ibm06  Placer 16/16  iters=240  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.75  timeout=720s
+[tune:dp] ibm06  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm06  Placer 16/16  finished  placement=ok
+  ibm06... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm06/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 31, Row: 28
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm06/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 31, Row: 28
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.3896  (wl=0.073 den=0.525 cong=2.109)  VALID  [450.78s]
+[tune:dp] ibm07  Placer 1/16  iters=244  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm07  Placer 1/16  finished  placement=ok
+[tune:dp] ibm07  Placer 2/16  iters=244  bins=64  td=0.695  tag=spread  start=mirror_xy_jit2.35  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm07  Placer 2/16  finished  placement=ok
+[tune:dp] ibm07  Placer 3/16  iters=244  bins=128  td=0.790  tag=tight  start=anti_transpose_jit1.75  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm07  Placer 3/16  finished  placement=ok
+[tune:dp] ibm07  Placer 4/16  iters=244  bins=64  td=0.655  tag=xspread  start=transpose_jit2.35  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm07  Placer 4/16  finished  placement=ok
+[tune:dp] ibm07  Placer 5/16  iters=244  bins=128  td=0.805  tag=xtight  start=mirror_y_jit0.75  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm07  Placer 5/16  finished  placement=ok
+[tune:dp] ibm07  Placer 6/16  iters=244  bins=64  td=0.675  tag=coarse  start=mirror_x_jit1.75  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm07  Placer 6/16  finished  placement=ok
+[tune:dp] ibm07  Placer 7/16  iters=244  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit1.25  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm07  Placer 7/16  finished  placement=ok
+[tune:dp] ibm07  Placer 8/16  iters=244  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit1.75  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm07  Placer 8/16  finished  placement=ok
+[tune:dp] ibm07  Placer 9/16  iters=244  bins=128  td=0.720  tag=base  start=anchor3_s44_jit1.75  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm07  Placer 9/16  finished  placement=ok
+[tune:dp] ibm07  Placer 10/16  iters=244  bins=64  td=0.695  tag=spread  start=anchor2_s44_jit1.75  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm07  Placer 10/16  finished  placement=ok
+[tune:dp] ibm07  Placer 11/16  iters=244  bins=128  td=0.790  tag=tight  start=anchor4_s44_jit0.75  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm07  Placer 11/16  finished  placement=ok
+[tune:dp] ibm07  Placer 12/16  iters=244  bins=64  td=0.655  tag=xspread  start=anchor5_s44  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm07  Placer 12/16  finished  placement=ok
+[tune:dp] ibm07  Placer 13/16  iters=244  bins=128  td=0.805  tag=xtight  start=anchor7_s44_jit2.35  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm07  Placer 13/16  finished  placement=ok
+[tune:dp] ibm07  Placer 14/16  iters=244  bins=64  td=0.675  tag=coarse  start=anchor6_s44_jit1.25  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm07  Placer 14/16  finished  placement=ok
+[tune:dp] ibm07  Placer 15/16  iters=244  bins=128  td=0.705  tag=fine  start=mirror_xy_jit1.75  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm07  Placer 15/16  finished  placement=ok
+[tune:dp] ibm07  Placer 16/16  iters=244  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=720s
+[tune:dp] ibm07  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm07  Placer 16/16  finished  placement=ok
+  ibm07... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm07/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 35, Row: 32
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm07/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 35, Row: 32
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.4444  (wl=0.076 den=0.634 cong=2.103)  VALID  [243.04s]
+[tune:dp] ibm08  Placer 1/16  iters=246  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=128  timeout=720s
+[tune:dp] ibm08  Placer 1/16  finished  placement=ok
+[tune:dp] ibm08  Placer 2/16  iters=246  bins=64  td=0.695  tag=spread  start=mirror_xy_jit2.35  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=64  timeout=720s
+[tune:dp] ibm08  Placer 2/16  finished  placement=ok
+[tune:dp] ibm08  Placer 3/16  iters=246  bins=128  td=0.764  tag=tight  start=mirror_x_jit2.35  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=128  timeout=720s
+[tune:dp] ibm08  Placer 3/16  finished  placement=ok
+[tune:dp] ibm08  Placer 4/16  iters=246  bins=64  td=0.655  tag=xspread  start=transpose_jit1.25  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=64  timeout=720s
+[tune:dp] ibm08  Placer 4/16  finished  placement=ok
+[tune:dp] ibm08  Placer 5/16  iters=246  bins=128  td=0.779  tag=xtight  start=mirror_y_jit2.35  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=128  timeout=720s
+[tune:dp] ibm08  Placer 5/16  finished  placement=ok
+[tune:dp] ibm08  Placer 6/16  iters=246  bins=64  td=0.675  tag=coarse  start=anti_transpose_jit0.75  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=64  timeout=720s
+[tune:dp] ibm08  Placer 6/16  finished  placement=ok
+[tune:dp] ibm08  Placer 7/16  iters=246  bins=128  td=0.705  tag=fine  start=anchor0_s44_jit0.75  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=128  timeout=720s
+[tune:dp] ibm08  Placer 7/16  finished  placement=ok
+[tune:dp] ibm08  Placer 8/16  iters=246  bins=64  td=0.635  tag=escape  start=anchor2_s44_jit2.35  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=64  timeout=720s
+[tune:dp] ibm08  Placer 8/16  finished  placement=ok
+[tune:dp] ibm08  Placer 9/16  iters=246  bins=128  td=0.720  tag=base  start=anchor1_s44_jit0.75  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=128  timeout=720s
+[tune:dp] ibm08  Placer 9/16  finished  placement=ok
+[tune:dp] ibm08  Placer 10/16  iters=246  bins=64  td=0.695  tag=spread  start=anchor3_s44_jit1.25  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=64  timeout=720s
+[tune:dp] ibm08  Placer 10/16  finished  placement=ok
+[tune:dp] ibm08  Placer 11/16  iters=246  bins=128  td=0.764  tag=tight  start=anchor7_s44_jit2.35  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=128  timeout=720s
+[tune:dp] ibm08  Placer 11/16  finished  placement=ok
+[tune:dp] ibm08  Placer 12/16  iters=246  bins=64  td=0.655  tag=xspread  start=anchor4_s44_jit1.75  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=64  timeout=720s
+[tune:dp] ibm08  Placer 12/16  finished  placement=ok
+[tune:dp] ibm08  Placer 13/16  iters=246  bins=128  td=0.779  tag=xtight  start=anchor6_s44_jit2.35  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=128  timeout=720s
+[tune:dp] ibm08  Placer 13/16  finished  placement=ok
+[tune:dp] ibm08  Placer 14/16  iters=246  bins=64  td=0.675  tag=coarse  start=anchor5_s44_jit2.35  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=64  timeout=720s
+[tune:dp] ibm08  Placer 14/16  finished  placement=ok
+[tune:dp] ibm08  Placer 15/16  iters=246  bins=128  td=0.705  tag=fine  start=mirror_xy_jit1.75  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=128  timeout=720s
+[tune:dp] ibm08  Placer 15/16  finished  placement=ok
+[tune:dp] ibm08  Placer 16/16  iters=246  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=720s
+[tune:dp] ibm08  spawning Placer  gpu=1  iters=246  bins=64  timeout=720s
+[tune:dp] ibm08  Placer 16/16  finished  placement=ok
+  ibm08... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm08/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 38, Row: 34
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm08/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 38, Row: 34
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.2929  (wl=0.078 den=0.516 cong=1.914)  VALID  [552.97s]
+[tune:dp] ibm09  Placer 1/16  iters=240  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm09  Placer 1/16  finished  placement=ok
+[tune:dp] ibm09  Placer 2/16  iters=240  bins=64  td=0.695  tag=spread  start=mirror_xy_jit1.75  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm09  Placer 2/16  finished  placement=ok
+[tune:dp] ibm09  Placer 3/16  iters=240  bins=128  td=0.771  tag=tight  start=mirror_y_jit1.25  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm09  Placer 3/16  finished  placement=ok
+[tune:dp] ibm09  Placer 4/16  iters=240  bins=64  td=0.655  tag=xspread  start=anti_transpose  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm09  Placer 4/16  finished  placement=ok
+[tune:dp] ibm09  Placer 5/16  iters=240  bins=128  td=0.786  tag=xtight  start=mirror_x_jit2.35  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm09  Placer 5/16  finished  placement=ok
+[tune:dp] ibm09  Placer 6/16  iters=240  bins=64  td=0.675  tag=coarse  start=transpose_jit0.75  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm09  Placer 6/16  finished  placement=ok
+[tune:dp] ibm09  Placer 7/16  iters=240  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit2.35  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm09  Placer 7/16  finished  placement=ok
+[tune:dp] ibm09  Placer 8/16  iters=240  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit2.35  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm09  Placer 8/16  finished  placement=ok
+[tune:dp] ibm09  Placer 9/16  iters=240  bins=128  td=0.720  tag=base  start=anchor3_s44_jit2.35  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm09  Placer 9/16  finished  placement=ok
+[tune:dp] ibm09  Placer 10/16  iters=240  bins=64  td=0.695  tag=spread  start=anchor2_s44_jit0.75  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm09  Placer 10/16  finished  placement=ok
+[tune:dp] ibm09  Placer 11/16  iters=240  bins=128  td=0.771  tag=tight  start=anchor4_s28_jit1.75  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm09  Placer 11/16  finished  placement=ok
+[tune:dp] ibm09  Placer 12/16  iters=240  bins=64  td=0.655  tag=xspread  start=anchor5_s44_jit1.75  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm09  Placer 12/16  finished  placement=ok
+[tune:dp] ibm09  Placer 13/16  iters=240  bins=128  td=0.786  tag=xtight  start=anchor7_s44_jit1.25  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm09  Placer 13/16  finished  placement=ok
+[tune:dp] ibm09  Placer 14/16  iters=240  bins=64  td=0.675  tag=coarse  start=anchor6_s44_jit1.75  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm09  Placer 14/16  finished  placement=ok
+[tune:dp] ibm09  Placer 15/16  iters=240  bins=128  td=0.705  tag=fine  start=mirror_xy_jit2.35  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=128  timeout=720s
+[tune:dp] ibm09  Placer 15/16  finished  placement=ok
+[tune:dp] ibm09  Placer 16/16  iters=240  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=720s
+[tune:dp] ibm09  spawning Placer  gpu=1  iters=240  bins=64  timeout=720s
+[tune:dp] ibm09  Placer 16/16  finished  placement=ok
+  ibm09... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm09/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 36, Row: 38
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm09/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 36, Row: 38
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=0.9360  (wl=0.063 den=0.518 cong=1.227)  VALID  [545.78s]
+[tune:dp] ibm10  Placer 1/8  iters=372  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=372  bins=128  timeout=720s
+[tune:dp] ibm10  Placer 1/8  finished  placement=ok
+[tune:dp] ibm10  Placer 2/8  iters=372  bins=64  td=0.627  tag=spread  start=mirror_xy  timeout=720s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=372  bins=64  timeout=720s
+[tune:dp] ibm10  Placer 2/8  finished  placement=ok
+[tune:dp] ibm10  Placer 3/8  iters=372  bins=128  td=0.720  tag=tight  start=anti_transpose_jit0.75  timeout=720s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=372  bins=128  timeout=720s
+[tune:dp] ibm10  Placer 3/8  finished  placement=ok
+[tune:dp] ibm10  Placer 4/8  iters=372  bins=64  td=0.587  tag=xspread  start=transpose  timeout=720s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=372  bins=64  timeout=720s
+[tune:dp] ibm10  Placer 4/8  finished  placement=ok
+[tune:dp] ibm10  Placer 5/8  iters=372  bins=128  td=0.735  tag=xtight  start=mirror_y  timeout=720s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=372  bins=128  timeout=720s
+[tune:dp] ibm10  Placer 5/8  finished  placement=ok
+[tune:dp] ibm10  Placer 6/8  iters=372  bins=64  td=0.675  tag=coarse  start=mirror_x  timeout=720s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=372  bins=64  timeout=720s
+[tune:dp] ibm10  Placer 6/8  finished  placement=ok
+[tune:dp] ibm10  Placer 7/8  iters=372  bins=128  td=0.705  tag=fine  start=anchor3_s44_jit2.35  timeout=720s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=372  bins=128  timeout=720s
+[tune:dp] ibm10  Placer 7/8  finished  placement=ok
+[tune:dp] ibm10  Placer 8/8  iters=372  bins=64  td=0.635  tag=escape  start=anchor1_s44_jit2.35  timeout=720s
+[tune:dp] ibm10  spawning Placer  gpu=1  iters=372  bins=64  timeout=720s
+[tune:dp] ibm10  Placer 8/8  finished  placement=ok
+  ibm10... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm10/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 55, Row: 41
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm10/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 55, Row: 41
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.1304  (wl=0.054 den=0.551 cong=1.601)  VALID  [2449.29s]
+[tune:dp] ibm11  Placer 1/16  iters=256  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=128  timeout=720s
+[tune:dp] ibm11  Placer 1/16  finished  placement=ok
+[tune:dp] ibm11  Placer 2/16  iters=256  bins=64  td=0.695  tag=spread  start=mirror_xy_jit2.35  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=64  timeout=720s
+[tune:dp] ibm11  Placer 2/16  finished  placement=ok
+[tune:dp] ibm11  Placer 3/16  iters=256  bins=128  td=0.782  tag=tight  start=mirror_y_jit2.35  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=128  timeout=720s
+[tune:dp] ibm11  Placer 3/16  finished  placement=ok
+[tune:dp] ibm11  Placer 4/16  iters=256  bins=64  td=0.655  tag=xspread  start=mirror_x_jit0.75  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=64  timeout=720s
+[tune:dp] ibm11  Placer 4/16  finished  placement=ok
+[tune:dp] ibm11  Placer 5/16  iters=256  bins=128  td=0.797  tag=xtight  start=anti_transpose_jit1.25  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=128  timeout=720s
+[tune:dp] ibm11  Placer 5/16  finished  placement=ok
+[tune:dp] ibm11  Placer 6/16  iters=256  bins=64  td=0.675  tag=coarse  start=transpose_jit0.75  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=64  timeout=720s
+[tune:dp] ibm11  Placer 6/16  finished  placement=ok
+[tune:dp] ibm11  Placer 7/16  iters=256  bins=128  td=0.705  tag=fine  start=anchor3_s44_jit1.75  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=128  timeout=720s
+[tune:dp] ibm11  Placer 7/16  finished  placement=ok
+[tune:dp] ibm11  Placer 8/16  iters=256  bins=64  td=0.635  tag=escape  start=anchor1_s44_jit1.75  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=64  timeout=720s
+[tune:dp] ibm11  Placer 8/16  finished  placement=ok
+[tune:dp] ibm11  Placer 9/16  iters=256  bins=128  td=0.720  tag=base  start=anchor2_s44_jit0.75  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=128  timeout=720s
+[tune:dp] ibm11  Placer 9/16  finished  placement=ok
+[tune:dp] ibm11  Placer 10/16  iters=256  bins=64  td=0.695  tag=spread  start=anchor0_s44_jit1.75  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=64  timeout=720s
+[tune:dp] ibm11  Placer 10/16  finished  placement=ok
+[tune:dp] ibm11  Placer 11/16  iters=256  bins=128  td=0.782  tag=tight  start=anchor5_s28_jit1.75  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=128  timeout=720s
+[tune:dp] ibm11  Placer 11/16  finished  placement=ok
+[tune:dp] ibm11  Placer 12/16  iters=256  bins=64  td=0.655  tag=xspread  start=anchor6_s44_jit2.35  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=64  timeout=720s
+[tune:dp] ibm11  Placer 12/16  finished  placement=ok
+[tune:dp] ibm11  Placer 13/16  iters=256  bins=128  td=0.797  tag=xtight  start=anchor4_s44_jit2.35  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=128  timeout=720s
+[tune:dp] ibm11  Placer 13/16  finished  placement=ok
+[tune:dp] ibm11  Placer 14/16  iters=256  bins=64  td=0.675  tag=coarse  start=anchor7_s44_jit1.75  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=64  timeout=720s
+[tune:dp] ibm11  Placer 14/16  finished  placement=ok
+[tune:dp] ibm11  Placer 15/16  iters=256  bins=128  td=0.705  tag=fine  start=mirror_xy_jit1.75  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=128  timeout=720s
+[tune:dp] ibm11  Placer 15/16  finished  placement=ok
+[tune:dp] ibm11  Placer 16/16  iters=256  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.25  timeout=720s
+[tune:dp] ibm11  spawning Placer  gpu=1  iters=256  bins=64  timeout=720s
+[tune:dp] ibm11  Placer 16/16  finished  placement=ok
+  ibm11... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm11/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 39, Row: 45
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm11/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 39, Row: 45
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=0.9698  (wl=0.061 den=0.534 cong=1.283)  VALID  [470.21s]
+[tune:dp] ibm12  Placer 1/12  iters=337  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=128  timeout=720s
+[tune:dp] ibm12  Placer 1/12  finished  placement=ok
+[tune:dp] ibm12  Placer 2/12  iters=337  bins=64  td=0.667  tag=spread  start=mirror_xy_jit1.75  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=64  timeout=720s
+[tune:dp] ibm12  Placer 2/12  finished  placement=ok
+[tune:dp] ibm12  Placer 3/12  iters=337  bins=128  td=0.720  tag=tight  start=transpose_jit1.25  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=128  timeout=720s
+[tune:dp] ibm12  Placer 3/12  finished  placement=ok
+[tune:dp] ibm12  Placer 4/12  iters=337  bins=64  td=0.627  tag=xspread  start=anti_transpose_jit1.25  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=64  timeout=720s
+[tune:dp] ibm12  Placer 4/12  finished  placement=ok
+[tune:dp] ibm12  Placer 5/12  iters=337  bins=128  td=0.735  tag=xtight  start=mirror_x_jit2.35  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=128  timeout=720s
+[tune:dp] ibm12  Placer 5/12  finished  placement=ok
+[tune:dp] ibm12  Placer 6/12  iters=337  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.25  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=64  timeout=720s
+[tune:dp] ibm12  Placer 6/12  finished  placement=ok
+[tune:dp] ibm12  Placer 7/12  iters=337  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit1.75  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=128  timeout=720s
+[tune:dp] ibm12  Placer 7/12  finished  placement=ok
+[tune:dp] ibm12  Placer 8/12  iters=337  bins=64  td=0.635  tag=escape  start=anchor0_s44_jit2.35  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=64  timeout=720s
+[tune:dp] ibm12  Placer 8/12  finished  placement=ok
+[tune:dp] ibm12  Placer 9/12  iters=337  bins=128  td=0.720  tag=base  start=anchor3_s44_jit1.75  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=128  timeout=720s
+[tune:dp] ibm12  Placer 9/12  finished  placement=ok
+[tune:dp] ibm12  Placer 10/12  iters=337  bins=64  td=0.667  tag=spread  start=anchor2_s44_jit2.35  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=64  timeout=720s
+[tune:dp] ibm12  Placer 10/12  finished  placement=ok
+[tune:dp] ibm12  Placer 11/12  iters=337  bins=128  td=0.720  tag=tight  start=anchor4_s44_jit2.35  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=128  timeout=720s
+[tune:dp] ibm12  Placer 11/12  finished  placement=ok
+[tune:dp] ibm12  Placer 12/12  iters=337  bins=64  td=0.627  tag=xspread  start=anchor5_s44_jit2.35  timeout=720s
+[tune:dp] ibm12  spawning Placer  gpu=1  iters=337  bins=64  timeout=720s
+[tune:dp] ibm12  Placer 12/12  finished  placement=ok
+  ibm12... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm12/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 47, Row: 47
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm12/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 47, Row: 47
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.3878  (wl=0.068 den=0.528 cong=2.111)  VALID  [2144.55s]
+[tune:dp] ibm13  Placer 1/16  iters=264  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=128  timeout=720s
+[tune:dp] ibm13  Placer 1/16  finished  placement=ok
+[tune:dp] ibm13  Placer 2/16  iters=264  bins=64  td=0.695  tag=spread  start=mirror_xy_jit2.35  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=64  timeout=720s
+[tune:dp] ibm13  Placer 2/16  finished  placement=ok
+[tune:dp] ibm13  Placer 3/16  iters=264  bins=128  td=0.789  tag=tight  start=transpose_jit1.25  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=128  timeout=720s
+[tune:dp] ibm13  Placer 3/16  finished  placement=ok
+[tune:dp] ibm13  Placer 4/16  iters=264  bins=64  td=0.655  tag=xspread  start=anti_transpose  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=64  timeout=720s
+[tune:dp] ibm13  Placer 4/16  finished  placement=ok
+[tune:dp] ibm13  Placer 5/16  iters=264  bins=128  td=0.804  tag=xtight  start=mirror_x_jit0.75  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=128  timeout=720s
+[tune:dp] ibm13  Placer 5/16  finished  placement=ok
+[tune:dp] ibm13  Placer 6/16  iters=264  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.25  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=64  timeout=720s
+[tune:dp] ibm13  Placer 6/16  finished  placement=ok
+[tune:dp] ibm13  Placer 7/16  iters=264  bins=128  td=0.705  tag=fine  start=anchor3_s44_jit2.35  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=128  timeout=720s
+[tune:dp] ibm13  Placer 7/16  finished  placement=ok
+[tune:dp] ibm13  Placer 8/16  iters=264  bins=64  td=0.635  tag=escape  start=anchor1_s44_jit2.35  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=64  timeout=720s
+[tune:dp] ibm13  Placer 8/16  finished  placement=ok
+[tune:dp] ibm13  Placer 9/16  iters=264  bins=128  td=0.720  tag=base  start=anchor2_s44_jit1.75  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=128  timeout=720s
+[tune:dp] ibm13  Placer 9/16  finished  placement=ok
+[tune:dp] ibm13  Placer 10/16  iters=264  bins=64  td=0.695  tag=spread  start=anchor0_s44_jit0.75  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=64  timeout=720s
+[tune:dp] ibm13  Placer 10/16  finished  placement=ok
+[tune:dp] ibm13  Placer 11/16  iters=264  bins=128  td=0.789  tag=tight  start=anchor5_s44_jit1.75  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=128  timeout=720s
+[tune:dp] ibm13  Placer 11/16  finished  placement=ok
+[tune:dp] ibm13  Placer 12/16  iters=264  bins=64  td=0.655  tag=xspread  start=anchor6_s44_jit1.75  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=64  timeout=720s
+[tune:dp] ibm13  Placer 12/16  finished  placement=ok
+[tune:dp] ibm13  Placer 13/16  iters=264  bins=128  td=0.804  tag=xtight  start=anchor4_s44_jit0.75  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=128  timeout=720s
+[tune:dp] ibm13  Placer 13/16  finished  placement=ok
+[tune:dp] ibm13  Placer 14/16  iters=264  bins=64  td=0.675  tag=coarse  start=anchor7_s44_jit1.75  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=64  timeout=720s
+[tune:dp] ibm13  Placer 14/16  finished  placement=ok
+[tune:dp] ibm13  Placer 15/16  iters=264  bins=128  td=0.705  tag=fine  start=anchor3_s28_jit1.75  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=128  timeout=720s
+[tune:dp] ibm13  Placer 15/16  finished  placement=ok
+[tune:dp] ibm13  Placer 16/16  iters=264  bins=64  td=0.635  tag=escape  start=mirror_xy_jit1.75  timeout=720s
+[tune:dp] ibm13  spawning Placer  gpu=1  iters=264  bins=64  timeout=720s
+[tune:dp] ibm13  Placer 16/16  finished  placement=ok
+  ibm13... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm13/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 43, Row: 43
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm13/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 43, Row: 43
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.0867  (wl=0.059 den=0.552 cong=1.503)  VALID  [628.68s]
+[tune:dp] ibm14  Placer 1/12  iters=291  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=128  timeout=720s
+[tune:dp] ibm14  Placer 1/12  finished  placement=ok
+[tune:dp] ibm14  Placer 2/12  iters=291  bins=64  td=0.695  tag=spread  start=mirror_xy  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=64  timeout=720s
+[tune:dp] ibm14  Placer 2/12  finished  placement=ok
+[tune:dp] ibm14  Placer 3/12  iters=291  bins=128  td=0.872  tag=tight  start=transpose_jit1.25  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=128  timeout=720s
+[tune:dp] ibm14  Placer 3/12  finished  placement=ok
+[tune:dp] ibm14  Placer 4/12  iters=291  bins=64  td=0.655  tag=xspread  start=anti_transpose_jit1.75  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=64  timeout=720s
+[tune:dp] ibm14  Placer 4/12  finished  placement=ok
+[tune:dp] ibm14  Placer 5/12  iters=291  bins=128  td=0.880  tag=xtight  start=mirror_x_jit1.75  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=128  timeout=720s
+[tune:dp] ibm14  Placer 5/12  finished  placement=ok
+[tune:dp] ibm14  Placer 6/12  iters=291  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.75  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=64  timeout=720s
+[tune:dp] ibm14  Placer 6/12  finished  placement=ok
+[tune:dp] ibm14  Placer 7/12  iters=291  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit2.35  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=128  timeout=720s
+[tune:dp] ibm14  Placer 7/12  finished  placement=ok
+[tune:dp] ibm14  Placer 8/12  iters=291  bins=64  td=0.690  tag=net_escape  start=anchor3_s44  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=64  timeout=720s
+[tune:dp] ibm14  Placer 8/12  finished  placement=ok
+[tune:dp] ibm14  Placer 9/12  iters=291  bins=128  td=0.720  tag=base  start=anchor0_s44_jit2.35  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=128  timeout=720s
+[tune:dp] ibm14  Placer 9/12  finished  placement=ok
+[tune:dp] ibm14  Placer 10/12  iters=291  bins=64  td=0.695  tag=spread  start=anchor2_s44_jit2.35  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=64  timeout=720s
+[tune:dp] ibm14  Placer 10/12  finished  placement=ok
+[tune:dp] ibm14  Placer 11/12  iters=291  bins=128  td=0.872  tag=tight  start=anchor5_s44_jit2.35  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=128  timeout=720s
+[tune:dp] ibm14  Placer 11/12  finished  placement=ok
+[tune:dp] ibm14  Placer 12/12  iters=291  bins=64  td=0.655  tag=xspread  start=anchor4_s44_jit1.75  timeout=720s
+[tune:dp] ibm14  spawning Placer  gpu=1  iters=291  bins=64  timeout=720s
+[tune:dp] ibm14  Placer 12/12  finished  placement=ok
+  ibm14... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm14/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 49, Row: 44
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm14/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 49, Row: 44
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.4479  (wl=0.063 den=0.661 cong=2.110)  VALID  [711.87s]
+[tune:dp] ibm15  Placer 1/16  iters=259  bins=128  td=0.760  tag=wire  start=native_jit  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=128  timeout=720s
+[tune:dp] ibm15  Placer 1/16  finished  placement=ok
+[tune:dp] ibm15  Placer 2/16  iters=259  bins=128  td=0.800  tag=wire_tight  start=anchor1_s26_jit0.70  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=128  timeout=720s
+[tune:dp] ibm15  Placer 2/16  finished  placement=ok
+[tune:dp] ibm15  Placer 3/16  iters=259  bins=64  td=0.720  tag=wire_loose  start=anchor3_s26_jit0.70  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=64  timeout=720s
+[tune:dp] ibm15  Placer 3/16  finished  placement=ok
+[tune:dp] ibm15  Placer 4/16  iters=259  bins=64  td=0.760  tag=wire_coarse  start=anchor0_s26_jit1.40  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=64  timeout=720s
+[tune:dp] ibm15  Placer 4/16  finished  placement=ok
+[tune:dp] ibm15  Placer 5/16  iters=259  bins=128  td=0.780  tag=wire_fine  start=anchor2_s26_jit1.40  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=128  timeout=720s
+[tune:dp] ibm15  Placer 5/16  finished  placement=ok
+[tune:dp] ibm15  Placer 6/16  iters=259  bins=128  td=0.740  tag=mild_spread  start=anchor5_s18_jit1.40  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=128  timeout=720s
+[tune:dp] ibm15  Placer 6/16  finished  placement=ok
+[tune:dp] ibm15  Placer 7/16  iters=259  bins=128  td=0.820  tag=dense_wire  start=anchor4_s26_jit0.35  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=128  timeout=720s
+[tune:dp] ibm15  Placer 7/16  finished  placement=ok
+[tune:dp] ibm15  Placer 8/16  iters=259  bins=64  td=0.700  tag=soft_relax  start=anchor6_s26_jit1.40  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=64  timeout=720s
+[tune:dp] ibm15  Placer 8/16  finished  placement=ok
+[tune:dp] ibm15  Placer 9/16  iters=259  bins=128  td=0.760  tag=wire  start=anchor7_s26_jit1.40  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=128  timeout=720s
+[tune:dp] ibm15  Placer 9/16  finished  placement=ok
+[tune:dp] ibm15  Placer 10/16  iters=259  bins=128  td=0.800  tag=wire_tight  start=anchor3_s10_jit1.05  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=128  timeout=720s
+[tune:dp] ibm15  Placer 10/16  finished  placement=ok
+[tune:dp] ibm15  Placer 11/16  iters=259  bins=64  td=0.720  tag=wire_loose  start=anchor1_s10_jit1.05  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=64  timeout=720s
+[tune:dp] ibm15  Placer 11/16  finished  placement=ok
+[tune:dp] ibm15  Placer 12/16  iters=259  bins=64  td=0.760  tag=wire_coarse  start=anchor1_s18_jit1.40  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=64  timeout=720s
+[tune:dp] ibm15  Placer 12/16  finished  placement=ok
+[tune:dp] ibm15  Placer 13/16  iters=259  bins=128  td=0.780  tag=wire_fine  start=anchor5_s26_jit1.05  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=128  timeout=720s
+[tune:dp] ibm15  Placer 13/16  finished  placement=ok
+[tune:dp] ibm15  Placer 14/16  iters=259  bins=128  td=0.740  tag=mild_spread  start=anchor3_s18_jit1.40  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=128  timeout=720s
+[tune:dp] ibm15  Placer 14/16  finished  placement=ok
+[tune:dp] ibm15  Placer 15/16  iters=259  bins=128  td=0.820  tag=dense_wire  start=anchor0_s10_jit1.40  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=128  timeout=720s
+[tune:dp] ibm15  Placer 15/16  finished  placement=ok
+[tune:dp] ibm15  Placer 16/16  iters=259  bins=64  td=0.700  tag=soft_relax  start=anchor4_s18_jit1.05  timeout=720s
+[tune:dp] ibm15  spawning Placer  gpu=1  iters=259  bins=64  timeout=720s
+[tune:dp] ibm15  Placer 16/16  finished  placement=ok
+  ibm15... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm15/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 57, Row: 38
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm15/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 57, Row: 38
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.4807  (wl=0.070 den=0.672 cong=2.150)  VALID  [562.20s]
+[tune:dp] ibm16  Placer 1/12  iters=269  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=128  timeout=720s
+[tune:dp] ibm16  Placer 1/12  finished  placement=ok
+[tune:dp] ibm16  Placer 2/12  iters=269  bins=64  td=0.695  tag=spread  start=mirror_xy_jit0.75  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=64  timeout=720s
+[tune:dp] ibm16  Placer 2/12  finished  placement=ok
+[tune:dp] ibm16  Placer 3/12  iters=269  bins=128  td=0.781  tag=tight  start=anti_transpose_jit1.75  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=128  timeout=720s
+[tune:dp] ibm16  Placer 3/12  finished  placement=ok
+[tune:dp] ibm16  Placer 4/12  iters=269  bins=64  td=0.655  tag=xspread  start=mirror_x_jit1.25  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=64  timeout=720s
+[tune:dp] ibm16  Placer 4/12  finished  placement=ok
+[tune:dp] ibm16  Placer 5/12  iters=269  bins=128  td=0.796  tag=xtight  start=transpose_jit0.75  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=128  timeout=720s
+[tune:dp] ibm16  Placer 5/12  finished  placement=ok
+[tune:dp] ibm16  Placer 6/12  iters=269  bins=64  td=0.675  tag=coarse  start=mirror_y_jit0.75  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=64  timeout=720s
+[tune:dp] ibm16  Placer 6/12  finished  placement=ok
+[tune:dp] ibm16  Placer 7/12  iters=269  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit1.25  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=128  timeout=720s
+[tune:dp] ibm16  Placer 7/12  finished  placement=ok
+[tune:dp] ibm16  Placer 8/12  iters=269  bins=64  td=0.690  tag=net_escape  start=anchor3_s44_jit1.75  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=64  timeout=720s
+[tune:dp] ibm16  Placer 8/12  finished  placement=ok
+[tune:dp] ibm16  Placer 9/12  iters=269  bins=128  td=0.720  tag=base  start=anchor0_s44_jit1.75  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=128  timeout=720s
+[tune:dp] ibm16  Placer 9/12  finished  placement=ok
+[tune:dp] ibm16  Placer 10/12  iters=269  bins=64  td=0.695  tag=spread  start=anchor2_s44_jit1.25  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=64  timeout=720s
+[tune:dp] ibm16  Placer 10/12  finished  placement=ok
+[tune:dp] ibm16  Placer 11/12  iters=269  bins=128  td=0.781  tag=tight  start=anchor5_s44_jit2.35  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=128  timeout=720s
+[tune:dp] ibm16  Placer 11/12  finished  placement=ok
+[tune:dp] ibm16  Placer 12/12  iters=269  bins=64  td=0.655  tag=xspread  start=anchor4_s44_jit0.75  timeout=720s
+[tune:dp] ibm16  spawning Placer  gpu=1  iters=269  bins=64  timeout=720s
+[tune:dp] ibm16  Placer 12/12  finished  placement=ok
+  ibm16... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm16/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 45, Row: 48
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm16/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 45, Row: 48
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.2326  (wl=0.057 den=0.518 cong=1.833)  VALID  [2602.57s]
+[tune:dp] ibm17  Placer 1/8  iters=312  bins=128  td=0.720  tag=base  start=native_jit  timeout=720s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=312  bins=128  timeout=720s
+[tune:dp] ibm17  Placer 1/8  finished  placement=ok
+[tune:dp] ibm17  Placer 2/8  iters=312  bins=64  td=0.695  tag=spread  start=mirror_xy  timeout=720s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=312  bins=64  timeout=720s
+[tune:dp] ibm17  Placer 2/8  finished  placement=ok
+[tune:dp] ibm17  Placer 3/8  iters=312  bins=128  td=0.884  tag=tight  start=transpose_jit0.75  timeout=720s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=312  bins=128  timeout=720s
+[tune:dp] ibm17  Placer 3/8  finished  placement=ok
+[tune:dp] ibm17  Placer 4/8  iters=312  bins=64  td=0.655  tag=xspread  start=anti_transpose_jit2.35  timeout=720s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=312  bins=64  timeout=720s
+[tune:dp] ibm17  Placer 4/8  finished  placement=ok
+[tune:dp] ibm17  Placer 5/8  iters=312  bins=128  td=0.880  tag=xtight  start=mirror_x_jit1.25  timeout=720s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=312  bins=128  timeout=720s
+[tune:dp] ibm17  Placer 5/8  finished  placement=ok
+[tune:dp] ibm17  Placer 6/8  iters=312  bins=64  td=0.675  tag=coarse  start=mirror_y_jit1.25  timeout=720s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=312  bins=64  timeout=720s
+[tune:dp] ibm17  Placer 6/8  finished  placement=ok
+[tune:dp] ibm17  Placer 7/8  iters=312  bins=128  td=0.705  tag=fine  start=anchor1_s44_jit1.25  timeout=720s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=312  bins=128  timeout=720s
+[tune:dp] ibm17  Placer 7/8  finished  placement=ok
+[tune:dp] ibm17  Placer 8/8  iters=312  bins=64  td=0.690  tag=net_escape  start=anchor3_s44_jit2.35  timeout=720s
+[tune:dp] ibm17  spawning Placer  gpu=1  iters=312  bins=64  timeout=720s
+[tune:dp] ibm17  Placer 8/8  finished  placement=ok
+  ibm17... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm17/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 51, Row: 44
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm17/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 51, Row: 44
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.6691  (wl=0.063 den=0.632 cong=2.579)  VALID  [1209.12s]
+[tune:dp] ibm18  Placer 1/16  iters=244  bins=128  td=0.760  tag=wire  start=native_jit  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm18  Placer 1/16  finished  placement=ok
+[tune:dp] ibm18  Placer 2/16  iters=244  bins=128  td=0.800  tag=wire_tight  start=anchor1_s26_jit0.70  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm18  Placer 2/16  finished  placement=ok
+[tune:dp] ibm18  Placer 3/16  iters=244  bins=64  td=0.720  tag=wire_loose  start=anchor0_s26_jit0.70  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm18  Placer 3/16  finished  placement=ok
+[tune:dp] ibm18  Placer 4/16  iters=244  bins=64  td=0.760  tag=wire_coarse  start=anchor3_s26_jit0.35  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm18  Placer 4/16  finished  placement=ok
+[tune:dp] ibm18  Placer 5/16  iters=244  bins=128  td=0.780  tag=wire_fine  start=anchor2_s26_jit1.40  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm18  Placer 5/16  finished  placement=ok
+[tune:dp] ibm18  Placer 6/16  iters=244  bins=128  td=0.740  tag=mild_spread  start=anchor4_s18_jit1.40  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm18  Placer 6/16  finished  placement=ok
+[tune:dp] ibm18  Placer 7/16  iters=244  bins=128  td=0.820  tag=dense_wire  start=anchor5_s26_jit1.40  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm18  Placer 7/16  finished  placement=ok
+[tune:dp] ibm18  Placer 8/16  iters=244  bins=64  td=0.700  tag=soft_relax  start=anchor7_s26  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm18  Placer 8/16  finished  placement=ok
+[tune:dp] ibm18  Placer 9/16  iters=244  bins=128  td=0.760  tag=wire  start=anchor0_s10  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm18  Placer 9/16  finished  placement=ok
+[tune:dp] ibm18  Placer 10/16  iters=244  bins=128  td=0.800  tag=wire_tight  start=anchor6_s26_jit1.05  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm18  Placer 10/16  finished  placement=ok
+[tune:dp] ibm18  Placer 11/16  iters=244  bins=64  td=0.720  tag=wire_loose  start=anchor1_s10_jit1.05  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm18  Placer 11/16  finished  placement=ok
+[tune:dp] ibm18  Placer 12/16  iters=244  bins=64  td=0.760  tag=wire_coarse  start=anchor4_s26_jit1.40  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm18  Placer 12/16  finished  placement=ok
+[tune:dp] ibm18  Placer 13/16  iters=244  bins=128  td=0.780  tag=wire_fine  start=anchor1_s18_jit0.70  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm18  Placer 13/16  finished  placement=ok
+[tune:dp] ibm18  Placer 14/16  iters=244  bins=128  td=0.740  tag=mild_spread  start=anchor0_s18_jit1.40  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm18  Placer 14/16  finished  placement=ok
+[tune:dp] ibm18  Placer 15/16  iters=244  bins=128  td=0.820  tag=dense_wire  start=anchor3_s10_jit1.40  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=128  timeout=720s
+[tune:dp] ibm18  Placer 15/16  finished  placement=ok
+[tune:dp] ibm18  Placer 16/16  iters=244  bins=64  td=0.700  tag=soft_relax  start=anchor2_s10_jit0.70  timeout=720s
+[tune:dp] ibm18  spawning Placer  gpu=1  iters=244  bins=64  timeout=720s
+[tune:dp] ibm18  Placer 16/16  finished  placement=ok
+  ibm18... #[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm18/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 55, Row: 39
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+#[INFO] Reading from external/MacroPlacement/Testcases/ICCAD04/ibm18/netlist.pb.txt
+[INFO] Retrieving Meta information from .plc comments
+#[PLACEMENT GRID] Col: 55, Row: 39
+#[ROUTES PER MICRON] Hor: 65.96, Ver: 106.96
+#[CONGESTION SMOOTH RANGE] Smooth Range: 2
+#[OVERLAP THRESHOLD] Threshold: 0.0040
+proxy=1.6372  (wl=0.070 den=0.759 cong=2.376)  VALID  [786.57s]
+
+--------------------------------------------------------------------------------
+    Benchmark     Proxy        SA   RePlAce     vs SA  vs RePlAce  Overlaps
+--------------------------------------------------------------------------------
+        ibm01    0.9219    1.3166    0.9976    +30.0%       +7.6%         0
+        ibm02    1.3523    1.9072    1.8370    +29.1%      +26.4%         0
+        ibm03    1.1276    1.7401    1.3222    +35.2%      +14.7%         0
+        ibm04    1.1649    1.5037    1.3024    +22.5%      +10.6%         0
+        ibm06    1.3896    2.5057    1.6187    +44.5%      +14.2%         0
+        ibm07    1.4444    2.0229    1.4633    +28.6%       +1.3%         0
+        ibm08    1.2929    1.9239    1.4285    +32.8%       +9.5%         0
+        ibm09    0.9360    1.3875    1.1194    +32.5%      +16.4%         0
+        ibm10    1.1304    2.1108    1.5009    +46.4%      +24.7%         0
+        ibm11    0.9698    1.7111    1.1774    +43.3%      +17.6%         0
+        ibm12    1.3878    2.8261    1.7261    +50.9%      +19.6%         0
+        ibm13    1.0867    1.9141    1.3355    +43.2%      +18.6%         0
+        ibm14    1.4479    2.2750    1.5436    +36.4%       +6.2%         0
+        ibm15    1.4807    2.3000    1.5159    +35.6%       +2.3%         0
+        ibm16    1.2326    2.2337    1.4780    +44.8%      +16.6%         0
+        ibm17    1.6691    3.6726    1.6446    +54.6%       -1.5%         0
+        ibm18    1.6372    2.7755    1.7722    +41.0%       +7.6%         0
+--------------------------------------------------------------------------------
+          AVG    1.2748    2.1251    1.4578    +40.0%      +12.6%         0
+
+Total runtime: 15304.12s
+
+Done: Wed May 13 08:49:26 UTC 2026

@@ -13,6 +13,9 @@ Environment:
   (target density / bin grid / density weight) across starts so each run is not
   identical hyperparameters; same number of DREAMPlace calls as without.
   Optional key ``pipeline.rich_candidate_set`` in the JSON overrides the env flag.
+  ``pipeline.hyperband_enabled`` is supported for experiments, but defaults off:
+  short-run successive halving was observed to promote starts that later
+  regressed proxy cost.
 
 Example:
   evaluate submissions/dreamplace_pipeline_placer.py -b ibm01
@@ -55,6 +58,9 @@ _PIPELINE_JSON_KEYS = frozenset(
         "replace_rescue",
         "replace_rescue_trigger_proxy",
         "replace_rescue_timeout_seconds",
+        "hyperband_enabled",
+        "hyperband_eta",
+        "hyperband_min_iterations",
     }
 )
 

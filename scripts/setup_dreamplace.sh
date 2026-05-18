@@ -13,8 +13,9 @@
 #   SKIP_PIP=1                        # skip requirements.txt install
 #   FORCE_CLEAN=1                     # delete build/ first (full reconfigure)
 #   FORCE_RECONFIGURE=1               # re-run cmake even if CMakeCache.txt exists
-#   CUDA: if nvcc is on PATH, re-run cmake and it will pick up GPU; you can set
-#         CMAKE_CUDA_FLAGS=-gencode=arch=compute_80,code=sm_80 for your GPU.
+#   CUDA: if nvcc is on PATH, re-run cmake and it will pick up GPU. By default
+#         this cluster builds fatbins for both L40S/Ada (sm_89) and H200/Hopper
+#         (sm_90). Override CMAKE_CUDA_FLAGS if you need a different target.
 #   At run time, submissions honor MACRO_PLACE_DP_GPU=0|1|auto (see
 #   submissions/_dreamplace_cpu_smoke.resolve_dreamplace_gpu).
 #
@@ -51,6 +52,10 @@ echo "Using Python: ${PYTHON_ABS}"
 
 # Default ON: required for a working import of modules that reference GdsParser.
 : "${PARSER_GDSII:=ON}"
+
+if [[ -z "${CMAKE_CUDA_FLAGS:-}" ]]; then
+  CMAKE_CUDA_FLAGS="-gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90"
+fi
 
 # DREAMPlace's CMake build (NVCC) spawns intermediate CUDA tools like `cudafe++`.
 # When `nvcc` is found via an absolute path (e.g., from a conda "targets" directory),

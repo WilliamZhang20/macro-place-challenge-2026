@@ -718,6 +718,45 @@ def _post_dp_sa_refine(
 
 
 @dataclass(frozen=True)
+class _DreamPlaceSpec:
+    index: int
+    tag: str
+    start_tag: str
+    init: torch.Tensor
+    target_density: float
+    num_bins: int
+    overrides: Dict[str, Any]
+
+
+def _successive_halving_resources(
+    *,
+    min_iterations: int,
+    max_iterations: int,
+    eta: int,
+) -> List[int]:
+    max_i = max(1, int(max_iterations))
+    cur = max(1, min(int(min_iterations), max_i))
+    resources = [cur]
+    while resources[-1] < max_i:
+        nxt = min(max_i, max(resources[-1] + 1, int(math.ceil(resources[-1] * max(2, eta)))))
+        resources.append(nxt)
+    return resources
+
+
+def _log_selection_scores(prefix: str, selection: SelectionResult) -> None:
+    for score in sorted(selection.scores, key=lambda s: s.proxy_cost)[:12]:
+        violation = f" violation={score.violations[0]!r}" if score.violations else ""
+        print(
+            f"[tune:dp-score:{prefix}] {score.label} "
+            f"valid={int(score.valid)} proxy={score.proxy_cost:.4f} "
+            f"wl={score.wirelength:.3f} den={score.density:.3f} "
+            f"cong={score.congestion:.3f} overlaps={score.overlaps}{violation}",
+            file=sys.stderr,
+            flush=True,
+        )
+
+
+@dataclass(frozen=True)
 class DreamPlacePipelineResult:
     """``initial_handoff`` is the loader `.plc` placement (returned if DP yields nothing valid)."""
 
@@ -770,6 +809,9 @@ class DreamPlacePipeline:
         replace_rescue: bool = True,
         replace_rescue_trigger_proxy: float = 0.0,
         replace_rescue_timeout_seconds: float = 240.0,
+        hyperband_enabled: bool = False,
+        hyperband_eta: int = 3,
+        hyperband_min_iterations: int = 48,
     ):
         self.plc_lookup = plc_lookup or PlcLookup()
         self.dreamplace_install = dreamplace_install
@@ -793,6 +835,12 @@ class DreamPlacePipeline:
         self.replace_rescue = bool(replace_rescue)
         self.replace_rescue_trigger_proxy = float(replace_rescue_trigger_proxy)
         self.replace_rescue_timeout_seconds = float(replace_rescue_timeout_seconds)
+        # Short DREAMPlace runs are not a monotone proxy for full-budget starts:
+        # May 13 hyperband sweeps promoted early winners that regressed badly on
+        # ibm07/ibm15.  Keep halving opt-in for experiments, never the default.
+        self.hyperband_enabled = bool(hyperband_enabled)
+        self.hyperband_eta = max(2, int(hyperband_eta))
+        self.hyperband_min_iterations = max(1, int(hyperband_min_iterations))
 
     @staticmethod
     def _repair_seed(seed: torch.Tensor, benchmark: Benchmark) -> torch.Tensor:
@@ -867,6 +915,7 @@ class DreamPlacePipeline:
             generator=gen,
         )
 
+        dp_specs: List[_DreamPlaceSpec] = []
         for k, (start_tag, init) in enumerate(initial_starts):
             td_k, bins_k, tag_k, extra_k = variant_specs[k % len(variant_specs)]
             overrides: Dict[str, Any] = (
@@ -880,13 +929,33 @@ class DreamPlacePipeline:
                 overrides = deep_merge_dreamplace_json(overrides, extra_clean)
             overrides = _apply_density_weight_scale(overrides, scale)
             overrides["random_seed"] = int(9000 + k * 9973 + benchmark.num_macros)
+            dp_specs.append(
+                _DreamPlaceSpec(
+                    index=k,
+                    tag=tag_k,
+                    start_tag=start_tag,
+                    init=init,
+                    target_density=float(td_k),
+                    num_bins=int(bins_k),
+                    overrides=overrides,
+                )
+            )
 
-            label = f"dp_{tag_k}_{start_tag}_k{k}_seed{overrides['random_seed']}"
+        def run_spec(spec: _DreamPlaceSpec, resource_iters: int, round_idx: int) -> Optional[Tuple[str, torch.Tensor]]:
+            label = (
+                f"dp_{spec.tag}_{spec.start_tag}_k{spec.index}"
+                f"_r{round_idx}_it{int(resource_iters)}_seed{spec.overrides['random_seed']}"
+            )
+            timeout_k = self.timeout_seconds
+            if self.hyperband_enabled and iters > 0:
+                frac = max(0.12, min(1.0, float(resource_iters) / float(max(1, iters))))
+                timeout_k = max(90.0, min(self.timeout_seconds, self.timeout_seconds * frac * 1.35))
             if _tuner_progress_enabled():
                 print(
-                    f"[tune:dp] {benchmark.name}  Placer {k + 1}/{starts}  "
-                    f"iters={iters}  bins={bins_k}  td={td_k:.3f}  tag={tag_k}  "
-                    f"start={start_tag}  timeout={self.timeout_seconds:.0f}s",
+                    f"[tune:dp] {benchmark.name}  Placer {spec.index + 1}/{starts}  "
+                    f"round={round_idx}  iters={resource_iters}  bins={spec.num_bins}  "
+                    f"td={spec.target_density:.3f}  tag={spec.tag}  "
+                    f"start={spec.start_tag}  timeout={timeout_k:.0f}s",
                     file=sys.stderr,
                     flush=True,
                 )
@@ -894,25 +963,90 @@ class DreamPlacePipeline:
                 benchmark,
                 plc,
                 dreamplace_install=inst,
-                global_iterations=iters,
-                num_bins=int(bins_k),
+                global_iterations=int(resource_iters),
+                num_bins=spec.num_bins,
                 num_threads=self.num_threads,
-                target_density=float(td_k),
-                timeout_seconds=self.timeout_seconds,
-                dreamplace_json_overrides=overrides,
+                target_density=spec.target_density,
+                timeout_seconds=timeout_k,
+                dreamplace_json_overrides=spec.overrides,
                 use_gpu=self.use_gpu,
-                initial_placement=init,
+                initial_placement=spec.init,
             )
             if _tuner_progress_enabled():
                 print(
-                    f"[tune:dp] {benchmark.name}  Placer {k + 1}/{starts}  "
-                    f"finished  placement={'ok' if dp_out is not None else 'None'}",
+                    f"[tune:dp] {benchmark.name}  Placer {spec.index + 1}/{starts}  "
+                    f"round={round_idx} finished  placement={'ok' if dp_out is not None else 'None'}",
                     file=sys.stderr,
                     flush=True,
                 )
-            if dp_out is not None:
+            if dp_out is None:
+                return None
+            return label, dp_out
+
+        use_halving = (
+            self.hyperband_enabled
+            and len(dp_specs) > 1
+            and iters > max(1, self.hyperband_min_iterations)
+        )
+        if use_halving:
+            resources = _successive_halving_resources(
+                min_iterations=self.hyperband_min_iterations,
+                max_iterations=iters,
+                eta=self.hyperband_eta,
+            )
+            active = list(dp_specs)
+            for round_idx, resource_iters in enumerate(resources):
+                round_entries: List[Tuple[_DreamPlaceSpec, str, torch.Tensor]] = []
+                for spec in active:
+                    result = run_spec(spec, resource_iters, round_idx)
+                    if result is None:
+                        continue
+                    label, placement = result
+                    labels.append(label)
+                    candidates.append(placement)
+                    round_entries.append((spec, label, placement))
+
+                if round_idx == len(resources) - 1 or len(active) <= 1:
+                    break
+                keep = max(1, int(math.ceil(float(len(active)) / float(self.hyperband_eta))))
+                promoted: List[_DreamPlaceSpec] = []
+                if round_entries:
+                    try:
+                        round_selection = select_best_true_proxy_candidates_only(
+                            [entry[2] for entry in round_entries],
+                            benchmark,
+                            plc,
+                            candidate_labels=[entry[1] for entry in round_entries],
+                        )
+                        label_to_spec = {entry[1]: entry[0] for entry in round_entries}
+                        valid_scores = [s for s in round_selection.scores if s.valid]
+                        valid_scores.sort(key=lambda s: s.proxy_cost)
+                        promoted = [
+                            label_to_spec[s.label]
+                            for s in valid_scores[:keep]
+                            if s.label in label_to_spec
+                        ]
+                    except Exception:
+                        promoted = []
+                if not promoted:
+                    promoted = active[:keep]
+                active = promoted
+                if _tuner_progress_enabled():
+                    names = ", ".join(f"k{s.index}:{s.tag}/{s.start_tag}" for s in active)
+                    print(
+                        f"[tune:dp] {benchmark.name}  hyperband promote "
+                        f"{len(active)} after round {round_idx}: {names}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+        else:
+            for spec in dp_specs:
+                result = run_spec(spec, iters, 0)
+                if result is None:
+                    continue
+                label, placement = result
                 labels.append(label)
-                candidates.append(dp_out)
+                candidates.append(placement)
 
         if not candidates:
             fb = self._repair_seed(seed, benchmark)
@@ -930,6 +1064,8 @@ class DreamPlacePipeline:
                 plc,
                 candidate_labels=labels,
             )
+            if _tuner_progress_enabled():
+                _log_selection_scores("pre", preliminary)
         except ValueError:
             fb = self._repair_seed(seed, benchmark)
             return DreamPlacePipelineResult(
@@ -946,6 +1082,7 @@ class DreamPlacePipeline:
                 selection=None,
                 reason="selection_failed",
             )
+        valid_dp_count = sum(1 for score in preliminary.scores if score.valid)
 
         if self.post_dp_sa_seconds > 0.0 and self.post_dp_sa_top_k > 0:
             label_to_candidate = dict(zip(labels, candidates))
@@ -984,6 +1121,8 @@ class DreamPlacePipeline:
                 plc,
                 candidate_labels=labels,
             )
+            if _tuner_progress_enabled():
+                _log_selection_scores("post_sa", selection)
         except Exception:
             selection = preliminary
 
@@ -996,31 +1135,95 @@ class DreamPlacePipeline:
                 from _replace_pipeline import ReplacePipeline  # noqa: PLC0415
                 from _replace_runner import ReplaceConfig  # noqa: PLC0415
 
-                rescue_seed = selection.placement.clone().float()
-                rescue_configs = (
-                    ReplaceConfig(density=0.62, pcofmax=1.03, extra_args=("-bin", "64")),
-                    ReplaceConfig(density=0.64, pcofmax=1.03, extra_args=("-bin", "128")),
-                    ReplaceConfig(density=0.68, pcofmax=1.03, extra_args=("-bin", "64")),
-                    ReplaceConfig(density=0.68, pcofmax=1.03, extra_args=("-bin", "128")),
+                dp_seed = selection.placement.clone().float()
+                dp_rescue_configs = (
+                    ReplaceConfig(density=0.66, pcofmax=1.03, extra_args=("-bin", "128")),
+                    ReplaceConfig(density=0.68, pcofmax=1.20, extra_args=("-bin", "128")),
+                    ReplaceConfig(density=0.70, pcofmax=1.03, extra_args=("-bin", "128")),
                     ReplaceConfig(density=0.72, pcofmax=1.03, extra_args=("-bin", "128")),
+                    ReplaceConfig(density=0.72, pcofmax=1.08, extra_args=("-bin", "128")),
+                    ReplaceConfig(density=0.74, pcofmax=1.03, extra_args=("-bin", "128")),
                     ReplaceConfig(density=0.74, pcofmax=1.08, extra_args=("-bin", "128")),
+                    ReplaceConfig(density=0.76, pcofmax=1.08, extra_args=("-bin", "128")),
                 )
-                rescue = ReplacePipeline(
-                    configs=rescue_configs,
-                    baseline_provider=lambda _benchmark, _seed=rescue_seed: _seed,
-                    plc_lookup=self.plc_lookup,
-                    timeout_seconds=self.replace_rescue_timeout_seconds,
-                ).run(benchmark)
-                if rescue.selection is not None:
+                robust_rescue_configs = (
+                    ReplaceConfig(density=0.70, pcofmax=1.03, extra_args=("-bin", "64")),
+                    ReplaceConfig(density=0.72, pcofmax=1.03, extra_args=("-bin", "128")),
+                    ReplaceConfig(density=0.80, pcofmax=1.03, extra_args=("-bin", "64")),
+                    ReplaceConfig(density=0.80, pcofmax=1.03, extra_args=("-bin", "128")),
+                    ReplaceConfig(density=0.80, pcofmax=1.20, extra_args=("-bin", "128")),
+                    ReplaceConfig(density=0.84, pcofmax=1.20, extra_args=("-bin", "128")),
+                )
+                high_cost_initial_configs = (
+                    ReplaceConfig(density=0.80, pcofmax=1.20, extra_args=("-bin", "64")),
+                    ReplaceConfig(density=0.80, pcofmax=1.20, extra_args=("-bin", "128")),
+                    ReplaceConfig(density=0.84, pcofmax=1.20, extra_args=("-bin", "128")),
+                )
+
+                def append_rescue(
+                    rescue_seed: torch.Tensor,
+                    rescue_configs: Tuple[ReplaceConfig, ...],
+                    prefix: str,
+                    *,
+                    adaptive_top_k: int = 3,
+                ) -> bool:
+                    before = len(candidates)
+                    try:
+                        rescue = ReplacePipeline(
+                            configs=rescue_configs,
+                            baseline_provider=lambda _benchmark, _seed=rescue_seed: _seed,
+                            plc_lookup=self.plc_lookup,
+                            timeout_seconds=self.replace_rescue_timeout_seconds,
+                            adaptive_top_k=adaptive_top_k,
+                        ).run(benchmark)
+                    except Exception:
+                        return False
+                    if rescue.selection is None:
+                        return False
                     for score in rescue.selection.scores:
-                        labels.append(f"replace_rescue_{score.label}")
+                        labels.append(f"{prefix}_{score.label}")
                         candidates.append(score.placement)
+                    return len(candidates) > before
+
+                # If most DREAMPlace starts died or became invalid after strict
+                # legalization, the DP seed is often a poor RePlAce handoff.
+                # Fall back to the original placement and a compact version of
+                # the promoted RePlAce family that is less prone to low-density
+                # "no more tier to assign" aborts.
+                low_valid_yield = valid_dp_count <= max(2, starts // 4)
+                if low_valid_yield:
+                    changed = append_rescue(
+                        seed.clone().float(),
+                        robust_rescue_configs,
+                        "replace_initial_rescue",
+                        adaptive_top_k=2,
+                    )
+                else:
+                    changed = append_rescue(
+                        dp_seed,
+                        dp_rescue_configs,
+                        "replace_rescue",
+                        adaptive_top_k=0,
+                    )
+                    if float(selection.best.proxy_cost) >= 1.42:
+                        changed = (
+                            append_rescue(
+                                seed.clone().float(),
+                                high_cost_initial_configs,
+                                "replace_initial_high_cost",
+                                adaptive_top_k=0,
+                            )
+                            or changed
+                        )
+                if changed:
                     selection = select_best_true_proxy_candidates_only(
                         candidates,
                         benchmark,
                         plc,
                         candidate_labels=labels,
                     )
+                    if _tuner_progress_enabled():
+                        _log_selection_scores("post_replace", selection)
             except Exception:
                 pass
 
