@@ -71,6 +71,7 @@ For full Grand Prize scoring rules, feasibility gate, tie-breaking, and ORFS-fai
 - All submissions must be registered via this [Submission Link](https://forms.gle/YDRtYV5Vq68SZgKW9).
 - All submissions must be under 1 hour end-to-end runtime (per benchmark) for the macro placement algorithm.
 - All submissions will be evaluated on a AMD EPYC 9655P with 16 cores + 100GB of memory and an NVIDIA RTX 6000 Ada 48GB.
+- Submissions may include a `Dockerfile` to define their own runtime environment. If present, the judges will build the image and run the eval against it (with `--network none` enforced at run time, so any `pip install` / `apt-get install` steps must happen at build time). Otherwise, the submission's `placer.py` is mounted into the judges' standard image (`pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime`, Python 3.11).
 
 ## Additional Rules
 
@@ -98,7 +99,7 @@ Evaluation is two-tiered:
 
 ### Tier 1: Proxy Cost Ranking (All Submissions)
 
-All submissions are ranked by **proxy cost** across the 18 IBM benchmarks. This is the primary qualifying metric. Proxy cost is computed using the TILOS MacroPlacement evaluator:
+All submissions are ranked by **proxy cost** across the 17 IBM benchmarks (ibm01–ibm04, ibm06–ibm18). This is the primary qualifying metric. Proxy cost is computed using the TILOS MacroPlacement evaluator:
 
 > **Proxy Cost = 1.0 × Wirelength + 0.5 × Density + 0.5 × Congestion**
 
@@ -230,48 +231,69 @@ Submissions are ranked by **average proxy cost** across all 17 IBM benchmarks (l
 
 | Rank | Team | Avg Proxy Cost | Best | Worst | Overlaps | Runtime | Verified | Notes |
 |------|------|---------------|------|-------|----------|---------|----------|-------|
-| 1 | "Cezar" (ReFine) | **1.037** | — | — | 0 | 55min/bench | | Resubmitted 5/3; new approach (DREAMPlace-style differentiable refinement, normal .py instead of obfuscated). Previous ReFine variant was verified 1.2224 vs self-reported 1.0666. Re-verification pending. |
-| 2 | "vmallela" (LSJ) | **1.1** | — | — | 0 | 40min/bench | | Resubmitted 5/3 (Hessian negative-eigenvalue saddle escape branch). Previous Incremental CD+LNS verified at 1.4152 vs self-reported 1.1172. Re-verification pending. |
-| 3 | "Hoop Dreams" (DREAMTuna) | **1.2206** | — | — | 0 | 20min/bench | | New 5/1; DREAMPlace + Bayesian optimization (Optuna) hyperparameter sweep |
-| 4 | "Shoom" (MultiDreamPlace v2) | **1.2353** | — | — | 0 | 42min/bench | | Resubmitted 5/1 with multi-start + fine tuning (was 1.3381) |
-| 5 | "KLA MACH" (ProxCD) | **1.2355** | — | — | 0 | 10.6min/bench | | New (consolidates UTDA / Chuanqi Chen / KLA MACH submissions from 4/30–5/2; latest is Phase 20 ProxCD: numpy/Numba proxy + multi-start coordinate descent + LNS) |
-| 6 | "ArzunPD" (MacroWeave SA+LNS) | **1.2478** | — | — | 0 | 55min/bench | | Resubmitted 5/1 (was HyperPlace, verified 1.4421 with networkit-disabled Stage 5). Re-verification pending. |
-| 7 | "RoRa" (RoomPlace) | **1.2723** | — | — | 0 | ~700s/bench | | Resubmitted 5/1 (canvas-shrink approach); previous RipPlace was blocked on `place(plc=...)` signature. Re-verification pending. |
-| 8 | "William Zhang" (RePlAce++) | **1.2767** | — | — | 0 | 259s/bench | | Resubmitted 5/2 (was "Convex Optimization", verified 1.4556); RePlAce-backed candidate portfolio with proxy-objective selection. Re-verification pending. |
-| 9 | "MTK" (DreamPlace++) | **1.2818** | 0.9073 | 1.6529 | 0 | 37s/bench (GPU) | :white_check_mark: | Verified better than self-reported 1.317; beats RePlAce on all 17 benchmarks |
-| 10 | "Electric Beatle" (ePlace-Lite) | **1.3253** | — | — | 0 | 2000s/bench (GPU) | | Resubmitted 4/30 (was verified 1.3913); Adam-based stochastic descent + multi-start hyperparameter sweep. Re-verification pending. |
-| 11 | "UToronto Analytical" (MOSAIC) | **1.3323** | 0.9371 | 1.6545 | 0 | 24min total | :white_check_mark: | Verified 1.3323 (self-reported 1.3325 — exact match); gradient-based with smooth surrogates, hard+soft |
-| 12 | "V5" (TierPlace) | **1.3382** | — | — | 0 | 850s/bench | | New 4/23; GPU-based, multi-density-formulation pilot + phased optimization |
-| 13 | "Archgen" (AutoDMP++) | **1.3479** | — | — | 0 | 2404s total | | New 4/24; multi-start + fast proxy screening + bounded refinement |
-| 14 | "RUDY Can't Fail" (Fast Proxy CD) | **1.3605** | — | — | 0 | 111s/bench | | New 5/3; SA → Adam GD → legalization → coordinate descent with 0.4ms incremental evaluator |
-| 15 | "Varun's Parallel Worlds" (GRPlace) | **1.4017** | 1.0362 | 1.7298 | 0 | 27s/bench | :white_check_mark: | |
-| 16 | "UT Austin" - AS (DREAMPlace Analytical) | **1.4076** | — | — | 0 | 17s/bench | | |
-| 17 | "ByteDancer" (Incremental CD) | **1.4151** | 1.0236 | 1.7792 | 0 | 38min/bench | :white_check_mark: | |
-| 18 | "TAISPlAce" (ALNS + Thompson Sampling) | **1.4321** | — | — | 0 | 28min/bench | | |
-| 19 | "Two-IIITK-Kids" (Proximal-Gradient Analytical) | **1.436** | — | — | 0 | 38min/bench | | New 5/2, resubmitted 5/4; PyTorch RePlAce-style + native C++ SA seed generation |
-| 20 | "Pragnay" (SweepingBellPlacement) | **1.4427** | — | — | 0 | 632s/bench | | Blocked on `compute_proxy_cost(..., plc=None)` in fallback path |
-| 21 | "No Man's Sky" (ALNS-MOS) | **1.4445** | — | — | 0 | 8.8min/bench | | New 5/4; Adaptive Large Neighborhood Search with multi-operator destroy/repair |
-| 22 | "another Waterloo kid" (Batched Nesterov GP) | **1.4568** | — | — | 0 | 118s/bench | | Blocked on Modal cloud dispatch — can't run air-gapped |
+| 1 | "Carrotato" | **0.9671** | — | — | 0 | 3.8min/bench | | New 5/12. |
+| 2 | "Shoom" | **0.978** | — | — | 0 | 55min/bench | | Resubmitted 5/12. Previous variant verified 1.4901. |
+| 3 | "vmallela" | **1.0109** | 0.7644 | 1.2921 | 0 | 15.5h total | :white_check_mark: | Verified 1.0109 (self-reported 1.1). |
+| 4 | "DREAMPlaceProMaxUltra" | **1.0121** | 0.7955 | 1.2167 | 0 | 6h total | :white_check_mark: | Verified 1.0121 (self-reported 1.0467). Built and ran from team-provided `Dockerfile`. |
+| 5 | "QuantSC" | **1.0285** | — | — | 0 | 55min/bench | | New 5/16. (Vincent Xianrui Zhang, USC) |
+| 6 | "QED" | **1.031** | — | — | 0 | 30min/bench | | New 5/16. (Shubham Shukla) |
+| 7 | "Cezar" | **1.037** | — | — | 0 | 4h total | | Resubmitted 5/11. Previous variant verified 1.1893 (same self-report 1.037). Now ships team-provided `Dockerfile`. |
+| 8 | "Place, Route, Roll" | **1.0594** | — | — | 0 | ~17min/bench | | New 5/17. (Mike Gao & Amanda Yin, Cerebras) Team's prior submission was DQ'd for overlaps; resubmitted with 0 overlaps. |
+| 9 | "thinkorplace" | **1.0771** | — | — | 0 | 52min/bench | | New 5/13. (Brendan Murrell & Xiaofei Zhang) |
+| 10 | "KLA MACH" | **1.0817** | — | — | 0 | 30min/bench | | Resubmitted 5/16 (phase39, team "Chuanqi Chen"). Previous: phase38 (1.1335), phase36 verified 1.2121. Consolidates UTDA / Chuanqi Chen / KLA MACH submissions (one algo per team). |
+| 11 | "Archgen" | **1.0948** | 0.7931 | 1.4345 | 0 | 15.25h total | :white_check_mark: | Verified 1.0948 (self-reported 1.16511 — 5.6% BETTER than self-reported). |
+| 12 | "Vibe" | **1.1443** | — | — | 0 | 13851s total | :white_check_mark: | Verified 1.1443 (self-reported 1.1477). |
+| 13 | "JonaU" | **1.1524** | — | — | 0 | 55min/bench | | New 5/13. (Jona Uhe) |
+| 14 | "ArzunPD" | **1.1883** | — | — | 0 | 55min/bench | | Resubmitted 5/8 (was 1.2478). |
+| 15 | "Talyxion" | **1.2075** | — | — | 0 | 7.2min/bench | | New 5/10. |
+| 16 | "Hoop Dreams" | **1.2207** | 0.8972 | 1.5072 | 0 | 5h total | :white_check_mark: | Verified 1.2207 (self-reported 1.2206). Built and ran from team-provided `Dockerfile`. |
+| 17 | "MakerCode" | **1.2282** | — | — | 0 | ~55min/bench | | Resubmitted 5/16 (v2). Was 1.26. (Wei Yet Ng) |
+| 18 | "KKPlace" | **1.2451** | — | — | 0 | 55min/bench | | New 5/13. (Kenneth Hou) |
+| 19 | "Two-IIITK-Kids" | **1.2648** | — | — | 0 | ~34min/bench | | Resubmitted 5/15. Was 1.2868. (Amruth Ayaan Gulawani & Joel Dan Philip, IIIT Kottayam) |
+| 20 | "Adam_A" | **1.2655** | — | — | 0 | 682s/bench | | New 5/10. |
+| 21 | "The Basin Jumpers" | **1.2748** | — | — | 0 | 900s/bench | | Resubmitted 5/13 (William Zhang & Leon Do). Was "William Zhang" / "Convex Optimization", verified 1.4556. |
+| 22 | "RoRa" | **1.2788** | 0.9577 | 1.6222 | 0 | 2.6h total | :white_check_mark: | Verified 1.2788 (self-reported 1.2723). Resubmitted 5/1. |
+| 23 | "MTK" | **1.2818** | 0.9073 | 1.6529 | 0 | 37s/bench (GPU) | :white_check_mark: | Verified 1.2818 (self-reported 1.317). |
+| 24 | "Electric Beatle" | **1.3253** | — | — | 0 | 2000s/bench (GPU) | | Resubmitted 4/30 (was verified 1.3913). |
+| 25 | "UToronto Analytical" | **1.3323** | 0.9371 | 1.6545 | 0 | 24min total | :white_check_mark: | Verified 1.3323 (self-reported 1.3325). |
+| 26 | "V5" | **1.3382** | — | — | 0 | 850s/bench | | New 4/23. |
+| 27 | "jrslbenn" | **1.353** | — | — | 0 | 750s/bench | | New 5/4. |
+| 28 | "Barsat Khadka" | **1.38** | — | — | 0 | 1000-1800s/bench | | New 5/5. |
+| 29 | "Varun's Parallel Worlds" | **1.4017** | 1.0362 | 1.7298 | 0 | 27s/bench | :white_check_mark: | |
+| 30 | "UT Austin - AS" | **1.4076** | — | — | 0 | 17s/bench | | |
+| 31 | "ByteDancer" | **1.4151** | 1.0236 | 1.7792 | 0 | 38min/bench | :white_check_mark: | |
+| 32 | "TAISPlAce" | **1.4321** | — | — | 0 | 28min/bench | | |
+| 33 | "Pragnay" | **1.4427** | — | — | 0 | 632s/bench | | Blocked on `compute_proxy_cost(..., plc=None)` in fallback path. |
+| 34 | "No Man's Sky" | **1.4445** | — | — | 0 | 8.8min/bench | | New 5/4, resubmitted 5/6. |
+| 35 | "Aegir" | **1.4553** | — | — | 0 | 104s/bench | | New 5/9. |
+| 36 | "another Waterloo kid" | **1.4568** | — | — | 0 | 118s/bench | | Blocked on Modal cloud dispatch — can't run air-gapped. |
 | — | RePlAce (baseline) | **1.4578** | 0.9976 | 1.8370 | 0 | — | :white_check_mark: | |
-| 23 | "W3 Solutions" (GRACE) | **1.4824** | — | — | 0 | 90s/bench | | HybridPlacer runtime exceeds 1h/bench cap on our hardware |
-| 24 | "Jiangban Ya" (Spectral-Seed + Adaptive Legalizer) | **1.4943** | 1.0891 | 1.8099 | 0 | 49s/bench | :white_check_mark: | |
-| 25 | "UTAUSTIN-CT" (PLC-Exact Congestion-Aware SA) | **1.5062** | 1.1363 | 1.7941 | 0 | 6s/bench | :white_check_mark: | |
-| 26 | "oracleX" (Oracle) | **1.5130** | 1.1340 | 1.7937 | 0 | 11s/bench | :white_check_mark: | |
-| 27 | "SEVmakers" (Hybrid Legalization + SA) | **1.5200** | — | — | 0 | 200s/bench | | Private repo — pending judge access |
-| 28 | "CA" (congestion_aware) | **1.5247** | 1.2226 | 1.7945 | 0 | 2s/bench | :white_check_mark: | Verified 1.5247 vs self-reported 1.5238 |
-| 29 | "#5 ubc cpen student" (Gene Pool Shuffle) | **1.5337** | 1.1411 | 1.8084 | 0 | 13s/bench | :white_check_mark: | |
-| 30 | Will Seed (Partcl) | **1.5338** | 1.1625 | 1.7965 | 0 | 35s total | :white_check_mark: | |
-| 31 | "UT Austin" - RH (DREAMPlace) | **1.6037** | — | — | 0 | 4.5s/bench | | |
-| 32 | "UT Austin" - CT (PROXYCost) | **1.8706** | — | — | 0 | 187s/bench | | |
-| 33 | "AS" (Shelf Stacker) | **1.9121** | 1.4614 | 2.3508 | 0 | 0.16s total | :white_check_mark: | |
-| 34 | "Adi's Team" (GNN-ePlace Hybrid) | **2.0025** | — | — | 0 | 3726s/bench | | Blocked on `compute_proxy_cost(skip_congestion=True)` kwarg |
-| 35 | "Sharc #1" (Auction Placer) | **2.0433** | 1.5143 | 2.4336 | 0 | 96s/bench | :white_check_mark: | |
+| 37 | "W3 Solutions" | **1.4824** | — | — | 0 | 90s/bench | | Runtime exceeds 1h/bench cap. |
+| 38 | "Captain.Rhinoceros" | **1.4906** | — | — | 0 | <26.6min/bench | | New 5/13. (John Saleeby) |
+| 39 | "Jiangban Ya" | **1.4943** | 1.0891 | 1.8099 | 0 | 49s/bench | :white_check_mark: | |
+| 40 | "UTAUSTIN-CT" | **1.5062** | 1.1363 | 1.7941 | 0 | 6s/bench | :white_check_mark: | |
+| 41 | "oracleX" | **1.5130** | 1.1340 | 1.7937 | 0 | 11s/bench | :white_check_mark: | |
+| 42 | "SEVmakers" | **1.5200** | — | — | 0 | 200s/bench | | Private repo — pending judge access. |
+| 43 | "CA" | **1.5247** | 1.2226 | 1.7945 | 0 | 2s/bench | :white_check_mark: | Verified 1.5247 (self-reported 1.5238). |
+| 44 | "ZeroLatency" | **1.5286** | — | — | 0 | 17s total | | New 5/9. |
+| 45 | "#5 ubc cpen student" | **1.5337** | 1.1411 | 1.8084 | 0 | 13s/bench | :white_check_mark: | |
+| 46 | Will Seed (Partcl) | **1.5338** | 1.1625 | 1.7965 | 0 | 35s total | :white_check_mark: | |
+| 47 | "6ummy" | **1.5361** | — | — | 0 | 221s/bench | | New 5/17. (Jungwoo Shin) |
+| 48 | "RUDY Can't Fail" | **1.5397** | 1.1927 | 1.8881 | 0 | 6min total | :white_check_mark: | Verified 1.5397 (self-reported 1.3605). |
+| 49 | "UT Austin - RH" | **1.6037** | — | — | 0 | 4.5s/bench | | |
+| 50 | "Mr_Chonk" | **1.7031** | — | — | 0 | ~23min/bench | | New 5/16. (Kush Voorakkara) |
+| 51 | "Binghamton" | **1.7621** | — | — | 0 | 2min/bench | | New 5/10. Team also reports 1.5375 from an alternate non-legalized run. |
+| 52 | "UT Austin - CT" | **1.8706** | — | — | 0 | 187s/bench | | |
+| 53 | "rpocevi" | **1.8894** | — | — | 0 | 22.5s/bench | | New 5/9. |
+| 54 | "AS" | **1.9121** | 1.4614 | 2.3508 | 0 | 0.16s total | :white_check_mark: | |
+| 55 | "Adi's Team" | **2.0025** | — | — | 0 | 3726s/bench | | Blocked on `compute_proxy_cost(skip_congestion=True)` kwarg. |
+| 56 | "Sharc #1" | **2.0433** | 1.5143 | 2.4336 | 0 | 96s/bench | :white_check_mark: | |
 | — | SA (baseline) | 2.1251 | 1.3166 | 3.6726 | 0 | — | :white_check_mark: | |
+| 57 | "Satisficing" | **2.2109** | — | — | 0 | <1s/bench | | New 5/17. (Noah Cencini) |
 | — | Greedy Row (demo) | 2.2109 | 1.6728 | 2.7696 | 0 | 0.3s total | :white_check_mark: | |
-| — | "Binghamton" (feng shui) | pending | — | — | — | — | | |
-| — | "MacroBio" (Two-Opt Swap) | pending | — | — | — | — | | |
-| DQ | "Mike Gao" (autoresearch) | self-reported 1.3255 | — | — | 1939 | 16min/bench | | DREAMPlace silently fails in eval environment, returns unlegalized placements (47–189 overlaps per benchmark) |
-| DQ | "BakaBobo" (Global Relocation Sweep) | self-reported 1.4044 | — | — | — | 282s/bench | | Imports `macro_place.fast_proxy` which isn't bundled and isn't part of the evaluator — code won't run |
+| — | "MacroBio" | pending | — | — | — | — | | |
+| DQ | "Mike Gao" | self-reported 1.3255 | — | — | 1939 | 16min/bench | | 1939 overlaps (old submission). Resubmitted 5/17 as "Place, Route, Roll" (rank 8). |
+| DQ | "BakaBobo" | self-reported 1.4044 | — | — | — | 282s/bench | | Missing import — code won't run. |
 
 *Submit your results via the [Submission Link](https://forms.gle/YDRtYV5Vq68SZgKW9)!*
 
