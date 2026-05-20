@@ -15,6 +15,231 @@ import torch
 from macro_place.benchmark import Benchmark
 
 
+def _build_ring_offsets(max_r: int) -> List[np.ndarray]:
+    offsets: List[np.ndarray] = []
+    for r in range(1, int(max_r) + 1):
+        edge = np.arange(-r, r + 1)
+        top = np.column_stack([edge, np.full(len(edge), r)])
+        bot = np.column_stack([edge, np.full(len(edge), -r)])
+        inner = np.arange(-r + 1, r)
+        left = np.column_stack([np.full(len(inner), -r), inner])
+        right = np.column_stack([np.full(len(inner), r), inner])
+        offsets.append(np.vstack([top, bot, left, right]))
+    return offsets
+
+
+_RING_OFFSETS = _build_ring_offsets(200)
+
+
+class _SpatialGrid:
+    __slots__ = ("cell_size", "grid", "positions", "half_sizes")
+
+    def __init__(self, max_macro_dim: float):
+        self.cell_size = max(float(max_macro_dim) * 1.2, 1.0)
+        self.grid: dict[tuple[int, int], List[int]] = {}
+        self.positions: dict[int, tuple[float, float]] = {}
+        self.half_sizes: dict[int, tuple[float, float]] = {}
+
+    def _cell(self, x: float, y: float) -> tuple[int, int]:
+        return int(x / self.cell_size), int(y / self.cell_size)
+
+    def add(self, idx: int, cx: float, cy: float, half_w: float, half_h: float) -> None:
+        self.positions[idx] = (cx, cy)
+        self.half_sizes[idx] = (half_w, half_h)
+        self.grid.setdefault(self._cell(cx, cy), []).append(idx)
+
+    def check_overlap(
+        self,
+        idx: int,
+        cx: float,
+        cy: float,
+        half_w: float,
+        half_h: float,
+        gap: float,
+    ) -> bool:
+        sx_self = half_w + gap
+        sy_self = half_h + gap
+        gx_min = int((cx - sx_self - self.cell_size) / self.cell_size)
+        gx_max = int((cx + sx_self + self.cell_size) / self.cell_size)
+        gy_min = int((cy - sy_self - self.cell_size) / self.cell_size)
+        gy_max = int((cy + sy_self + self.cell_size) / self.cell_size)
+        for gx in range(gx_min, gx_max + 1):
+            for gy in range(gy_min, gy_max + 1):
+                for j in self.grid.get((gx, gy), ()):
+                    if j == idx:
+                        continue
+                    jx, jy = self.positions[j]
+                    jhw, jhh = self.half_sizes[j]
+                    if (
+                        abs(cx - jx) < half_w + jhw + gap
+                        and abs(cy - jy) < half_h + jhh + gap
+                    ):
+                        return True
+        return False
+
+    def nearby_arrays(
+        self,
+        cx: float,
+        cy: float,
+        half_w: float,
+        half_h: float,
+        gap: float,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray] | None:
+        sx_self = half_w + gap
+        sy_self = half_h + gap
+        gx_min = int((cx - sx_self - self.cell_size) / self.cell_size)
+        gx_max = int((cx + sx_self + self.cell_size) / self.cell_size)
+        gy_min = int((cy - sy_self - self.cell_size) / self.cell_size)
+        gy_max = int((cy + sy_self + self.cell_size) / self.cell_size)
+        nearby: List[int] = []
+        for gx in range(gx_min, gx_max + 1):
+            for gy in range(gy_min, gy_max + 1):
+                nearby.extend(self.grid.get((gx, gy), ()))
+        if not nearby:
+            return None
+        px = np.array([self.positions[j][0] for j in nearby], dtype=np.float64)
+        py = np.array([self.positions[j][1] for j in nearby], dtype=np.float64)
+        phw = np.array([self.half_sizes[j][0] for j in nearby], dtype=np.float64)
+        phh = np.array([self.half_sizes[j][1] for j in nearby], dtype=np.float64)
+        return px, py, phw, phh
+
+
+def legalize_hard_spiral(
+    placement: torch.Tensor,
+    benchmark: Benchmark,
+    *,
+    overlap_gap: float = 1e-3,
+    max_rings: int = 160,
+    batch_rings: int = 20,
+    repair_rounds: int = 30,
+) -> torch.Tensor:
+    """Fast greedy hard-macro legalizer using spatial-grid spiral search."""
+
+    num_hard = int(benchmark.num_hard_macros)
+    if num_hard <= 1:
+        return placement.clone()
+
+    out = placement.clone()
+    pos = out[:num_hard].detach().cpu().numpy().astype(np.float64).copy()
+    sizes = benchmark.macro_sizes[:num_hard].detach().cpu().numpy().astype(np.float64)
+    movable = (~benchmark.macro_fixed[:num_hard]).detach().cpu().numpy().astype(bool)
+    half_w = 0.5 * sizes[:, 0]
+    half_h = 0.5 * sizes[:, 1]
+    cw = float(benchmark.canvas_width)
+    ch = float(benchmark.canvas_height)
+    gap = float(overlap_gap)
+
+    np.clip(pos[:, 0], half_w, cw - half_w, out=pos[:, 0])
+    np.clip(pos[:, 1], half_h, ch - half_h, out=pos[:, 1])
+
+    legal = pos.copy()
+    order = sorted(range(num_hard), key=lambda i: -sizes[i, 0] * sizes[i, 1])
+    grid = _SpatialGrid(float(sizes.max()) if sizes.size else 1.0)
+    max_ring = min(int(max_rings), len(_RING_OFFSETS))
+    batch = max(1, int(batch_rings))
+
+    for idx in order:
+        if not movable[idx]:
+            legal[idx] = benchmark.macro_positions[idx].detach().cpu().numpy()
+            legal[idx, 0] = np.clip(legal[idx, 0], half_w[idx], cw - half_w[idx])
+            legal[idx, 1] = np.clip(legal[idx, 1], half_h[idx], ch - half_h[idx])
+            grid.add(idx, legal[idx, 0], legal[idx, 1], half_w[idx], half_h[idx])
+            continue
+        if not grid.check_overlap(
+            idx, legal[idx, 0], legal[idx, 1], half_w[idx], half_h[idx], gap
+        ):
+            grid.add(idx, legal[idx, 0], legal[idx, 1], half_w[idx], half_h[idx])
+            continue
+
+        base_step = max(float(sizes[idx, 0]), float(sizes[idx, 1]), 1e-6) * 0.20
+        best = legal[idx].copy()
+        best_d = float("inf")
+        for r_start in range(0, max_ring, batch):
+            r_end = min(r_start + batch, max_ring)
+            if r_start >= 80:
+                step = base_step * 2.0
+            elif r_start >= 40:
+                step = base_step * 1.5
+            else:
+                step = base_step
+            offsets = np.vstack(_RING_OFFSETS[r_start:r_end])
+            cx = np.clip(pos[idx, 0] + offsets[:, 0] * step, half_w[idx], cw - half_w[idx])
+            cy = np.clip(pos[idx, 1] + offsets[:, 1] * step, half_h[idx], ch - half_h[idx])
+            nearby = grid.nearby_arrays(
+                pos[idx, 0],
+                pos[idx, 1],
+                half_w[idx] + (r_end + 1) * step,
+                half_h[idx] + (r_end + 1) * step,
+                gap,
+            )
+            if nearby is None:
+                d = (cx - pos[idx, 0]) ** 2 + (cy - pos[idx, 1]) ** 2
+                bi = int(np.argmin(d))
+                best = np.array([cx[bi], cy[bi]], dtype=np.float64)
+                best_d = float(d[bi])
+                break
+            px, py, phw, phh = nearby
+            overlaps = (
+                np.abs(cx[:, None] - px[None, :]) < (half_w[idx] + phw + gap)[None, :]
+            ) & (
+                np.abs(cy[:, None] - py[None, :]) < (half_h[idx] + phh + gap)[None, :]
+            )
+            valid = ~overlaps.any(axis=1)
+            if valid.any():
+                d = (cx - pos[idx, 0]) ** 2 + (cy - pos[idx, 1]) ** 2
+                d[~valid] = float("inf")
+                bi = int(np.argmin(d))
+                if float(d[bi]) < best_d:
+                    best = np.array([cx[bi], cy[bi]], dtype=np.float64)
+                break
+        legal[idx] = best
+        grid.add(idx, best[0], best[1], half_w[idx], half_h[idx])
+
+    for _ in range(max(0, int(repair_rounds))):
+        dx = legal[:, 0:1] - legal[:, 0:1].T
+        dy = legal[:, 1:2] - legal[:, 1:2].T
+        min_dx = half_w[:, None] + half_w[None, :] + gap
+        min_dy = half_h[:, None] + half_h[None, :] + gap
+        overlap = (np.abs(dx) < min_dx) & (np.abs(dy) < min_dy)
+        np.fill_diagonal(overlap, False)
+        overlap = np.triu(overlap, k=1)
+        if not overlap.any():
+            break
+        ii, jj = np.where(overlap)
+        for i, j in zip(ii.tolist(), jj.tolist()):
+            if not movable[i] and not movable[j]:
+                continue
+            dxij = legal[i, 0] - legal[j, 0]
+            dyij = legal[i, 1] - legal[j, 1]
+            need_x = half_w[i] + half_w[j] + gap - abs(dxij)
+            need_y = half_h[i] + half_h[j] + gap - abs(dyij)
+            if need_x <= 0.0 or need_y <= 0.0:
+                continue
+            if movable[i] and movable[j]:
+                share_i = share_j = 0.5
+            elif movable[i]:
+                share_i, share_j = 1.0, 0.0
+            else:
+                share_i, share_j = 0.0, 1.0
+            if need_x <= need_y:
+                s = 1.0 if dxij >= 0.0 else -1.0
+                if share_i:
+                    legal[i, 0] = np.clip(legal[i, 0] + s * need_x * share_i, half_w[i], cw - half_w[i])
+                if share_j:
+                    legal[j, 0] = np.clip(legal[j, 0] - s * need_x * share_j, half_w[j], cw - half_w[j])
+            else:
+                s = 1.0 if dyij >= 0.0 else -1.0
+                if share_i:
+                    legal[i, 1] = np.clip(legal[i, 1] + s * need_y * share_i, half_h[i], ch - half_h[i])
+                if share_j:
+                    legal[j, 1] = np.clip(legal[j, 1] - s * need_y * share_j, half_h[j], ch - half_h[j])
+
+    out[:num_hard] = torch.tensor(legal, dtype=out.dtype, device=out.device)
+    if benchmark.macro_fixed.any():
+        out[benchmark.macro_fixed] = benchmark.macro_positions[benchmark.macro_fixed].to(out.dtype)
+    return out
+
+
 def legalize_hard(
     placement: torch.Tensor,
     benchmark: Benchmark,

@@ -40,16 +40,62 @@ def _prepend_ld_library_path(dir_path: Path) -> None:
 def _ensure_toolchain_libstdcxx_preload() -> None:
     """Best-effort: put the active Python env's lib dir ahead of system libs."""
 
+    lib_dir = _find_compatible_libstdcxx_dir()
+    _prepend_ld_library_path(lib_dir)
+    so_path = lib_dir / "libstdc++.so.6"
+    _prepend_ld_preload(so_path)
+    _ctypes_preload(so_path)
+
+
+def _prepend_ld_preload(so_path: Path) -> None:
+    if sys.platform != "linux" or not so_path.is_file():
+        return
+    key = "LD_PRELOAD"
+    prefix = str(so_path)
+    cur = os.environ.get(key, "")
+    parts = [p for p in cur.split() if p]
+    if prefix in parts:
+        return
+    os.environ[key] = " ".join([prefix, *parts])
+
+
+def _find_compatible_libstdcxx_dir() -> Path:
+    """Prefer a libstdc++ new enough for the locally built DREAMPlace ops."""
+
+    candidates: list[Path] = []
     conda = os.environ.get("CONDA_PREFIX", "").strip()
     if conda:
-        lib_dir = Path(conda) / "lib"
-        _prepend_ld_library_path(lib_dir)
-        _ctypes_preload(lib_dir / "libstdc++.so.6")
-        return
+        candidates.append(Path(conda) / "lib")
     # venv layout: ``.../env/bin/python`` -> ``.../env/lib``
-    lib_dir = Path(sys.executable).resolve().parent.parent / "lib"
-    _prepend_ld_library_path(lib_dir)
-    _ctypes_preload(lib_dir / "libstdc++.so.6")
+    candidates.append(Path(sys.executable).resolve().parent.parent / "lib")
+
+    home = Path.home()
+    candidates.extend(sorted((home / ".conda" / "envs").glob("*/lib")))
+    candidates.extend(sorted(Path("/opt/anaconda3/envs").glob("*/lib")))
+    candidates.extend(sorted((home / ".conda" / "pkgs").glob("libstdcxx*/lib")))
+    candidates.extend(sorted(Path("/opt/anaconda3/pkgs").glob("libstdcxx*/lib")))
+
+    seen: set[Path] = set()
+    fallback = candidates[0] if candidates else Path(sys.executable).resolve().parent.parent / "lib"
+    for lib_dir in candidates:
+        lib_dir = lib_dir.resolve()
+        if lib_dir in seen:
+            continue
+        seen.add(lib_dir)
+        so_path = lib_dir / "libstdc++.so.6"
+        if _libstdcxx_has_required_abi(so_path):
+            return lib_dir
+    return fallback
+
+
+def _libstdcxx_has_required_abi(so_path: Path) -> bool:
+    if not so_path.is_file():
+        return False
+    try:
+        with so_path.open("rb") as f:
+            return b"CXXABI_1.3.15" in f.read()
+    except OSError:
+        return False
 
 
 def _ctypes_preload(so_path: Path) -> None:

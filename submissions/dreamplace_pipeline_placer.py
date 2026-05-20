@@ -7,11 +7,9 @@ Environment:
   MACRO_PLACE_DP_CONFIG — path to JSON from ``scripts/tune_dreamplace_optuna.py
   --write-best-config`` (``pipeline`` + ``dreamplace_json_overrides`` keys).
   MACRO_PLACE_DP_RICH_CANDIDATES=0 — disable the default feature-derived
-  DREAMPlace mode cycling.  By default the pipeline runs an aggressive up-to-16-start
-  portfolio with diverse initial handoffs and variant target-density/bin/density
-  weights, then pushes the best DREAMPlace result through RePlAce refinement.
-  (target density / bin grid / density weight) across starts so each run is not
-  identical hyperparameters; same number of DREAMPlace calls as without.
+  DREAMPlace mode cycling.  By default the pipeline runs a diverse valid-start
+  DREAMPlace portfolio with explicit hard-macro legalization, then pushes the
+  best candidate through RePlAce, coordinate descent, and GWTW refinement.
   Optional key ``pipeline.rich_candidate_set`` in the JSON overrides the env flag.
   ``pipeline.hyperband_enabled`` is supported for experiments, but defaults off:
   short-run successive halving was observed to promote starts that later
@@ -52,9 +50,25 @@ _PIPELINE_JSON_KEYS = frozenset(
         "scale_iterations_with_features",
         "use_gpu",
         "rich_candidate_set",
-        "post_dp_sa_seconds",
-        "post_dp_sa_top_k",
-        "post_dp_sa_max_evals",
+        "pre_dp_valid_starts",
+        "pre_dp_valid_pool_size",
+        "pre_dp_valid_selection",
+        "pre_dp_proxy_eval_limit",
+        "explicit_legalize_dp_outputs",
+        "post_rescue_coord_descent_seconds",
+        "post_rescue_coord_descent_max_passes",
+        "post_rescue_coord_descent_k_bound",
+        "post_rescue_coord_descent_cell_search_prob",
+        "post_rescue_coord_descent_node_order",
+        "top_dp_for_rescue",
+        "post_rescue_gwtw_seconds",
+        "post_rescue_gwtw_num_workers",
+        "post_rescue_gwtw_num_iters",
+        "post_rescue_gwtw_syncup_freq",
+        "post_rescue_gwtw_top_k",
+        "post_rescue_gwtw_t_max",
+        "post_rescue_gwtw_t_min",
+        "post_rescue_gwtw_action_probs",
         "replace_rescue",
         "replace_rescue_trigger_proxy",
         "replace_rescue_timeout_seconds",

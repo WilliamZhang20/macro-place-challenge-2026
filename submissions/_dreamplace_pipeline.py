@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import sys
 import math
-import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
@@ -14,6 +13,7 @@ import numpy as np
 import torch
 
 from macro_place.benchmark import Benchmark
+from macro_place.objective import compute_proxy_cost
 from macro_place.utils import validate_placement
 
 _SUBMISSIONS_DIR = Path(__file__).resolve().parent
@@ -32,9 +32,10 @@ from _dreamplace_cpu_smoke import (  # noqa: E402
     dreamplace_install_ok,
     run_dreamplace_placement,
 )
-from _hard_legalizer import legalize_hard  # noqa: E402
+from _coord_descent import coord_descent_polish  # noqa: E402
+from _hard_legalizer import legalize_hard, legalize_hard_spiral  # noqa: E402
 from _plc_lookup import PlcLookup  # noqa: E402
-from _routing_congestion import compute_rudy_map  # noqa: E402
+from _tilos_gwtw_sa import tilos_gwtw_sa_refine  # noqa: E402
 
 
 def _tuner_progress_enabled() -> bool:
@@ -73,14 +74,103 @@ def _clamp_centers(placement: torch.Tensor, benchmark: Benchmark) -> None:
         ].to(placement.dtype)
 
 
+def _clamp_all_macro_centers(
+    placement: torch.Tensor,
+    benchmark: Benchmark,
+    *,
+    gap: float = 0.0,
+    hard_only: bool = False,
+) -> None:
+    """Clamp macro centers to legal canvas bounds without moving fixed macros."""
+
+    with torch.no_grad():
+        count = int(benchmark.num_hard_macros) if hard_only else int(benchmark.num_macros)
+        if count <= 0:
+            return
+        sizes = benchmark.macro_sizes[:count].to(placement.dtype)
+        half_w = sizes[:, 0] * 0.5
+        half_h = sizes[:, 1] * 0.5
+        cw = torch.tensor(float(benchmark.canvas_width), dtype=placement.dtype, device=placement.device)
+        ch = torch.tensor(float(benchmark.canvas_height), dtype=placement.dtype, device=placement.device)
+        gap_t = torch.tensor(float(gap), dtype=placement.dtype, device=placement.device)
+
+        lo_x = half_w + gap_t
+        hi_x = cw - half_w - gap_t
+        lo_y = half_h + gap_t
+        hi_y = ch - half_h - gap_t
+
+        cur_x = placement[:count, 0]
+        cur_y = placement[:count, 1]
+        mid_x = torch.full_like(cur_x, float(benchmark.canvas_width) * 0.5)
+        mid_y = torch.full_like(cur_y, float(benchmark.canvas_height) * 0.5)
+        placement[:count, 0] = torch.where(
+            hi_x >= lo_x,
+            torch.minimum(torch.maximum(cur_x, lo_x), hi_x),
+            mid_x,
+        )
+        placement[:count, 1] = torch.where(
+            hi_y >= lo_y,
+            torch.minimum(torch.maximum(cur_y, lo_y), hi_y),
+            mid_y,
+        )
+        if benchmark.macro_fixed.any():
+            placement[benchmark.macro_fixed] = benchmark.macro_positions[
+                benchmark.macro_fixed
+            ].to(placement.dtype)
+
+
+def _legalized_reference_seed(seed: torch.Tensor, benchmark: Benchmark) -> torch.Tensor:
+    """Legalize the README hand-crafted `.plc` reference for scoring guardrails."""
+
+    ref = seed.clone().float()
+    _clamp_all_macro_centers(ref, benchmark, gap=0.0)
+    ref = legalize_hard(
+        ref,
+        benchmark,
+        overlap_gap=1e-3,
+        legalize_rounds=6000,
+        outer_passes=6,
+        displacement_budget_frac=None,
+        step_fraction=0.45,
+    )
+    # `legalize_hard` only touches hard macros.  Soft macros can still be
+    # outside the canvas in the raw `.plc`, so clamp them after hard legalization.
+    if benchmark.num_macros > benchmark.num_hard_macros:
+        _clamp_all_macro_centers(ref, benchmark, gap=0.0)
+    return ref
+
+
+def _legalized_generated_start(seed: torch.Tensor, benchmark: Benchmark) -> torch.Tensor:
+    """Cheaper legalization for generated pre-DP start candidates."""
+
+    out = seed.clone().float()
+    _clamp_all_macro_centers(out, benchmark, gap=0.0)
+    out = legalize_hard_spiral(
+        out,
+        benchmark,
+        overlap_gap=1e-3,
+        max_rings=160,
+        batch_rings=20,
+        repair_rounds=24,
+    )
+    if benchmark.num_macros > benchmark.num_hard_macros:
+        _clamp_all_macro_centers(out, benchmark, gap=0.0)
+    return out
+
+
+# Base DP overrides.  Tight stop_overflow + moderate noise to ensure DP
+# converges to a real basin (loosened 0.045 → 0.065 caused undercooked
+# placements with 2x congestion on ibm08).  Trimmed noise slightly
+# (0.070 → 0.060) since that lever was contributing to OOB failures
+# without much basin-exploration benefit.
 _AGGRESSIVE_DP_OVERRIDES: Dict[str, Any] = {
     "density_weight": 2.15e-4,
     "gamma": 3.3,
-    "gp_noise_ratio": 0.070,
-    "stop_overflow": 0.045,
+    "gp_noise_ratio": 0.060,
+    "stop_overflow": 0.050,
     "global_place_stages": [
         {
-            "learning_rate": 0.014,
+            "learning_rate": 0.013,
             "Llambda_density_weight_iteration": 2,
             "Lsub_iteration": 3,
         }
@@ -117,30 +207,33 @@ def jitter_hard_centers(
 
 
 def cap_num_starts(benchmark: Benchmark, requested: int) -> int:
-    """Feature-aware cap: allow up to 16 starts, but avoid runaway NG45 runtimes."""
+    """Feature-aware cap.  Expanded to 50 DP starts for orthogonal-init
+    multistart strategy; bigger benchmarks still capped to keep wall time
+    bounded (per-start DP cost is roughly linear in macros × nets)."""
 
     nh = int(benchmark_features(benchmark)["num_hard_macros"])
     if nh >= 1600:
-        cap = 4
-    elif nh >= 1000:
-        cap = 6
-    elif nh >= 700:
         cap = 8
+    elif nh >= 1000:
+        cap = 14
+    elif nh >= 700:
+        cap = 20
     elif nh >= 450:
-        cap = 12
+        cap = 32
     else:
-        cap = 16
+        cap = 50
     return max(1, min(int(requested), cap))
 
 
 def scaled_global_iterations(benchmark: Benchmark, base_iters: int) -> int:
-    """Aggressive feature-based iteration stretch (utilization / size), capped."""
+    """Mild feature-based iteration stretch.  Cap at 1.25× base (was 1.55×)
+    so the lower base_iters default actually shows up at runtime."""
 
     f = benchmark_features(benchmark)
     util = float(f["hard_area_utilization"])
     nh = int(f["num_hard_macros"])
-    mult = 1.0 + 0.30 * max(0.0, util - 0.46) / 0.10 + 0.18 * max(0, nh - 260) / 300.0
-    return int(round(float(base_iters) * min(mult, 1.55)))
+    mult = 1.0 + 0.15 * max(0.0, util - 0.46) / 0.10 + 0.10 * max(0, nh - 260) / 300.0
+    return int(round(float(base_iters) * min(mult, 1.25)))
 
 
 def _is_sparse_high_net_case(benchmark: Benchmark) -> bool:
@@ -297,6 +390,9 @@ def make_diverse_initial_placements(
                 )
             )
 
+    if requested <= 1:
+        return [("initial_plc", base.clone())]
+
     selected: List[Tuple[str, torch.Tensor]] = []
     native = jitter_hard_centers(
         base,
@@ -306,7 +402,11 @@ def make_diverse_initial_placements(
     )
     selected.append(("native_jit", native))
 
-    while len(selected) < requested and pool:
+    # Reserve the final slot for the exact hand-crafted `.plc` reference so
+    # diagnostics include it without shifting the empirically useful early
+    # start/variant pairings.
+    diverse_budget = requested - 1
+    while len(selected) < diverse_budget and pool:
         best_i = 0
         best_score = -1.0
         for i, (_, candidate) in enumerate(pool):
@@ -322,7 +422,262 @@ def make_diverse_initial_placements(
                 best_score = score
         selected.append(pool.pop(best_i))
 
+    selected.append(("initial_plc", base.clone()))
     return selected[:requested]
+
+
+def _merge_preferred_starts(
+    base_starts: Sequence[Tuple[str, torch.Tensor]],
+    preferred_starts: Sequence[Tuple[str, torch.Tensor]],
+    *,
+    requested: int,
+) -> List[Tuple[str, torch.Tensor]]:
+    """Prefer scored valid starts while preserving the exact `.plc` slot."""
+
+    exact_ref = [(label, p) for label, p in base_starts if label == "initial_plc"]
+    budget = max(1, int(requested)) - len(exact_ref[:1])
+    merged: List[Tuple[str, torch.Tensor]] = []
+    seen: set[str] = set()
+
+    def add(label: str, placement: torch.Tensor) -> None:
+        if len(merged) >= budget or label in seen:
+            return
+        seen.add(label)
+        merged.append((label, placement))
+
+    for label, placement in preferred_starts:
+        add(label, placement)
+    for label, placement in base_starts:
+        if label == "initial_plc":
+            continue
+        add(label, placement)
+    merged.extend(exact_ref[:1])
+    return merged[: max(1, int(requested))]
+
+
+def _valid_start_surrogate(
+    placement: torch.Tensor,
+    benchmark: Benchmark,
+    movable_idx: torch.Tensor,
+) -> float:
+    """Cheap HPWL+density score used only to order valid start candidates."""
+
+    pos = placement.detach().cpu().numpy()
+    canvas_norm = max(float(benchmark.canvas_width) + float(benchmark.canvas_height), 1e-9)
+    hpwl = 0.0
+    for nodes in benchmark.net_nodes:
+        if nodes.numel() <= 1:
+            continue
+        idx = nodes.detach().cpu().numpy()
+        idx = idx[idx < pos.shape[0]]
+        if idx.size <= 1:
+            continue
+        xs = pos[idx, 0]
+        ys = pos[idx, 1]
+        hpwl += float(xs.max() - xs.min() + ys.max() - ys.min())
+    wl_norm = hpwl / (max(1, int(benchmark.num_nets)) * canvas_norm)
+
+    rows = max(1, int(benchmark.grid_rows))
+    cols = max(1, int(benchmark.grid_cols))
+    density = np.zeros((rows, cols), dtype=np.float64)
+    sizes = benchmark.macro_sizes.detach().cpu().numpy()
+    cw = max(float(benchmark.canvas_width), 1e-9)
+    ch = max(float(benchmark.canvas_height), 1e-9)
+    bin_w = cw / cols
+    bin_h = ch / rows
+    bin_area = max(bin_w * bin_h, 1e-9)
+    for i in range(int(benchmark.num_hard_macros)):
+        c = int(np.clip(pos[i, 0] / bin_w, 0, cols - 1))
+        r = int(np.clip(pos[i, 1] / bin_h, 0, rows - 1))
+        density[r, c] += float(sizes[i, 0] * sizes[i, 1]) / bin_area
+    top_k = max(1, density.size // 10)
+    top_density = float(np.mean(np.sort(density.ravel())[-top_k:]))
+    spread = float(np.std(density))
+
+    center_penalty = 0.0
+    if movable_idx.numel() > 0:
+        xy = placement[movable_idx, :2].detach().cpu().numpy()
+        center = np.array([[0.5 * cw, 0.5 * ch]], dtype=np.float64)
+        scale = np.array([[cw, ch]], dtype=np.float64)
+        center_penalty = float(np.mean(np.linalg.norm((xy - center) / scale, axis=1)))
+
+    return wl_norm + 0.020 * top_density + 0.010 * spread + 0.010 * center_penalty
+
+
+def _select_diverse_valid_starts(
+    entries: Sequence[Tuple[float, str, torch.Tensor]],
+    benchmark: Benchmark,
+    movable_idx: torch.Tensor,
+    *,
+    wanted: int,
+) -> List[Tuple[float, str, torch.Tensor]]:
+    """Maximin diverse selection with a light surrogate tie-break."""
+
+    if wanted <= 0:
+        return []
+    if len(entries) <= wanted:
+        return list(entries)
+
+    sorted_entries = sorted(entries, key=lambda x: x[0])
+    selected: List[Tuple[float, str, torch.Tensor]] = [sorted_entries[0]]
+    remaining = sorted_entries[1:]
+    scale = torch.tensor(
+        [max(float(benchmark.canvas_width), 1e-6), max(float(benchmark.canvas_height), 1e-6)],
+        dtype=selected[0][2].dtype,
+        device=selected[0][2].device,
+    )
+    s_vals = np.asarray([e[0] for e in sorted_entries], dtype=np.float64)
+    s_min = float(s_vals.min())
+    s_span = float(max(s_vals.max() - s_min, 1e-9))
+
+    def dist(a: torch.Tensor, b: torch.Tensor) -> float:
+        if movable_idx.numel() == 0:
+            return 0.0
+        d = (a[movable_idx, :2] - b[movable_idx, :2]) / scale
+        return float(torch.sqrt(torch.mean(d * d)).item())
+
+    while remaining and len(selected) < wanted:
+        best_i = 0
+        best_score = -float("inf")
+        for i, entry in enumerate(remaining):
+            surrogate, _, placement = entry
+            min_dist = min(dist(placement, prev[2]) for prev in selected)
+            surrogate_bonus = 1.0 - (float(surrogate) - s_min) / s_span
+            score = min_dist + 0.08 * surrogate_bonus
+            if score > best_score:
+                best_i = i
+                best_score = score
+        selected.append(remaining.pop(best_i))
+    return selected
+
+
+def _discover_valid_proxy_starts(
+    base: torch.Tensor,
+    benchmark: Benchmark,
+    plc,
+    *,
+    requested: int,
+    pool_size: int,
+    selection_mode: str,
+    proxy_eval_limit: int,
+    jitter_sigma_um: float,
+    generator: torch.Generator,
+) -> List[Tuple[str, torch.Tensor]]:
+    """Legalize generated starts, rank by true proxy, and optionally SA-refine.
+
+    This is a pre-DREAMPlace discovery stage: it finds valid, real-proxy-scored
+    basins before asking DREAMPlace to optimize from them.
+    """
+
+    wanted = max(0, int(requested))
+    if wanted <= 0:
+        return []
+
+    pool_base = _legalized_reference_seed(base, benchmark)
+    raw_pool = make_diverse_initial_placements(
+        pool_base,
+        benchmark,
+        num_starts=max(wanted + 1, int(pool_size)),
+        jitter_sigma_um=jitter_sigma_um,
+        generator=generator,
+    )
+    scored: List[Tuple[float, str, torch.Tensor]] = []
+    seen_labels: set[str] = set()
+    movable_idx = _movable_hard_indices(benchmark)
+
+    for label, placement in raw_pool:
+        if label in seen_labels:
+            continue
+        seen_labels.add(label)
+        try:
+            valid = placement.clone().float()
+            _clamp_all_macro_centers(valid, benchmark, gap=0.0)
+            ok, _ = validate_placement(valid, benchmark, check_overlaps=True)
+            if not ok:
+                valid = (
+                    _legalized_reference_seed(placement, benchmark)
+                    if label == "initial_plc"
+                    else _legalized_generated_start(placement, benchmark)
+                )
+                ok, _ = validate_placement(valid, benchmark, check_overlaps=True)
+                if not ok:
+                    continue
+            if selection_mode == "proxy":
+                costs = compute_proxy_cost(valid, benchmark, plc)
+                score = float(costs["proxy_cost"])
+            else:
+                score = _valid_start_surrogate(valid, benchmark, movable_idx)
+            scored.append((float(score), label, valid))
+        except Exception:
+            continue
+
+    scored.sort(key=lambda x: x[0])
+    mode = str(selection_mode).strip().lower()
+    if mode == "diverse":
+        selected = _select_diverse_valid_starts(
+            scored,
+            benchmark,
+            movable_idx,
+            wanted=wanted,
+        )
+    elif mode == "hybrid":
+        shortlist_n = min(len(scored), max(wanted, int(proxy_eval_limit)))
+        rescored: List[Tuple[float, str, torch.Tensor]] = []
+        for _, label, valid in scored[:shortlist_n]:
+            try:
+                costs = compute_proxy_cost(valid, benchmark, plc)
+                rescored.append((float(costs["proxy_cost"]), label, valid))
+            except Exception:
+                continue
+        selected = _select_diverse_valid_starts(
+            rescored or scored,
+            benchmark,
+            movable_idx,
+            wanted=wanted,
+        )
+    else:
+        selected = scored[:wanted]
+
+    if _tuner_progress_enabled() and scored:
+        preview_src = selected if selected else scored[: min(5, len(scored))]
+        preview = ", ".join(f"{label}:{score:.4f}" for score, label, _ in preview_src[:5])
+        print(
+            f"[tune:dp] {benchmark.name}  pre_dp_valid_start_pool "
+            f"mode={mode or 'proxy'} valid={len(scored)}/{len(raw_pool)} selected=[{preview}]",
+            file=sys.stderr,
+            flush=True,
+        )
+
+    selected = list(selected)
+    if mode != "diverse":
+        selected.sort(key=lambda x: x[0])
+    out: List[Tuple[str, torch.Tensor]] = []
+    for proxy, label, placement in selected[:wanted]:
+        safe_label = label.replace(" ", "_").replace("/", "_")
+        tag = "p" if mode in ("proxy", "hybrid") else "s"
+        out.append((f"valid_{safe_label}_{tag}{proxy:.4f}", placement))
+    return out
+
+
+def _evaluator_aligned_num_bins(benchmark: Benchmark, *, axis_multiplier: int) -> int:
+    """Pick a DP bin count that aligns with the benchmark's evaluator grid.
+
+    The evaluator's density cost is the top-10% of bins on a
+    ``grid_rows x grid_cols`` grid (e.g., 38x34 for ibm08), so a DP density
+    loss computed on a finer-but-aligned grid will correlate better with the
+    true density penalty than the default 64/128 power-of-two choices.
+    """
+
+    axis = max(int(benchmark.grid_rows), int(benchmark.grid_cols))
+    if axis <= 0:
+        return 128
+    raw = int(axis) * max(1, int(axis_multiplier))
+    # DREAMPlace's FFT prefers power-of-two bins; round up to the closest
+    # power of two within the safe range.
+    p = 32
+    while p < raw and p < 512:
+        p *= 2
+    return max(64, min(256, p))
 
 
 def _rich_dp_variant_specs(
@@ -451,15 +806,30 @@ def _rich_dp_variant_specs(
     td_spread = max(0.64, min(0.90, td0 - 0.06 * max(0.0, (util - 0.46) / 0.12)))
     # Low utilization: allow slightly tighter packing.
     td_tight = max(0.64, min(0.90, td0 + 0.05 * max(0.0, (0.50 - util) / 0.10)))
+    aligned_bins_fine = _evaluator_aligned_num_bins(benchmark, axis_multiplier=4)
+    aligned_bins_coarse = _evaluator_aligned_num_bins(benchmark, axis_multiplier=2)
+    # Orthogonal multistart: ~30 DP variants spanning (target_density,
+    # bins, density_weight_scale, gp_noise_ratio, stop_overflow, gamma).
+    # Goal is per-start orthogonality — each variant tries a meaningfully
+    # different DP hyperparam corner so the top-K filter has real basin
+    # diversity to choose from.  The first 8 are the proven empirical
+    # winners from the rich-variant set; the remainder expand the
+    # exploration grid.
     specs: List[Tuple[float, int, str, Dict[str, Any]]] = [
+        # --- empirical-winner core (proven validity envelope) ---
         (max(0.60, min(0.86, td0)), b0, "base", {}),
-        (max(0.58, td_spread - 0.025), alt_bins, "spread", {"density_weight_scale": 1.70, "stop_overflow": 0.045}),
+        (
+            max(0.60, td_spread - 0.015),
+            alt_bins,
+            "spread",
+            {"density_weight_scale": 1.30, "stop_overflow": 0.065},
+        ),
         (td_tight, b0, "tight", {"density_weight_scale": 1.05, "stop_overflow": 0.070}),
         (
-            max(0.56, td_spread - 0.065),
+            max(0.58, td_spread - 0.035),
             alt_bins,
             "xspread",
-            {"density_weight_scale": 2.15, "gp_noise_ratio": 0.090, "stop_overflow": 0.035},
+            {"density_weight_scale": 1.30, "gp_noise_ratio": 0.045, "stop_overflow": 0.075},
         ),
         (
             min(0.88, td_tight + 0.015),
@@ -468,23 +838,80 @@ def _rich_dp_variant_specs(
             {"density_weight_scale": 0.90, "gamma": 2.7, "stop_overflow": 0.080},
         ),
         (
-            max(0.58, td0 - 0.045),
-            64,
-            "coarse",
-            {"density_weight_scale": 1.55, "gp_noise_ratio": 0.095, "stop_overflow": 0.045},
+            max(0.62, td0 - 0.020),
+            aligned_bins_coarse,
+            "aligned_coarse",
+            {"density_weight_scale": 1.20, "gp_noise_ratio": 0.045, "stop_overflow": 0.070},
         ),
         (
-            max(0.60, min(0.86, td0 - 0.015)),
-            128,
-            "fine",
-            {"density_weight_scale": 1.45, "gamma": 3.0, "stop_overflow": 0.050},
+            max(0.60, min(0.86, td0 - 0.010)),
+            aligned_bins_fine,
+            "aligned_fine",
+            {"density_weight_scale": 1.10, "gamma": 3.0, "stop_overflow": 0.075},
         ),
         (
-            max(0.56, td0 - 0.085),
+            max(0.62, td0 - 0.040),
             alt_bins,
-            "escape",
-            {"density_weight_scale": 2.45, "gp_noise_ratio": 0.125, "stop_overflow": 0.030},
+            "salvaged_explore",
+            {"density_weight_scale": 1.40, "gp_noise_ratio": 0.060, "stop_overflow": 0.070},
         ),
+        # --- orthogonal density / gamma exploration (low-mid utilization) ---
+        (0.65, 128, "td065_g25", {"density_weight_scale": 0.95, "gamma": 2.5, "stop_overflow": 0.075}),
+        (0.68, 64, "td068_b64", {"density_weight_scale": 1.10, "stop_overflow": 0.072}),
+        (0.70, 128, "td070_g34", {"density_weight_scale": 1.00, "gamma": 3.4, "stop_overflow": 0.068}),
+        (0.72, 256, "td072_b256", {"density_weight_scale": 1.05, "stop_overflow": 0.070}),
+        (0.74, 128, "td074_lr_low", {"density_weight_scale": 1.15, "stop_overflow": 0.068,
+                                       "global_place_stages": [{"learning_rate": 0.010, "Llambda_density_weight_iteration": 2, "Lsub_iteration": 3}]}),
+        (0.76, 128, "td076_lr_high", {"density_weight_scale": 1.05, "stop_overflow": 0.070,
+                                        "global_place_stages": [{"learning_rate": 0.020, "Llambda_density_weight_iteration": 2, "Lsub_iteration": 3}]}),
+        (0.78, 128, "td078_tight", {"density_weight_scale": 0.95, "gamma": 3.0, "stop_overflow": 0.072}),
+        (0.80, 256, "td080_b256", {"density_weight_scale": 0.85, "gamma": 3.0, "stop_overflow": 0.075}),
+        # --- noise / overflow exploration ---
+        (0.72, 128, "noise_low",  {"density_weight_scale": 1.10, "gp_noise_ratio": 0.015, "stop_overflow": 0.060}),
+        (0.72, 128, "noise_mid",  {"density_weight_scale": 1.10, "gp_noise_ratio": 0.040, "stop_overflow": 0.060}),
+        (0.72, 128, "noise_high", {"density_weight_scale": 1.10, "gp_noise_ratio": 0.080, "stop_overflow": 0.060}),
+        # Loosened 'ovf_tight' from 0.040 → 0.055; 0.040 was too aggressive
+        # and pushed many variants into the OOB pile.  Still tighter than
+        # the default 0.075, so it explores a different convergence basin.
+        (0.74, 128, "ovf_tight",  {"density_weight_scale": 1.10, "stop_overflow": 0.055}),
+        (0.74, 128, "ovf_loose",  {"density_weight_scale": 1.10, "stop_overflow": 0.100}),
+        # --- aggressive spread / aggressive tight (different basins) ---
+        # NOTE: trimmed dw_scale (was 1.80 / 0.80 → 1.30 / 0.85) and
+        # loosened stop_overflow (>= 0.070) to avoid the OOB pile.  We
+        # rely on the WIDE variant grid for orthogonality, not extremity.
+        (
+            max(0.60, td_spread - 0.040),
+            alt_bins,
+            "wide_spread",
+            {"density_weight_scale": 1.30, "gp_noise_ratio": 0.045, "stop_overflow": 0.072},
+        ),
+        (
+            min(0.88, td_tight + 0.030),
+            b0,
+            "wide_tight",
+            {"density_weight_scale": 0.85, "gamma": 2.7, "stop_overflow": 0.082},
+        ),
+        # --- bin alignment + density extremes ---
+        (0.66, aligned_bins_fine, "aligned_lowD", {"density_weight_scale": 1.20, "stop_overflow": 0.068}),
+        (0.82, aligned_bins_coarse, "aligned_highD", {"density_weight_scale": 0.95, "stop_overflow": 0.072}),
+        # --- gamma sweeps (gradient softness) ---
+        (0.72, 128, "gamma_low",  {"density_weight_scale": 1.10, "gamma": 2.4, "stop_overflow": 0.070}),
+        (0.72, 128, "gamma_high", {"density_weight_scale": 1.10, "gamma": 3.6, "stop_overflow": 0.070}),
+        # --- two-stage cooling (drawn-out runs) ---
+        (
+            0.74, 128, "twostage_cool",
+            {
+                "density_weight_scale": 1.05,
+                "stop_overflow": 0.060,
+                "global_place_stages": [
+                    {"learning_rate": 0.018, "Llambda_density_weight_iteration": 2, "Lsub_iteration": 3},
+                    {"learning_rate": 0.008, "Llambda_density_weight_iteration": 3, "Lsub_iteration": 3},
+                ],
+            },
+        ),
+        # --- congestion-friendly variants (lower density push) ---
+        (0.72, 128, "cong_friendly_mid",  {"density_weight_scale": 0.75, "gp_noise_ratio": 0.030, "stop_overflow": 0.080}),
+        (0.78, 128, "cong_friendly_high", {"density_weight_scale": 0.75, "gp_noise_ratio": 0.030, "stop_overflow": 0.080}),
     ]
     # Slight density-objective emphasis on spread mode when utilization is stressed.
     if util >= 0.50:
@@ -496,8 +923,10 @@ def _rich_dp_variant_specs(
             {"density_weight_scale": dw_scale},
         )
     elif nets >= 20000:
-        # Net-heavy cases are congestion-sensitive; avoid the noisiest escape.
-        specs[-1] = (
+        # Net-heavy cases are congestion-sensitive; trim noisiest variants
+        # (the last "cong_friendly_high" stays — net-heavy cases benefit
+        # from softer density push).
+        specs[7] = (
             max(0.64, td0 - 0.030),
             alt_bins,
             "net_escape",
@@ -522,199 +951,6 @@ def _apply_density_weight_scale(
         # Default from _dp_json is 8e-5; scale relative to that if user did not set.
         out["density_weight"] = float(8e-5) * float(scale)
     return out
-
-
-def _post_dp_sa_surrogate(placement: torch.Tensor, benchmark: Benchmark) -> float:
-    pos = placement.detach().cpu().numpy().astype(np.float64, copy=False)
-    sizes = benchmark.macro_sizes.detach().cpu().numpy().astype(np.float64, copy=False)
-    ports = (
-        benchmark.port_positions.detach().cpu().numpy().astype(np.float64, copy=False)
-        if benchmark.port_positions.numel() > 0
-        else np.zeros((0, 2), dtype=np.float64)
-    )
-    weights = (
-        benchmark.net_weights.detach().cpu().numpy().astype(np.float64, copy=False)
-        if benchmark.net_weights.numel() > 0
-        else None
-    )
-    n_macros = int(benchmark.num_macros)
-    n_ports = int(ports.shape[0])
-    wl = 0.0
-    wsum = 0.0
-    for net_id, net in enumerate(benchmark.net_nodes):
-        nodes = net.detach().cpu().numpy() if hasattr(net, "detach") else np.asarray(net)
-        if nodes.size < 2:
-            continue
-        xmin = ymin = np.inf
-        xmax = ymax = -np.inf
-        for raw_u in nodes:
-            u = int(raw_u)
-            if 0 <= u < n_macros:
-                x, y = float(pos[u, 0]), float(pos[u, 1])
-            else:
-                p = u - n_macros
-                if 0 <= p < n_ports:
-                    x, y = float(ports[p, 0]), float(ports[p, 1])
-                else:
-                    continue
-            xmin = min(xmin, x)
-            xmax = max(xmax, x)
-            ymin = min(ymin, y)
-            ymax = max(ymax, y)
-        if not np.isfinite(xmin):
-            continue
-        w = float(weights[net_id]) if weights is not None and net_id < weights.shape[0] else 1.0
-        wl += w * ((xmax - xmin) + (ymax - ymin))
-        wsum += w
-    wl_norm = wl / max(wsum * 0.5 * (float(benchmark.canvas_width) + float(benchmark.canvas_height)), 1e-9)
-
-    rows = max(4, min(24, int(benchmark.grid_rows)))
-    cols = max(4, min(24, int(benchmark.grid_cols)))
-    bin_w = float(benchmark.canvas_width) / cols
-    bin_h = float(benchmark.canvas_height) / rows
-    bin_area = max(1e-9, bin_w * bin_h)
-    density = np.zeros((rows, cols), dtype=np.float64)
-    for i in range(n_macros):
-        c = int(np.clip(pos[i, 0] / max(bin_w, 1e-9), 0, cols - 1))
-        r = int(np.clip(pos[i, 1] / max(bin_h, 1e-9), 0, rows - 1))
-        density[r, c] += float(sizes[i, 0] * sizes[i, 1]) / bin_area
-    density_over = float(np.mean(np.maximum(0.0, density - 0.88) ** 2))
-    density_spread = float(np.std(density))
-
-    try:
-        rudy = compute_rudy_map(placement, benchmark)
-        if rudy.size:
-            rudy_cost = float(np.mean(np.sort(rudy.ravel())[-max(1, rudy.size // 20) :]))
-        else:
-            rudy_cost = 0.0
-    except Exception:
-        rudy_cost = 0.0
-
-    return wl_norm + 0.080 * density_over + 0.012 * density_spread + 0.020 * rudy_cost
-
-
-def _post_dp_sa_refine(
-    placement: torch.Tensor,
-    benchmark: Benchmark,
-    plc,
-    *,
-    label: str,
-    seed: int,
-    time_budget_s: float,
-    max_evals: int,
-) -> Optional[Tuple[str, torch.Tensor]]:
-    """Small true-proxy simulated annealing polish after DREAMPlace.
-
-    This is intentionally conservative: every proposed state is legalized and
-    scored by the real proxy before Metropolis acceptance.  It is not a full
-    placer; it just explores the discrete neighborhood around a good DP basin.
-    """
-
-    if time_budget_s <= 0.0 or max_evals <= 0 or benchmark.num_hard_macros <= 1:
-        return None
-    n = int(benchmark.num_hard_macros)
-    movable_mask = (~benchmark.macro_fixed[:n]).detach().cpu().numpy().astype(bool)
-    movable_idx = np.flatnonzero(movable_mask)
-    if movable_idx.size == 0:
-        return None
-
-    rng = np.random.default_rng(int(seed) & 0x7FFFFFFF)
-    cw = float(benchmark.canvas_width)
-    ch = float(benchmark.canvas_height)
-    sizes = benchmark.macro_sizes[:n].detach().cpu().numpy().astype(np.float64)
-
-    def legalize(pl: torch.Tensor) -> torch.Tensor:
-        return legalize_hard(
-            pl,
-            benchmark,
-            overlap_gap=1e-3,
-            legalize_rounds=180,
-            outer_passes=2,
-            displacement_budget_frac=0.12,
-            step_fraction=0.28,
-        )
-
-    current = legalize(placement.clone().float())
-    current_score = score_placement(f"{label}_sa_start", current, benchmark, plc)
-    if not current_score.valid:
-        return None
-    initial = current.clone()
-    best = current.clone()
-    best_cost = _post_dp_sa_surrogate(current, benchmark)
-    initial_cost = best_cost
-    cur_cost = best_cost
-
-    start = time.monotonic()
-    evals = 0
-    sigma0 = 0.030 * 0.5 * (cw + ch)
-    sigma1 = 0.0035 * 0.5 * (cw + ch)
-    temp0 = 0.030
-    temp1 = 0.0015
-
-    while evals < int(max_evals):
-        elapsed = time.monotonic() - start
-        if elapsed >= time_budget_s:
-            break
-        progress = min(1.0, elapsed / max(time_budget_s, 1e-9))
-        sigma = sigma0 * ((sigma1 / sigma0) ** progress)
-        temp = temp0 * ((temp1 / temp0) ** progress)
-
-        cand = current.clone()
-        pos = cand[:n].detach().cpu().numpy().astype(np.float64).copy()
-        move_roll = float(rng.random())
-        if move_roll < 0.18 and movable_idx.size >= 2:
-            # Swap similarly sized macros; wildly different swaps often only
-            # exercise legalization rather than useful local search.
-            a = int(rng.choice(movable_idx))
-            area = sizes[:, 0] * sizes[:, 1]
-            lo = 0.55 * area[a]
-            hi = 1.80 * area[a]
-            peers = movable_idx[(area[movable_idx] >= lo) & (area[movable_idx] <= hi)]
-            if peers.size <= 1:
-                b = int(rng.choice(movable_idx))
-            else:
-                b = int(rng.choice(peers[peers != a]))
-            pos[[a, b], :2] = pos[[b, a], :2]
-        elif move_roll < 0.36 and movable_idx.size >= 4:
-            # Coherent tiny cluster translation, useful after legalization has
-            # left a connected group slightly off its DP basin.
-            k = int(rng.choice(movable_idx))
-            center = pos[k, :2].copy()
-            dist2 = np.sum((pos[movable_idx, :2] - center[None, :]) ** 2, axis=1)
-            count = int(min(max(2, movable_idx.size // 32), 12, movable_idx.size))
-            group = movable_idx[np.argpartition(dist2, count - 1)[:count]]
-            delta = rng.normal(0.0, 0.65 * sigma, size=2)
-            pos[group, :2] += delta[None, :]
-        else:
-            k = int(rng.choice(movable_idx))
-            pos[k, :2] += rng.normal(0.0, sigma, size=2)
-
-        for k in movable_idx.tolist():
-            hw = 0.5 * sizes[k, 0]
-            hh = 0.5 * sizes[k, 1]
-            pos[k, 0] = float(np.clip(pos[k, 0], hw + 1e-3, cw - hw - 1e-3))
-            pos[k, 1] = float(np.clip(pos[k, 1], hh + 1e-3, ch - hh - 1e-3))
-
-        cand[:n] = torch.from_numpy(pos).to(device=cand.device, dtype=cand.dtype)
-        cand = legalize(cand)
-        evals += 1
-        ok, _ = validate_placement(cand, benchmark, check_overlaps=True)
-        if not ok:
-            continue
-        new_cost = _post_dp_sa_surrogate(cand, benchmark)
-        delta_cost = new_cost - cur_cost
-        if delta_cost <= 0.0 or rng.random() < math.exp(-delta_cost / max(temp, 1e-9)):
-            current = cand
-            cur_cost = new_cost
-            if new_cost < best_cost:
-                best = cand.clone()
-                best_cost = new_cost
-
-    if best_cost + 1e-9 < initial_cost and not torch.allclose(
-        best, initial, atol=1e-6, rtol=0.0
-    ):
-        return (f"{label}_sa", best)
-    return None
 
 
 @dataclass(frozen=True)
@@ -792,8 +1028,20 @@ class DreamPlacePipeline:
         *,
         plc_lookup: PlcLookup | None = None,
         dreamplace_install: Path | str | None = None,
-        num_starts: int = 16,
+        num_starts: int = 6,
+        # Number of top DP candidates (by true proxy) to seed RePlAce
+        # rescue from.  RePlAce is the dominant runtime; running just K
+        # configs × top_dp_for_rescue seeds = K × top_dp_for_rescue
+        # RePlAce invocations.  Default 5 keeps the rescue stage to
+        # ~15 runs at K=3.
+        top_dp_for_rescue: int = 5,
         jitter_sigma_um: float = 0.115,
+        # Default global iterations: 240.  ibm08 evidence:
+        # 122 iters crashed quality (proxy 2.8 vs 1.39 baseline) because
+        # DP couldn't converge.  180 is the floor where convergence
+        # is reliable; still ~25% cheaper than 240.  Combined with
+        # reduced subprocess startup overhead, per-start drops from
+        # ~30s to ~15-20s.
         global_iterations: int = 240,
         num_bins: int = 128,
         num_threads: int = 8,
@@ -801,11 +1049,51 @@ class DreamPlacePipeline:
         timeout_seconds: float = 720.0,
         dreamplace_json_overrides: Optional[Mapping[str, Any]] = None,
         use_gpu: Optional[bool] = None,
-        scale_iterations_with_features: bool = True,
+        scale_iterations_with_features: bool = False,
         rich_candidate_set: bool = True,
-        post_dp_sa_seconds: float = 24.0,
-        post_dp_sa_top_k: int = 1,
-        post_dp_sa_max_evals: int = 200,
+        # Pre-DREAMPlace start discovery.  Defaults use 6 empirical base starts
+        # + 44 valid/diverse starts = 50 DP attempts on small IBM cases.
+        pre_dp_valid_starts: int = 44,
+        pre_dp_valid_pool_size: int = 56,
+        pre_dp_valid_selection: str = "diverse",
+        pre_dp_proxy_eval_limit: int = 8,
+        explicit_legalize_dp_outputs: bool = True,
+        # Coordinate-descent polish — TILOS-style k-distance bounded
+        # search with mask-based feasibility, run on the rescue winner.
+        # Strictly-improving (never regresses).  Macro-count-adaptive
+        # k_bound keeps per-benchmark wall time bounded.
+        post_rescue_coord_descent_seconds: float = 240.0,
+        post_rescue_coord_descent_max_passes: int = 1,
+        post_rescue_coord_descent_k_bound: Optional[int] = None,
+        post_rescue_coord_descent_cell_search_prob: float = 1.0,
+        post_rescue_coord_descent_node_order: str = "descending_size",
+        # TILOS-style Go-With-The-Winners (GWTW) SA — multi-worker pool
+        # exploring in parallel, periodic sync replaces bottom workers
+        # with clones of top winners.  Replicates
+        # external/MacroPlacement/CodeElements/SimulatedAnnealingGWTW in
+        # Python multiprocessing.  Each worker uses direct
+        # compute_proxy_cost evaluation.
+        #
+        # "Light + aggressive": small wall budget (180s), but t_max
+        # high enough that early uphill moves are accepted with
+        # meaningful probability.  exp(-0.001/0.005) ≈ 0.82 at t_max,
+        # so a 0.1% uphill is mostly accepted early; cools to greedy by
+        # end of schedule.  This is real SA behaviour rather than the
+        # near-greedy descent of t_max=8e-5.
+        post_rescue_gwtw_seconds: float = 180.0,
+        post_rescue_gwtw_num_workers: int = 8,
+        post_rescue_gwtw_num_iters: int = 120,
+        post_rescue_gwtw_syncup_freq: float = 0.20,
+        post_rescue_gwtw_top_k: int = 2,
+        post_rescue_gwtw_t_max: float = 5e-3,
+        post_rescue_gwtw_t_min: float = 5e-6,
+        post_rescue_gwtw_action_probs: Tuple[float, float, float, float, float] = (
+            0.20,
+            0.20,
+            0.20,
+            0.20,
+            0.20,
+        ),
         replace_rescue: bool = True,
         replace_rescue_trigger_proxy: float = 0.0,
         replace_rescue_timeout_seconds: float = 240.0,
@@ -816,6 +1104,7 @@ class DreamPlacePipeline:
         self.plc_lookup = plc_lookup or PlcLookup()
         self.dreamplace_install = dreamplace_install
         self.num_starts = int(num_starts)
+        self.top_dp_for_rescue = max(1, int(top_dp_for_rescue))
         self.jitter_sigma_um = float(jitter_sigma_um)
         self.global_iterations = int(global_iterations)
         self.num_bins = int(num_bins)
@@ -829,9 +1118,24 @@ class DreamPlacePipeline:
         self.use_gpu = use_gpu
         self.scale_iterations_with_features = bool(scale_iterations_with_features)
         self.rich_candidate_set = bool(rich_candidate_set)
-        self.post_dp_sa_seconds = float(post_dp_sa_seconds)
-        self.post_dp_sa_top_k = int(post_dp_sa_top_k)
-        self.post_dp_sa_max_evals = int(post_dp_sa_max_evals)
+        self.pre_dp_valid_starts = int(pre_dp_valid_starts)
+        self.pre_dp_valid_pool_size = int(pre_dp_valid_pool_size)
+        self.pre_dp_valid_selection = str(pre_dp_valid_selection)
+        self.pre_dp_proxy_eval_limit = int(pre_dp_proxy_eval_limit)
+        self.explicit_legalize_dp_outputs = bool(explicit_legalize_dp_outputs)
+        self.post_rescue_coord_descent_seconds = float(post_rescue_coord_descent_seconds)
+        self.post_rescue_coord_descent_max_passes = int(post_rescue_coord_descent_max_passes)
+        self.post_rescue_coord_descent_k_bound = post_rescue_coord_descent_k_bound
+        self.post_rescue_coord_descent_cell_search_prob = float(post_rescue_coord_descent_cell_search_prob)
+        self.post_rescue_coord_descent_node_order = str(post_rescue_coord_descent_node_order)
+        self.post_rescue_gwtw_seconds = float(post_rescue_gwtw_seconds)
+        self.post_rescue_gwtw_num_workers = int(post_rescue_gwtw_num_workers)
+        self.post_rescue_gwtw_num_iters = int(post_rescue_gwtw_num_iters)
+        self.post_rescue_gwtw_syncup_freq = float(post_rescue_gwtw_syncup_freq)
+        self.post_rescue_gwtw_top_k = int(post_rescue_gwtw_top_k)
+        self.post_rescue_gwtw_t_max = float(post_rescue_gwtw_t_max)
+        self.post_rescue_gwtw_t_min = float(post_rescue_gwtw_t_min)
+        self.post_rescue_gwtw_action_probs = tuple(post_rescue_gwtw_action_probs)
         self.replace_rescue = bool(replace_rescue)
         self.replace_rescue_trigger_proxy = float(replace_rescue_trigger_proxy)
         self.replace_rescue_timeout_seconds = float(replace_rescue_timeout_seconds)
@@ -890,8 +1194,14 @@ class DreamPlacePipeline:
             else self.global_iterations
         )
 
-        candidates: List[torch.Tensor] = []
-        labels: List[str] = []
+        # GUARDRAIL: the initial `.plc` placement is "hand-crafted, serves
+        # as reference" (README).  The raw reference can contain overlaps
+        # or OOB macros, so keep the exact raw reference as a DREAMPlace
+        # start and score this minimally repaired version as the proxy
+        # floor DREAMPlace must beat.
+        initial_legalized = _legalized_reference_seed(seed, benchmark)
+        candidates: List[torch.Tensor] = [initial_legalized.clone().float()]
+        labels: List[str] = ["initial_plc_reference_legalized"]
         gen = torch.Generator(device=seed.device)
         gen.manual_seed(2026 + int(benchmark.num_hard_macros) + int(benchmark.num_nets))
 
@@ -914,6 +1224,34 @@ class DreamPlacePipeline:
             jitter_sigma_um=self.jitter_sigma_um,
             generator=gen,
         )
+        if self.pre_dp_valid_starts > 0:
+            discovered_starts = _discover_valid_proxy_starts(
+                seed,
+                benchmark,
+                plc,
+                requested=self.pre_dp_valid_starts,
+                pool_size=self.pre_dp_valid_pool_size,
+                selection_mode=self.pre_dp_valid_selection,
+                proxy_eval_limit=self.pre_dp_proxy_eval_limit,
+                jitter_sigma_um=self.jitter_sigma_um,
+                generator=gen,
+            )
+            if discovered_starts:
+                # Preserve the empirically useful start/variant pairings from
+                # the base portfolio; discovered starts are extra DP attempts.
+                initial_starts = list(initial_starts) + list(discovered_starts)
+                starts = len(initial_starts)
+                for label, placement in discovered_starts:
+                    labels.append(f"pre_dp_{label}")
+                    candidates.append(placement)
+                if _tuner_progress_enabled():
+                    names = ", ".join(label for label, _ in initial_starts)
+                    print(
+                        f"[tune:dp] {benchmark.name}  pre_dp_start_order "
+                        f"{len(initial_starts)}=[{names}]",
+                        file=sys.stderr,
+                        flush=True,
+                    )
 
         dp_specs: List[_DreamPlaceSpec] = []
         for k, (start_tag, init) in enumerate(initial_starts):
@@ -981,6 +1319,8 @@ class DreamPlacePipeline:
                 )
             if dp_out is None:
                 return None
+            if self.explicit_legalize_dp_outputs:
+                dp_out = _legalized_generated_start(dp_out, benchmark)
             return label, dp_out
 
         use_halving = (
@@ -1040,6 +1380,10 @@ class DreamPlacePipeline:
                         flush=True,
                     )
         else:
+            # spec_results lets us identify which initial specs produced
+            # in-bounds (potentially valid) placements vs which went OOB so
+            # we can salvage with a benchmark-specific safe template.
+            spec_results: List[Tuple[_DreamPlaceSpec, str, torch.Tensor]] = []
             for spec in dp_specs:
                 result = run_spec(spec, iters, 0)
                 if result is None:
@@ -1047,6 +1391,148 @@ class DreamPlacePipeline:
                 label, placement = result
                 labels.append(label)
                 candidates.append(placement)
+                spec_results.append((spec, label, placement))
+
+            # Adaptive valid-yield salvage: on benchmarks where DP yield is
+            # low (ibm08 had 3/16 valid before this pass), use one of the
+            # initial pass's actual valid configs as a "safe template" and
+            # rerun every OOB slot with that template + heavier jitter on
+            # the slot's original start placement.  Evidence from ibm08:
+            # every valid initial run used a conservative variant
+            # (tight/xtight) paired with heavy jitter (jit2.35); the
+            # combination is what survives gradient placement without
+            # flying macros OOB.  Borrowing that combination per-benchmark
+            # converts most invalids to valids without benchmark-name
+            # tuning.
+            valid_initial: List[Tuple[_DreamPlaceSpec, str, torch.Tensor]] = [
+                (s, l, p)
+                for s, l, p in spec_results
+                if validate_placement(p, benchmark, check_overlaps=False)[0]
+            ]
+            invalid_initial: List[Tuple[_DreamPlaceSpec, str, torch.Tensor]] = [
+                (s, l, p)
+                for s, l, p in spec_results
+                if not validate_placement(p, benchmark, check_overlaps=False)[0]
+            ]
+            # Salvage budget: only retry enough invalid slots to reach a
+            # healthy pool size — no point salvaging when we already have
+            # plenty of valid candidates.  Target: max(8, 2 * top_dp_for_rescue)
+            # valid candidates total, so we have a buffer above the top-K
+            # rescue seeds.  With 50 starts and ~50% valid baseline, this
+            # caps salvage at ~8-10 retries instead of trying all ~25.
+            target_valid = max(8, 2 * self.top_dp_for_rescue)
+            salvage_budget = max(0, target_valid - len(valid_initial))
+            if invalid_initial and valid_initial and salvage_budget > 0:
+                # Rotate among ALL valid initial specs as safe templates,
+                # not just the first one.  Different valid specs landed in
+                # different DP basins; rotating templates gives the salvage
+                # retries basin diversity (rather than all producing
+                # near-identical placements).  Heavy-jitter the slot's
+                # original start so the retry doesn't collapse to the
+                # template's start either.
+                # Cap retry list to salvage_budget invalids.
+                invalid_initial = invalid_initial[:salvage_budget]
+                safe_templates = [s for s, _, _ in valid_initial]
+                if _tuner_progress_enabled():
+                    tmpls = ", ".join(
+                        f"{s.tag}/{s.start_tag}" for s in safe_templates[:4]
+                    )
+                    print(
+                        f"[tune:dp] {benchmark.name}  salvage start "
+                        f"valid={len(valid_initial)} invalid={len(invalid_initial)} "
+                        f"templates=[{tmpls}{'...' if len(safe_templates) > 4 else ''}]",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                heavy_scale = 3.0
+                for retry_idx, (inv_spec, _, _) in enumerate(invalid_initial):
+                    safe_spec = safe_templates[retry_idx % len(safe_templates)]
+                    heavy_init = jitter_hard_centers(
+                        inv_spec.init.clone(),
+                        benchmark,
+                        sigma_um=self.jitter_sigma_um * heavy_scale,
+                        generator=gen,
+                    )
+                    retry_overrides = dict(safe_spec.overrides)
+                    retry_overrides["random_seed"] = (
+                        int(safe_spec.overrides.get("random_seed", 0))
+                        ^ (0xC0FFEE + retry_idx * 137 + inv_spec.index * 9001)
+                    )
+                    retry_spec = _DreamPlaceSpec(
+                        index=inv_spec.index,
+                        tag=f"{safe_spec.tag}_salv",
+                        start_tag=f"{inv_spec.start_tag}_h{heavy_scale:.1f}",
+                        init=heavy_init,
+                        target_density=safe_spec.target_density,
+                        num_bins=safe_spec.num_bins,
+                        overrides=retry_overrides,
+                    )
+                    retry_result = run_spec(retry_spec, iters, 0)
+                    if retry_result is None:
+                        continue
+                    rlabel, rplacement = retry_result
+                    labels.append(rlabel)
+                    candidates.append(rplacement)
+                    if _tuner_progress_enabled():
+                        r_ok, _ = validate_placement(
+                            rplacement, benchmark, check_overlaps=False
+                        )
+                        print(
+                            f"[tune:dp] {benchmark.name}  salvage k{inv_spec.index} "
+                            f"{inv_spec.tag}->{retry_spec.tag} valid={int(r_ok)}",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+            elif invalid_initial and not valid_initial:
+                # No initial candidate was valid — fall back to a hardcoded
+                # conservative default.  This is the "all 16 failed" case
+                # which should be rare but needs a path forward.  Use the
+                # tight variant config (proven safest in the rich variant
+                # set: density_weight_scale=1.05, stop_overflow=0.070).
+                fallback_overrides = (
+                    dict(self.dreamplace_json_overrides)
+                    if self.dreamplace_json_overrides
+                    else {}
+                )
+                fallback_overrides = _apply_density_weight_scale(
+                    fallback_overrides, 1.05
+                )
+                fallback_overrides["stop_overflow"] = 0.075
+                fallback_overrides["gp_noise_ratio"] = 0.045
+                if _tuner_progress_enabled():
+                    print(
+                        f"[tune:dp] {benchmark.name}  salvage fallback "
+                        f"(no initial valid) invalid={len(invalid_initial)}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                heavy_scale = 3.0
+                for retry_idx, (inv_spec, _, _) in enumerate(invalid_initial):
+                    heavy_init = jitter_hard_centers(
+                        inv_spec.init.clone(),
+                        benchmark,
+                        sigma_um=self.jitter_sigma_um * heavy_scale,
+                        generator=gen,
+                    )
+                    retry_overrides = dict(fallback_overrides)
+                    retry_overrides["random_seed"] = (
+                        0xDEADBEEF ^ (retry_idx * 137 + inv_spec.index * 9001)
+                    )
+                    retry_spec = _DreamPlaceSpec(
+                        index=inv_spec.index,
+                        tag=f"safe_fallback",
+                        start_tag=f"{inv_spec.start_tag}_h{heavy_scale:.1f}",
+                        init=heavy_init,
+                        target_density=0.76,
+                        num_bins=128,
+                        overrides=retry_overrides,
+                    )
+                    retry_result = run_spec(retry_spec, iters, 0)
+                    if retry_result is None:
+                        continue
+                    rlabel, rplacement = retry_result
+                    labels.append(rlabel)
+                    candidates.append(rplacement)
 
         if not candidates:
             fb = self._repair_seed(seed, benchmark)
@@ -1082,49 +1568,7 @@ class DreamPlacePipeline:
                 selection=None,
                 reason="selection_failed",
             )
-        valid_dp_count = sum(1 for score in preliminary.scores if score.valid)
-
-        if self.post_dp_sa_seconds > 0.0 and self.post_dp_sa_top_k > 0:
-            label_to_candidate = dict(zip(labels, candidates))
-            valid_dp_scores = [
-                s
-                for s in preliminary.scores
-                if s.valid and s.label in label_to_candidate
-            ]
-            valid_dp_scores.sort(key=lambda s: s.proxy_cost)
-            top_scores = valid_dp_scores[: max(0, self.post_dp_sa_top_k)]
-            if top_scores:
-                per_budget = float(self.post_dp_sa_seconds) / float(len(top_scores))
-                per_evals = max(1, int(self.post_dp_sa_max_evals) // len(top_scores))
-                for rank, score in enumerate(top_scores):
-                    refined = _post_dp_sa_refine(
-                        label_to_candidate[score.label],
-                        benchmark,
-                        plc,
-                        label=score.label,
-                        seed=17041
-                        + 7919 * rank
-                        + int(benchmark.num_macros)
-                        + int(benchmark.num_nets),
-                        time_budget_s=per_budget,
-                        max_evals=per_evals,
-                    )
-                    if refined is not None:
-                        sa_label, sa_candidate = refined
-                        labels.append(sa_label)
-                        candidates.append(sa_candidate)
-
-        try:
-            selection = select_best_true_proxy_candidates_only(
-                candidates,
-                benchmark,
-                plc,
-                candidate_labels=labels,
-            )
-            if _tuner_progress_enabled():
-                _log_selection_scores("post_sa", selection)
-        except Exception:
-            selection = preliminary
+        selection = preliminary
 
         if (
             self.replace_rescue
@@ -1135,97 +1579,472 @@ class DreamPlacePipeline:
                 from _replace_pipeline import ReplacePipeline  # noqa: PLC0415
                 from _replace_runner import ReplaceConfig  # noqa: PLC0415
 
-                dp_seed = selection.placement.clone().float()
-                dp_rescue_configs = (
-                    ReplaceConfig(density=0.66, pcofmax=1.03, extra_args=("-bin", "128")),
-                    ReplaceConfig(density=0.68, pcofmax=1.20, extra_args=("-bin", "128")),
-                    ReplaceConfig(density=0.70, pcofmax=1.03, extra_args=("-bin", "128")),
-                    ReplaceConfig(density=0.72, pcofmax=1.03, extra_args=("-bin", "128")),
-                    ReplaceConfig(density=0.72, pcofmax=1.08, extra_args=("-bin", "128")),
-                    ReplaceConfig(density=0.74, pcofmax=1.03, extra_args=("-bin", "128")),
-                    ReplaceConfig(density=0.74, pcofmax=1.08, extra_args=("-bin", "128")),
-                    ReplaceConfig(density=0.76, pcofmax=1.08, extra_args=("-bin", "128")),
+                # Wide density sweep used for the always-on initial-seeded
+                # rescue.  Density+pcofmax dominates RePlAce's final basin;
+                # ibm08 and ibm09 both confirmed that different starts
+                # converge to identical final placements when (density,
+                # pcofmax) match.  Config diversity is the only thing that
+                # matters — seed diversity (the previous top-K DP rescue
+                # path) was redundant and wasteful.
+                #
+                # Low-density configs (0.66, 0.68, 0.70) abort on lower
+                # utilization benchmarks like ibm09 ("no more tier to
+                # assign") but are critical on packed cases.  High-density
+                # configs (0.80, 0.84) won on high-cost benchmarks
+                # (ibm14/17/18) in the old high_cost_initial_configs path
+                # — included here so the simplification doesn't regress
+                # those cases.  adaptive probe-then-commit picks the
+                # winning configs per benchmark without burning compute on
+                # ones that won't converge.
+                # Expanded portfolio: more (density, pcofmax) pairs explore
+                # more distinct RePlAce basins.  adaptive_top_k=3 keeps the
+                # compute bounded — probes are short, only top 3 commit
+                # fully.  Added (0.70,1.08), (0.72,1.20), (0.76,1.03),
+                # (0.78,1.03/1.08), (0.80,1.03/1.08), (0.82,1.20), so we
+                # cover the (density 0.66-0.84) × (pcofmax 1.03/1.08/1.20)
+                # grid for the dense bands that have historically won.
+                # Portfolio mixes `-bin 128` (current default) with `-bin 64`
+                # and `-pcofmin 0.98` flag variants from the historical
+                # _GENERIC_CONFIGS — ibm01 baseline 0.9219 was likely found
+                # by one of these and my -bin 128-only version regressed
+                # to 0.9321 because it explored fewer basins.
+                # Trimmed orthogonal portfolio.  Dropped near-duplicates
+                # in the old 30-config sweep (e.g. multiple bin=64 vs
+                # bin=128 variants at the same density usually find the
+                # same basin) in favor of FEWER configs that target
+                # DIFFERENT basins — aggressive density, aggressive
+                # pcofmax, very loose overflow, etc.  Goal is that each
+                # config produces an orthogonal placement so adaptive
+                # selection actually picks the best basin per benchmark
+                # rather than averaging over near-duplicates.
+                # ORTHOGONAL portfolio: 12 distinct (density, pcofmax,
+                # bin, overflow, pcofmin, racnt*) combinations.  Memory
+                # confirms basin is determined by (density, pcofmax) — so
+                # seed diversity is wasted unless paired with config
+                # diversity.  Slots 0-2 are the proven congestion-attack
+                # winners; slots 3-7 are historical _GENERIC_CONFIGS
+                # winners (incl. the bin=64 paths that found the ibm01
+                # 0.9219 baseline); slots 8-11 fill in (density × pcofmax)
+                # corners not yet covered.
+                ortho_rescue_configs = (
+                    # (0) Mid-density congestion-aggressive (proven).
+                    ReplaceConfig(
+                        density=0.74, pcofmax=1.20,
+                        extra_args=("-bin", "128", "-overflow", "0.04", "-pcofmin", "0.90"),
+                    ),
+                    # (1) High-density very-aggressive (proven).
+                    ReplaceConfig(
+                        density=0.82, pcofmax=1.50,
+                        extra_args=("-bin", "128", "-overflow", "0.05", "-pcofmin", "0.85"),
+                    ),
+                    # (2) Routability-mode (proven).
+                    ReplaceConfig(
+                        density=0.72, pcofmax=1.08,
+                        extra_args=("-bin", "128", "-overflow", "0.06", "-racnti", "5", "-racnto", "10"),
+                    ),
+                    # (3) High-density tight-pcofmin (_GENERIC winner).
+                    ReplaceConfig(
+                        density=0.80, pcofmax=1.03,
+                        extra_args=("-bin", "128", "-pcofmin", "0.98"),
+                    ),
+                    # (4) High-density mid-pcofmax (_GENERIC winner).
+                    ReplaceConfig(
+                        density=0.80, pcofmax=1.20,
+                        extra_args=("-bin", "128",),
+                    ),
+                    # (5) Very-high-density aggressive (_GENERIC winner).
+                    ReplaceConfig(
+                        density=0.84, pcofmax=1.20,
+                        extra_args=("-bin", "128",),
+                    ),
+                    # (6) Low-density 64-bin (likely ibm01 0.9219 source).
+                    ReplaceConfig(
+                        density=0.70, pcofmax=1.03,
+                        extra_args=("-bin", "64",),
+                    ),
+                    # (7) Very-high-density gentle 64-bin (_GENERIC).
+                    ReplaceConfig(
+                        density=0.84, pcofmax=1.03,
+                        extra_args=("-bin", "64",),
+                    ),
+                    # (8) Mid-density compact (new ortho fill).
+                    ReplaceConfig(
+                        density=0.76, pcofmax=1.08,
+                        extra_args=("-bin", "128", "-overflow", "0.05"),
+                    ),
+                    # (9) Mid-high aggressive (new ortho fill).
+                    ReplaceConfig(
+                        density=0.78, pcofmax=1.20,
+                        extra_args=("-bin", "128", "-overflow", "0.05", "-pcofmin", "0.92"),
+                    ),
+                    # (10) Very-high gentle (new ortho fill).
+                    ReplaceConfig(
+                        density=0.86, pcofmax=1.08,
+                        extra_args=("-bin", "128",),
+                    ),
+                    # (11) Aggressive routability (new ortho fill).
+                    ReplaceConfig(
+                        density=0.74, pcofmax=1.50,
+                        extra_args=("-bin", "128", "-overflow", "0.05", "-racnti", "8", "-racnto", "12"),
+                    ),
                 )
-                robust_rescue_configs = (
-                    ReplaceConfig(density=0.70, pcofmax=1.03, extra_args=("-bin", "64")),
-                    ReplaceConfig(density=0.72, pcofmax=1.03, extra_args=("-bin", "128")),
-                    ReplaceConfig(density=0.80, pcofmax=1.03, extra_args=("-bin", "64")),
-                    ReplaceConfig(density=0.80, pcofmax=1.03, extra_args=("-bin", "128")),
-                    ReplaceConfig(density=0.80, pcofmax=1.20, extra_args=("-bin", "128")),
-                    ReplaceConfig(density=0.84, pcofmax=1.20, extra_args=("-bin", "128")),
-                )
-                high_cost_initial_configs = (
-                    ReplaceConfig(density=0.80, pcofmax=1.20, extra_args=("-bin", "64")),
-                    ReplaceConfig(density=0.80, pcofmax=1.20, extra_args=("-bin", "128")),
-                    ReplaceConfig(density=0.84, pcofmax=1.20, extra_args=("-bin", "128")),
+                # Latin-square assignment: each (seed, config) pair is
+                # unique.  Initial-.plc seed gets the 3 proven winners;
+                # top-K DP seeds split the remaining 9 ortho configs so
+                # every config is exercised exactly once across the 6
+                # seeds.
+                initial_seed_configs = ortho_rescue_configs[0:3]
+                dp_seed_config_groups: Tuple[Tuple[ReplaceConfig, ...], ...] = (
+                    ortho_rescue_configs[3:5],   # DP rank 0 → 3,4
+                    ortho_rescue_configs[5:7],   # DP rank 1 → 5,6
+                    ortho_rescue_configs[7:9],   # DP rank 2 → 7,8
+                    ortho_rescue_configs[9:11],  # DP rank 3 → 9,10
+                    ortho_rescue_configs[11:12], # DP rank 4 → 11
                 )
 
-                def append_rescue(
+                # Reuse rescue's internal scores instead of re-scoring all
+                # candidates in the outer selection.  On ibm14 (152k nets)
+                # the outer re-scoring was the dominant runtime (~30 min
+                # for 25 candidates) and was duplicate work: the rescue
+                # pipeline already runs select_best_true_proxy_candidates_only
+                # on its own outputs.  Tracking the best-so-far against the
+                # rescue's already-scored outputs lets us skip the outer
+                # full scoring pass entirely.
+                rescue_scores: List = []
+
+                def merge_rescue(
                     rescue_seed: torch.Tensor,
                     rescue_configs: Tuple[ReplaceConfig, ...],
                     prefix: str,
                     *,
                     adaptive_top_k: int = 3,
+                    timeout_seconds: float | None = None,
                 ) -> bool:
-                    before = len(candidates)
+                    eff_timeout = (
+                        float(timeout_seconds)
+                        if timeout_seconds is not None
+                        else float(self.replace_rescue_timeout_seconds)
+                    )
                     try:
+                        if _tuner_progress_enabled():
+                            print(
+                                f"[tune:dp] {benchmark.name}  replace_rescue start "
+                                f"prefix={prefix} configs={len(rescue_configs)} "
+                                f"timeout={eff_timeout:.0f}s adaptive_top_k={adaptive_top_k}",
+                                file=sys.stderr,
+                                flush=True,
+                            )
                         rescue = ReplacePipeline(
                             configs=rescue_configs,
                             baseline_provider=lambda _benchmark, _seed=rescue_seed: _seed,
                             plc_lookup=self.plc_lookup,
-                            timeout_seconds=self.replace_rescue_timeout_seconds,
+                            timeout_seconds=eff_timeout,
                             adaptive_top_k=adaptive_top_k,
                         ).run(benchmark)
-                    except Exception:
+                    except Exception as e:
+                        if _tuner_progress_enabled():
+                            print(
+                                f"[tune:dp] {benchmark.name}  replace_rescue "
+                                f"exception prefix={prefix}: {e!r}",
+                                file=sys.stderr,
+                                flush=True,
+                            )
                         return False
                     if rescue.selection is None:
-                        return False
-                    for score in rescue.selection.scores:
-                        labels.append(f"{prefix}_{score.label}")
-                        candidates.append(score.placement)
-                    return len(candidates) > before
-
-                # If most DREAMPlace starts died or became invalid after strict
-                # legalization, the DP seed is often a poor RePlAce handoff.
-                # Fall back to the original placement and a compact version of
-                # the promoted RePlAce family that is less prone to low-density
-                # "no more tier to assign" aborts.
-                low_valid_yield = valid_dp_count <= max(2, starts // 4)
-                if low_valid_yield:
-                    changed = append_rescue(
-                        seed.clone().float(),
-                        robust_rescue_configs,
-                        "replace_initial_rescue",
-                        adaptive_top_k=2,
-                    )
-                else:
-                    changed = append_rescue(
-                        dp_seed,
-                        dp_rescue_configs,
-                        "replace_rescue",
-                        adaptive_top_k=0,
-                    )
-                    if float(selection.best.proxy_cost) >= 1.42:
-                        changed = (
-                            append_rescue(
-                                seed.clone().float(),
-                                high_cost_initial_configs,
-                                "replace_initial_high_cost",
-                                adaptive_top_k=0,
+                        if _tuner_progress_enabled():
+                            print(
+                                f"[tune:dp] {benchmark.name}  replace_rescue "
+                                f"no selection prefix={prefix}",
+                                file=sys.stderr,
+                                flush=True,
                             )
-                            or changed
+                        return False
+                    for sc in rescue.selection.scores:
+                        # Rename score with rescue prefix; placement is
+                        # already legalized + true-proxy-scored by the
+                        # ReplacePipeline's own selection pass.
+                        rescue_scores.append(
+                            type(sc)(
+                                label=f"{prefix}_{sc.label}",
+                                placement=sc.placement,
+                                valid=sc.valid,
+                                proxy_cost=sc.proxy_cost,
+                                wirelength=sc.wirelength,
+                                density=sc.density,
+                                congestion=sc.congestion,
+                                overlaps=sc.overlaps,
+                                violations=sc.violations,
+                            )
                         )
-                if changed:
-                    selection = select_best_true_proxy_candidates_only(
-                        candidates,
-                        benchmark,
-                        plc,
-                        candidate_labels=labels,
-                    )
                     if _tuner_progress_enabled():
-                        _log_selection_scores("post_replace", selection)
-            except Exception:
-                pass
+                        valid_scores = [
+                            sc for sc in rescue.selection.scores if sc.valid
+                        ]
+                        best_proxy = (
+                            min(sc.proxy_cost for sc in valid_scores)
+                            if valid_scores
+                            else float("inf")
+                        )
+                        print(
+                            f"[tune:dp] {benchmark.name}  replace_rescue done "
+                            f"prefix={prefix} scores={len(rescue.selection.scores)} "
+                            f"best={best_proxy:.4f}",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                    return True
+
+                # === New strategy: seed RePlAce from the TOP-K DP
+                # outputs (by true proxy), not the original .plc.  DP
+                # provides 50 orthogonal starting basins; we run the 3
+                # aggressive RePlAce configs from each of the top-K to
+                # explore different polished basins.  Total RePlAce
+                # invocations = 3 * top_dp_for_rescue (= 15 by default).
+                # Also always-include the original .plc seed as a
+                # guardrail in case DP outputs are all worse than the
+                # initial placement.
+
+                # Rank DP candidates by their pre-SA proxy (already
+                # computed in `preliminary.scores`).
+                dp_label_to_placement = dict(zip(labels, candidates))
+                valid_dp_scores = sorted(
+                    [
+                        s
+                        for s in preliminary.scores
+                        if s.valid and s.label.startswith("dp_") and s.label in dp_label_to_placement
+                    ],
+                    key=lambda s: s.proxy_cost,
+                )
+
+                # Always run the initial-.plc-seeded baseline rescue
+                # (one config slot) as a guardrail.
+                changed = merge_rescue(
+                    seed.clone().float(),
+                    initial_seed_configs,
+                    "replace_initial",
+                    adaptive_top_k=0,
+                )
+
+                # DP-output-seeded rescues: each rank gets a UNIQUE config
+                # subset (Latin-square pairing), so the 9 remaining ortho
+                # configs are each tried exactly once across the top-K DP
+                # seeds.  Total invocations = 3 + 9 = 12, vs old 3 × 6 = 18
+                # that explored only 3 unique basins.
+                top_k = min(self.top_dp_for_rescue, len(valid_dp_scores))
+                if _tuner_progress_enabled() and top_k > 0:
+                    top_proxies = [f"{s.proxy_cost:.4f}" for s in valid_dp_scores[:top_k]]
+                    print(
+                        f"[tune:dp] {benchmark.name}  rescue DP-seeded top_{top_k} "
+                        f"dp_proxies=[{', '.join(top_proxies)}]",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                for rank, dp_score in enumerate(valid_dp_scores[:top_k]):
+                    if rank >= len(dp_seed_config_groups):
+                        break
+                    rank_configs = dp_seed_config_groups[rank]
+                    if not rank_configs:
+                        continue
+                    dp_seed_placement = dp_label_to_placement[dp_score.label].clone().float()
+                    changed = merge_rescue(
+                        dp_seed_placement,
+                        rank_configs,
+                        f"replace_dp_rank{rank}",
+                        adaptive_top_k=0,
+                    ) or changed
+
+                if changed and rescue_scores:
+                    # Merge cached selection scores with rescue scores; pick
+                    # best across both pools.  No re-scoring of placements.
+                    all_scores = list(selection.scores) + rescue_scores
+                    valid_scores = [s for s in all_scores if s.valid]
+                    if valid_scores:
+                        best = min(valid_scores, key=lambda s: s.proxy_cost)
+                        selection = SelectionResult(best=best, scores=all_scores)
+                        if _tuner_progress_enabled():
+                            _log_selection_scores("post_replace", selection)
+            except Exception as e:
+                if _tuner_progress_enabled():
+                    print(
+                        f"[tune:dp] {benchmark.name}  replace_rescue outer "
+                        f"exception: {e!r}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+
+        # Post-rescue coordinate descent polish.
+        # k-distance-bounded search per macro, mask-based feasibility,
+        # descending-size node order.  Strictly-improving in true proxy.
+        # Runs BEFORE GWTW SA so the SA starts from an already-polished
+        # state (CD finds easy improvements cheaply; SA covers harder
+        # ones that need uphill moves).
+        if (
+            self.post_rescue_coord_descent_seconds > 0.0
+            and selection.best.valid
+            and benchmark.num_hard_macros > 1
+        ):
+            try:
+                if _tuner_progress_enabled():
+                    print(
+                        f"[tune:dp] {benchmark.name}  coord_desc start  "
+                        f"budget_s={self.post_rescue_coord_descent_seconds:.0f} "
+                        f"passes={self.post_rescue_coord_descent_max_passes} "
+                        f"k_bound={self.post_rescue_coord_descent_k_bound} "
+                        f"cell_prob={self.post_rescue_coord_descent_cell_search_prob:.2f} "
+                        f"order={self.post_rescue_coord_descent_node_order} "
+                        f"current_proxy={selection.best.proxy_cost:.4f}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                cd_best, cd_proxy, cd_acc = coord_descent_polish(
+                    selection.placement.clone(),
+                    benchmark,
+                    plc,
+                    time_budget_s=float(self.post_rescue_coord_descent_seconds),
+                    max_passes=int(self.post_rescue_coord_descent_max_passes),
+                    k_distance_bound=self.post_rescue_coord_descent_k_bound,
+                    cell_search_prob=float(self.post_rescue_coord_descent_cell_search_prob),
+                    node_order=self.post_rescue_coord_descent_node_order,
+                    seed=(
+                        20260521
+                        + int(benchmark.num_macros) * 47
+                        + int(benchmark.num_nets) * 13
+                    ),
+                    log_progress=False,
+                )
+                if not torch.equal(cd_best, selection.placement):
+                    cd_score = score_placement(
+                        f"coord_desc", cd_best, benchmark, plc
+                    )
+                    if (
+                        cd_score.valid
+                        and cd_score.proxy_cost
+                        < float(selection.best.proxy_cost) - 1e-9
+                    ):
+                        if _tuner_progress_enabled():
+                            print(
+                                f"[tune:dp] {benchmark.name}  coord_desc win  "
+                                f"proxy={cd_score.proxy_cost:.4f} "
+                                f"(was {selection.best.proxy_cost:.4f}) "
+                                f"moves={cd_acc}",
+                                file=sys.stderr,
+                                flush=True,
+                            )
+                        new_scores = list(selection.scores) + [cd_score]
+                        selection = SelectionResult(
+                            best=cd_score, scores=new_scores
+                        )
+                    elif _tuner_progress_enabled():
+                        print(
+                            f"[tune:dp] {benchmark.name}  coord_desc no win  "
+                            f"moves={cd_acc}",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+            except Exception as e:
+                if _tuner_progress_enabled():
+                    print(
+                        f"[tune:dp] {benchmark.name}  coord_desc exception: {e!r}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+
+        # Post-rescue PRIMARY POLISH (NEW): TILOS Go-With-The-Winners SA.
+        # Population of ``num_workers`` SA workers explores in parallel
+        # from the rescue winner.  Each worker uses direct
+        # compute_proxy_cost evaluation.  Every ``syncup_freq * num_iters``
+        # steps the population is sorted by cost and the bottom workers
+        # are replaced with clones of the top ``top_k`` winners.  This is
+        # the throughput-amplified variant of single-worker SA — with 8
+        # workers we get roughly 8x more proposals in the same wall time.
+        if (
+            self.post_rescue_gwtw_seconds > 0.0
+            and self.post_rescue_gwtw_num_workers > 0
+            and self.post_rescue_gwtw_num_iters > 0
+            and selection.best.valid
+            and benchmark.num_hard_macros > 1
+        ):
+            try:
+                # Net-count-scaled num_iters cap — per-worker proxy cost
+                # is O(num_nets), so cap iters on big benchmarks to keep
+                # the population SA bounded.
+                nn = int(benchmark.num_nets)
+                if nn >= 150_000:
+                    gwtw_iters = min(self.post_rescue_gwtw_num_iters, 800)
+                elif nn >= 80_000:
+                    gwtw_iters = min(self.post_rescue_gwtw_num_iters, 1500)
+                elif nn >= 40_000:
+                    gwtw_iters = min(self.post_rescue_gwtw_num_iters, 2400)
+                elif nn >= 15_000:
+                    gwtw_iters = min(self.post_rescue_gwtw_num_iters, 3000)
+                else:
+                    gwtw_iters = int(self.post_rescue_gwtw_num_iters)
+                if _tuner_progress_enabled():
+                    print(
+                        f"[tune:dp] {benchmark.name}  gwtw_sa start  "
+                        f"workers={self.post_rescue_gwtw_num_workers} "
+                        f"iters={gwtw_iters} sync_freq={self.post_rescue_gwtw_syncup_freq:.2f} "
+                        f"top_k={self.post_rescue_gwtw_top_k} "
+                        f"budget_s={self.post_rescue_gwtw_seconds:.0f} "
+                        f"current_proxy={selection.best.proxy_cost:.4f}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                gwtw_best, gwtw_best_proxy, gwtw_acc, gwtw_eval = tilos_gwtw_sa_refine(
+                    selection.placement.clone(),
+                    benchmark,
+                    plc,
+                    num_workers=int(self.post_rescue_gwtw_num_workers),
+                    num_iters=gwtw_iters,
+                    syncup_freq=float(self.post_rescue_gwtw_syncup_freq),
+                    top_k=int(self.post_rescue_gwtw_top_k),
+                    time_budget_s=float(self.post_rescue_gwtw_seconds),
+                    seed=(
+                        20260520
+                        + int(benchmark.num_macros) * 53
+                        + int(benchmark.num_nets) * 11
+                    ),
+                    t_max=float(self.post_rescue_gwtw_t_max),
+                    t_min=float(self.post_rescue_gwtw_t_min),
+                    action_probs=self.post_rescue_gwtw_action_probs,
+                    log_progress=False,
+                )
+                if not torch.equal(gwtw_best, selection.placement):
+                    gwtw_score = score_placement(
+                        f"gwtw_sa", gwtw_best, benchmark, plc
+                    )
+                    if (
+                        gwtw_score.valid
+                        and gwtw_score.proxy_cost
+                        < float(selection.best.proxy_cost) - 1e-9
+                    ):
+                        if _tuner_progress_enabled():
+                            print(
+                                f"[tune:dp] {benchmark.name}  gwtw_sa win  "
+                                f"proxy={gwtw_score.proxy_cost:.4f} "
+                                f"(was {selection.best.proxy_cost:.4f}) "
+                                f"accepted={gwtw_acc}/{gwtw_eval}",
+                                file=sys.stderr,
+                                flush=True,
+                            )
+                        new_scores = list(selection.scores) + [gwtw_score]
+                        selection = SelectionResult(
+                            best=gwtw_score, scores=new_scores
+                        )
+                    elif _tuner_progress_enabled():
+                        print(
+                            f"[tune:dp] {benchmark.name}  gwtw_sa no win  "
+                            f"accepted={gwtw_acc}/{gwtw_eval}",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+            except Exception as e:
+                if _tuner_progress_enabled():
+                    print(
+                        f"[tune:dp] {benchmark.name}  gwtw_sa exception: {e!r}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
 
         return DreamPlacePipelineResult(
             placement=selection.placement,
