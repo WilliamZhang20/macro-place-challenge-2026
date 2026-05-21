@@ -69,36 +69,60 @@ def _worker_init(benchmark: Benchmark) -> None:
     _W_PLC = PlcLookup().load(benchmark)
 
 
-def _worker_sa_batch(args) -> Tuple[np.ndarray, float, int, int, int]:
+def _worker_sa_batch(args) -> Tuple[np.ndarray, float, np.ndarray, float, int, int, int]:
     """Run ``num_steps`` SA actions in this worker; return final state.
 
-    Returns ``(placement_array, best_proxy, accepted, evaluated, worker_id)``.
-    ``placement_array`` is the worker's *current* (Metropolis-state, not
-    best-so-far) so subsequent syncs operate on the working state.  The
-    ``best_proxy`` tracks the lowest proxy seen by this worker across all
-    syncs — caller is responsible for tracking best placements separately.
+    Returns ``(current_array, current_proxy, best_array, best_proxy, accepted,
+    evaluated, worker_id)``.  ``current_array`` is the worker's Metropolis
+    state so subsequent syncs operate on a coherent state/cost pair.
+    ``best_array``/``best_proxy`` track the lowest proxy seen by this worker
+    within the batch, so the master can preserve true best-so-far placements.
 
     ``per_worker_budget_s`` caps each worker's wall time so a slow benchmark
     cannot blow the global budget within a single sync round.
     """
-    (
-        worker_id,
-        start_placement_arr,
-        num_steps,
-        seed,
-        t_max,
-        t_min,
-        global_step_offset,
-        cool_total_steps,
-        action_probs,
-        per_worker_budget_s,
-    ) = args
+    if len(args) == 11:
+        (
+            worker_id,
+            start_placement_arr,
+            num_steps,
+            seed,
+            t_max,
+            t_min,
+            global_step_offset,
+            cool_total_steps,
+            action_probs,
+            per_worker_budget_s,
+            sa_disp_budget_frac,
+        ) = args
+    else:
+        (
+            worker_id,
+            start_placement_arr,
+            num_steps,
+            seed,
+            t_max,
+            t_min,
+            global_step_offset,
+            cool_total_steps,
+            action_probs,
+            per_worker_budget_s,
+        ) = args
+        sa_disp_budget_frac = 0.10
 
     benchmark = _W_BENCHMARK
     plc = _W_PLC
     if benchmark is None or plc is None:
         # Worker init failed — fall through cleanly.
-        return start_placement_arr, float("inf"), 0, 0, worker_id
+        return (
+            start_placement_arr,
+            float("inf"),
+            start_placement_arr,
+            float("inf"),
+            0,
+            0,
+            worker_id,
+        )
 
     from _hard_legalizer import legalize_hard  # noqa: PLC0415
     from _tilos_moves import (  # noqa: PLC0415
@@ -148,7 +172,15 @@ def _worker_sa_batch(args) -> Tuple[np.ndarray, float, int, int, int]:
     try:
         current_proxy = float(compute_proxy_cost(current, benchmark, plc)["proxy_cost"])
     except Exception:
-        return start_placement_arr, float("inf"), 0, 0, worker_id
+        return (
+            start_placement_arr,
+            float("inf"),
+            start_placement_arr,
+            float("inf"),
+            0,
+            0,
+            worker_id,
+        )
     best = current.clone()
     best_proxy = current_proxy
 
@@ -210,7 +242,7 @@ def _worker_sa_batch(args) -> Tuple[np.ndarray, float, int, int, int]:
             overlap_gap=1e-3,
             legalize_rounds=140,
             outer_passes=1,
-            displacement_budget_frac=0.10,
+            displacement_budget_frac=sa_disp_budget_frac,
             step_fraction=0.30,
         )
         ok, _ = validate_placement(prop, benchmark, check_overlaps=True)
@@ -241,10 +273,12 @@ def _worker_sa_batch(args) -> Tuple[np.ndarray, float, int, int, int]:
             best = current.clone()
             best_proxy = current_proxy
 
-    # Worker returns its CURRENT placement (Metropolis state), best proxy,
-    # and counters.  Master tracks best across syncs separately.
+    # Worker returns its current Metropolis state for population sync, plus
+    # the batch best placement for global-best tracking.
     return (
         current.detach().cpu().numpy().astype(np.float32, copy=False),
+        float(current_proxy),
+        best.detach().cpu().numpy().astype(np.float32, copy=False),
         float(best_proxy),
         int(accepted),
         int(evaluated),
@@ -292,6 +326,7 @@ def tilos_gwtw_sa_refine(
     t_min: float = 1e-8,
     action_probs: Sequence[float] = (0.20, 0.20, 0.20, 0.20, 0.20),
     log_progress: bool = False,
+    sa_disp_budget_frac: Optional[float] = 0.10,
 ) -> Tuple[torch.Tensor, float, int, int]:
     """Population-based GWTW SA. Returns ``(best_placement, best_proxy, total_accepted, total_evaluated)``.
 
@@ -376,21 +411,37 @@ def tilos_gwtw_sa_refine(
                         cool_total,
                         tuple(action_probs),
                         per_worker_budget,
+                        sa_disp_budget_frac,
                     )
                 )
 
             # Run all workers' batches in parallel; collect results.
             results = pool.map(_worker_sa_batch, tasks)
 
-            for new_arr, w_best_proxy, w_acc, w_eval, w_id in results:
+            for result in results:
+                if len(result) == 7:
+                    (
+                        new_arr,
+                        w_current_proxy,
+                        w_best_arr,
+                        w_best_proxy,
+                        w_acc,
+                        w_eval,
+                        w_id,
+                    ) = result
+                else:
+                    # Backward-compatible parse for any stale/imported helper.
+                    new_arr, w_best_proxy, w_acc, w_eval, w_id = result
+                    w_current_proxy = w_best_proxy
+                    w_best_arr = new_arr
                 worker_states[w_id] = new_arr
-                worker_costs[w_id] = w_best_proxy
+                worker_costs[w_id] = w_current_proxy
                 total_accepted += w_acc
                 total_evaluated += w_eval
                 if w_best_proxy < global_best_proxy - 1e-12:
                     global_best_proxy = w_best_proxy
                     global_best_placement = torch.from_numpy(
-                        new_arr.copy()
+                        w_best_arr.copy()
                     ).float()
                     if log_progress:
                         print(

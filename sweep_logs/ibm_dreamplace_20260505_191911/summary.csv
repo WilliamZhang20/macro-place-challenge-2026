@@ -1,7 +1,0 @@
-timestamp,placer,benchmark,status,exit_code,runtime_seconds,proxy_line
-2026-05-05T19:19:55+00:00,submissions/dreamplace_pipeline_placer.py,ibm01,ok,0,44,proxy=1.3125  (wl=0.120 den=0.608 cong=1.778)  VALID  [39.30s]
-2026-05-05T19:20:58+00:00,submissions/dreamplace_pipeline_placer.py,ibm02,ok,0,63,proxy=2.1389  (wl=0.144 den=0.544 cong=3.446)  VALID  [54.47s]
-2026-05-05T19:21:44+00:00,submissions/dreamplace_pipeline_placer.py,ibm03,ok,0,46,proxy=2.9535  (wl=0.329 den=0.520 cong=4.729)  VALID  [39.77s]
-2026-05-05T19:22:42+00:00,submissions/dreamplace_pipeline_placer.py,ibm04,ok,0,58,proxy=1.9441  (wl=0.142 den=0.694 cong=2.911)  VALID  [50.60s]
-2026-05-05T19:23:33+00:00,submissions/dreamplace_pipeline_placer.py,ibm06,ok,0,51,proxy=5.2829  (wl=0.336 den=0.524 cong=9.370)  VALID  [43.88s]
-2026-05-05T19:24:53+00:00,submissions/dreamplace_pipeline_placer.py,ibm07,ok,0,80,proxy=1.9236  (wl=0.110 den=0.735 cong=2.892)  VALID  [67.86s]

@@ -116,6 +116,97 @@ class CustomGP:
         return torch.cat([positions, ports], dim=0)
 
     # ------------------------------------------------------------------
+    # Phase 2A': Weighted-Average Wirelength (WA-WL) — smoother gradient
+    # ------------------------------------------------------------------
+
+    def wa_wl_loss(self, positions: torch.Tensor, gamma: float,
+                   device: torch.device) -> torch.Tensor:
+        """Differentiable weighted-average wirelength (Hsu et al., ePlace).
+
+        For each net:
+          x_max_smooth = Σ(x_i * exp(x_i/γ)) / Σ(exp(x_i/γ))
+          x_min_smooth = Σ(x_i * exp(-x_i/γ)) / Σ(exp(-x_i/γ))
+          WA-HPWL = (x_max - x_min) + (y_max - y_min)
+        γ controls smoothing (small γ → sharper, large γ → smoother).
+        Every pin contributes to the gradient (unlike argmax/argmin HPWL).
+        """
+        full_pos = self._full_pos(positions, device)
+        owners = self.pin_owner.to(device)
+        offsets = self.pin_offsets.to(device)
+        mask = self.pin_mask.to(device)
+        weights = self.net_weights.to(device)
+
+        safe_owners = owners.clamp(min=0)
+        pin_xy = full_pos[safe_owners] + offsets  # [N, P, 2]
+
+        # Mask padding pins with -inf for stability in exp.
+        NEG = -1e8
+        x = pin_xy[..., 0]
+        y = pin_xy[..., 1]
+        x_masked = torch.where(mask, x, torch.full_like(x, NEG))
+        y_masked = torch.where(mask, y, torch.full_like(y, NEG))
+
+        # Stable softmax weights: subtract the max per net before exp.
+        def _wa_max(v_masked):
+            v_max = v_masked.detach().max(dim=1, keepdim=True).values
+            w = torch.where(mask, torch.exp((v_masked - v_max) / gamma),
+                            torch.zeros_like(v_masked))
+            denom = w.sum(dim=1).clamp(min=1e-12)
+            num = (w * v_masked).sum(dim=1)
+            return num / denom  # [N]
+
+        def _wa_min(v_masked):
+            # Replace masked positions with +inf for min, via negation.
+            neg = torch.where(mask, -v_masked, torch.full_like(v_masked, NEG))
+            v_max = neg.detach().max(dim=1, keepdim=True).values
+            w = torch.where(mask, torch.exp((neg - v_max) / gamma),
+                            torch.zeros_like(neg))
+            denom = w.sum(dim=1).clamp(min=1e-12)
+            num = (w * neg).sum(dim=1)
+            return -num / denom  # [N]
+
+        x_max = _wa_max(x_masked); x_min = _wa_min(x_masked)
+        y_max = _wa_max(y_masked); y_min = _wa_min(y_masked)
+        wl = (x_max - x_min) + (y_max - y_min)
+        valid = (mask.sum(dim=1) >= 2).float()
+        return (wl * weights * valid).mean() / (self.cw + self.ch)
+
+    # ------------------------------------------------------------------
+    # Phase 2B': Hard-macro pairwise repulsion (keeps GP near-legal)
+    # ------------------------------------------------------------------
+
+    def hard_repulsion_loss(self, positions: torch.Tensor,
+                             device: torch.device,
+                             gap: float = 0.0) -> torch.Tensor:
+        """Pairwise overlap penalty restricted to MOVABLE hard macros.
+
+        Penalty per pair (i,j): max(0, sep_x - |dx|) * max(0, sep_y - |dy|)
+        with sep_x = (w_i + w_j)/2 + gap. This is exactly the geometric
+        overlap area — zero when separated, growing as macros interpenetrate.
+        Quadratic in num_hard_macros, fine for IBM sizes (≤ ~2000).
+        """
+        H = self.num_hard_macros
+        if H < 2:
+            return torch.zeros((), device=device)
+        pos_h = positions[:H]
+        sizes_h = self.macro_sizes.to(device)[:H]
+        half = sizes_h / 2
+
+        dx = pos_h[:, 0].unsqueeze(1) - pos_h[:, 0].unsqueeze(0)
+        dy = pos_h[:, 1].unsqueeze(1) - pos_h[:, 1].unsqueeze(0)
+        sep_x = half[:, 0].unsqueeze(1) + half[:, 0].unsqueeze(0) + gap
+        sep_y = half[:, 1].unsqueeze(1) + half[:, 1].unsqueeze(0) + gap
+
+        ox = torch.clamp(sep_x - dx.abs(), min=0.0)
+        oy = torch.clamp(sep_y - dy.abs(), min=0.0)
+        overlap = ox * oy
+        # zero out diagonal
+        eye = torch.eye(H, device=device, dtype=overlap.dtype)
+        overlap = overlap * (1.0 - eye)
+        # mean over upper triangle to keep magnitude O(1)
+        return overlap.sum() / max(1.0, H * (H - 1.0))
+
+    # ------------------------------------------------------------------
     # Phase 2A: Differentiable HPWL via log-sum-exp
     # ------------------------------------------------------------------
 
@@ -156,6 +247,98 @@ class CustomGP:
         valid_net = mask.sum(dim=1) >= 2
         # .mean() normalizes by net count so the loss is ~O(1) regardless of netlist size
         return (hpwl * weights * valid_net.float()).mean() / (self.cw + self.ch)
+
+    # ------------------------------------------------------------------
+    # Phase 2B'': ePlace-style electrostatic density (Poisson-solve density)
+    # ------------------------------------------------------------------
+
+    def eplace_density_loss(
+        self,
+        positions: torch.Tensor,
+        sizes: torch.Tensor,
+        device: torch.device,
+        target_density: float = 0.7,
+    ) -> torch.Tensor:
+        """Electrostatic density loss à la ePlace (Cheng et al. 2018).
+
+        Treats macro density as a 2D charge distribution ρ(x,y) and computes
+        the electrostatic potential φ by solving the Poisson equation
+        ∇²φ = -(ρ - bg) via 2D FFT. The loss is the half-energy
+        ½ Σ ρ·φ. Gradients propagate through the FFT — the gradient on
+        each macro position is the electric force E = -∇φ at that cell,
+        giving smooth, global spreading forces (zero where density equals
+        target; pushing outward where density exceeds target).
+
+        bg = target_density makes the field vanish at the uniform
+        ``target_density`` solution, so it's a valid equilibrium.
+        """
+        R, C = self.R, self.C
+        cell_w, cell_h = self.cell_w, self.cell_h
+
+        N = self.num_macros
+        cx = positions[:N, 0]
+        cy = positions[:N, 1]
+        w = sizes[:N, 0]
+        h = sizes[:N, 1]
+
+        x_lo = (cx - w / 2) / cell_w
+        x_hi = (cx + w / 2) / cell_w
+        y_lo = (cy - h / 2) / cell_h
+        y_hi = (cy + h / 2) / cell_h
+
+        cell_x = torch.arange(C, dtype=torch.float32, device=device)
+        cell_y = torch.arange(R, dtype=torch.float32, device=device)
+
+        ox = torch.clamp(
+            torch.minimum(x_hi.unsqueeze(1), cell_x + 1)
+            - torch.maximum(x_lo.unsqueeze(1), cell_x),
+            min=0.0,
+        )  # [N, C] in cell units
+        oy = torch.clamp(
+            torch.minimum(y_hi.unsqueeze(1), cell_y + 1)
+            - torch.maximum(y_lo.unsqueeze(1), cell_y),
+            min=0.0,
+        )  # [N, R]
+
+        # Density on grid: fraction of cell occupied (sum over macros).
+        density = (oy.unsqueeze(2) * ox.unsqueeze(1)).sum(0)  # [R, C]
+
+        # Centre the charge distribution at the target density.
+        rho = density - float(target_density)
+
+        # Poisson solve via 2D FFT (with mirror padding to mimic Neumann BC).
+        # Mirror-pad doubles each dim so the field vanishes at the boundary.
+        rho_pad = torch.zeros(
+            2 * R, 2 * C, device=device, dtype=rho.dtype
+        )
+        rho_pad[:R, :C] = rho
+        rho_pad[:R, C:] = rho.flip(dims=(1,))
+        rho_pad[R:, :C] = rho.flip(dims=(0,))
+        rho_pad[R:, C:] = rho.flip(dims=(0, 1))
+
+        rho_hat = torch.fft.fft2(rho_pad)
+
+        # Build inverse Laplacian denominator in frequency space.
+        # kx[i] = 2π * i / (2C * cell_w); but cell_w cancels out in the
+        # adimensional formulation (positions are in cells via cx/cell_w),
+        # so we use unit cell spacing for the inverse-Laplacian operator.
+        kx = torch.fft.fftfreq(2 * C, d=1.0, device=device) * 2.0 * math.pi
+        ky = torch.fft.fftfreq(2 * R, d=1.0, device=device) * 2.0 * math.pi
+        kxx = kx.unsqueeze(0).pow(2)
+        kyy = ky.unsqueeze(1).pow(2)
+        denom = (kxx + kyy)
+        denom[0, 0] = 1.0  # avoid div-by-zero at DC; we'll zero out below
+
+        phi_hat = rho_hat / denom
+        phi_hat[0, 0] = 0.0  # remove DC (constant offset)
+
+        phi_pad = torch.fft.ifft2(phi_hat).real
+        phi = phi_pad[:R, :C]  # un-pad
+
+        # Electrostatic energy = ½ Σ ρ·φ; positive when charges concentrate.
+        energy = 0.5 * (density * phi).sum()
+        # Normalize by grid area so the value is O(1) regardless of size.
+        return energy / (R * C)
 
     # ------------------------------------------------------------------
     # Phase 2B: Density loss with Gaussian blur for global spreading
@@ -405,6 +588,152 @@ class CustomGP:
                     f"  sigma={sigma:.2f}"
                 )
 
+        return positions.detach().cpu()
+
+    # ------------------------------------------------------------------
+    # optimize_v2 — Nesterov + cosine lr + WA-WL + repulsion + proxy gate
+    # ------------------------------------------------------------------
+
+    def optimize_v2(
+        self,
+        init_positions: torch.Tensor,
+        n_iters: int = 1500,
+        lr_start: float = 4e-2,
+        lr_end: float = 5e-4,
+        momentum: float = 0.9,
+        wl_w: float = 1.0,
+        density_w_start: float = 0.03,
+        density_w_final: float = 0.7,
+        rudy_w: float = 0.6,
+        repulsion_w: float = 1.5e-4,
+        use_eplace_density: bool = True,
+        eplace_w: float = 0.6,
+        density_anneal_start: int = 40,
+        density_ramp: float = 1.04,
+        density_ramp_interval: int = 15,
+        gamma_start: float = 8.0,
+        gamma_end: float = 0.8,
+        sigma_start: float = 4.0,
+        sigma_end: float = 0.5,
+        target_density: float = 0.7,
+        proxy_gate_every: int = 0,
+        fast_eval=None,
+        device: Optional[torch.device] = None,
+        log_every: int = 0,
+    ) -> torch.Tensor:
+        """Stronger differentiable GP loop.
+
+        Differences from :meth:`optimize`:
+          * Weighted-Average WL (WA-WL) instead of LSE HPWL — gradient on
+            every pin proportional to its position; much smoother for
+            late-stage refinement.
+          * Hard-macro pairwise repulsion penalty pushes overlapping hard
+            macros apart inside the GP, so legalization downstream becomes
+            a cheap last-mile fix instead of a heavy basin-shift.
+          * Nesterov-momentum SGD with cosine-annealed learning rate
+            (lr_start → lr_end). This is the descent rule ePlace/RePlAce
+            use; it provides much better convergence than Adam for the
+            density+wirelength loss surface.
+          * Optional proxy-monotone gate: every `proxy_gate_every` iters,
+            if `fast_eval` is provided, evaluate the actual proxy; revert
+            to the previous best if it regressed (cheap safety net).
+        """
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        positions = init_positions.clone().float().to(device)
+        positions.requires_grad_(True)
+
+        sizes = self.macro_sizes.to(device)
+        # Move ALL macros that the benchmark marks movable (hard + soft).
+        # Freezing soft macros artificially crippled the GP — soft macros
+        # contribute most of the density grid, so spreading them out is
+        # what produces DREAMPlace-quality global placement.
+        fixed = self.macro_fixed.to(device)
+        init_fixed = init_positions.float().to(device)
+
+        opt = torch.optim.SGD([positions], lr=lr_start,
+                              momentum=momentum, nesterov=True)
+
+        density_w = density_w_start
+        best_proxy = float("inf")
+        best_snapshot = positions.detach().clone()
+
+        for it in range(n_iters):
+            opt.zero_grad()
+
+            # cosine-annealed learning rate
+            progress = it / max(n_iters - 1, 1)
+            lr_now = lr_end + 0.5 * (lr_start - lr_end) * (
+                1.0 + math.cos(math.pi * progress)
+            )
+            for pg in opt.param_groups:
+                pg["lr"] = lr_now
+
+            # ramp density weight after warmup
+            if it > density_anneal_start and it % density_ramp_interval == 0:
+                density_w = min(density_w * density_ramp, density_w_final)
+
+            # anneal gamma (WA-WL smoothing) and sigma (density blur)
+            gamma = gamma_end + (gamma_start - gamma_end) * (1.0 - progress)
+            sigma = sigma_end + (sigma_start - sigma_end) * (1.0 - progress)
+
+            loss = (
+                wl_w * self.wa_wl_loss(positions, gamma, device)
+                + rudy_w * self.rudy_loss(positions, gamma * 1.2, device)
+                + repulsion_w * self.hard_repulsion_loss(positions, device)
+            )
+            if use_eplace_density:
+                # ePlace electrostatic density: global, smooth spreading.
+                loss = loss + eplace_w * self.eplace_density_loss(
+                    positions, sizes, device, target_density
+                )
+            else:
+                loss = loss + density_w * self.density_loss(
+                    positions, sizes, sigma, device, target_density
+                )
+            loss.backward()
+
+            with torch.no_grad():
+                positions.grad[fixed] = 0.0
+            opt.step()
+
+            with torch.no_grad():
+                half_w = sizes[:, 0] / 2
+                half_h = sizes[:, 1] / 2
+                positions[:, 0].clamp_(half_w, self.cw - half_w)
+                positions[:, 1].clamp_(half_h, self.ch - half_h)
+                positions[fixed] = init_fixed[fixed]
+
+            if (
+                proxy_gate_every > 0
+                and fast_eval is not None
+                and it > 0
+                and it % proxy_gate_every == 0
+            ):
+                try:
+                    cur = float(fast_eval.evaluate(positions.detach().cpu()))
+                except Exception:
+                    cur = float("inf")
+                if cur < best_proxy:
+                    best_proxy = cur
+                    best_snapshot = positions.detach().clone()
+                elif cur > best_proxy + 0.10:
+                    # large regression — roll back
+                    with torch.no_grad():
+                        positions.copy_(best_snapshot)
+
+            if log_every > 0 and it % log_every == 0:
+                print(
+                    f"  [CustomGP v2] iter={it:4d}/{n_iters} "
+                    f"loss={loss.item():.4f} lr={lr_now:.4f} "
+                    f"density_w={density_w:.3f} gamma={gamma:.2f} sigma={sigma:.2f}"
+                )
+
+        # Return the best snapshot if proxy gate populated it, else the
+        # final positions.
+        if best_proxy < float("inf"):
+            return best_snapshot.detach().cpu()
         return positions.detach().cpu()
 
     # ------------------------------------------------------------------
