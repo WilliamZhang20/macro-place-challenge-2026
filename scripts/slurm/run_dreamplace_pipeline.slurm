@@ -85,11 +85,18 @@ else
 fi
 
 # -- Python path ---------------------------------------------------------------
-export PYTHONPATH="${REPO_ROOT}/python:${REPO_ROOT}/submissions${PYTHONPATH:+:$PYTHONPATH}"
+# Torch is only in ~/.local; numpy/matplotlib there are NumPy-2 and break plc_client.
+# Disable automatic user-site injection, then prepend conda before ~/.local explicitly.
+# Do NOT use ``python -S`` (that drops conda site-packages too → no torch).
+export PYTHONNOUSERSITE=1
+_PY_SITE="${CONDA_PREFIX}/lib/python3.11/site-packages"
+_USER_SITE="${HOME}/.local/lib/python3.11/site-packages"
+export PYTHONPATH="${_PY_SITE}:${_USER_SITE}:${REPO_ROOT}/python:${REPO_ROOT}/submissions${PYTHONPATH:+:$PYTHONPATH}"
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-8}"
 export CUDA_DEVICE_ORDER=PCI_BUS_ID
 export MACRO_PLACE_DP_GPU="${MACRO_PLACE_DP_GPU:-1}"
 export MACRO_PLACE_TUNER_DEBUG="${MACRO_PLACE_TUNER_DEBUG:-1}"
+export MACRO_PLACE_GWTW_MP_START="${MACRO_PLACE_GWTW_MP_START:-forkserver}"
 
 PYTHON="${PYTHON:-}"
 if [[ -z "${PYTHON}" && -n "${CONDA_PREFIX:-}" && -x "${CONDA_PREFIX}/bin/python" ]]; then
@@ -119,6 +126,22 @@ echo "Log: ${LOG_FILE}"
 RUNNER=()
 if [[ -n "${SLURM_JOB_ID:-}" ]] && command -v srun >/dev/null 2>&1; then
   RUNNER=(srun)
+fi
+
+if [[ "${MACRO_PLACE_ISOLATE_BENCHMARKS:-1}" == "1" && "${EVAL_ARGS}" == "--all" ]]; then
+  echo "Isolated per-benchmark mode: one fresh Python process per IBM benchmark" | tee "${LOG_FILE}"
+  _rc=0
+  for _bench in \
+      ibm01 ibm02 ibm03 ibm04 ibm06 ibm07 ibm08 ibm09 ibm10 \
+      ibm11 ibm12 ibm13 ibm14 ibm15 ibm16 ibm17 ibm18; do
+    echo | tee -a "${LOG_FILE}"
+    echo "==[${_bench}] $(date) ===============================================" | tee -a "${LOG_FILE}"
+    if ! "${RUNNER[@]}" "${PYTHON}" -m macro_place.evaluate "${PLACER}" -b "${_bench}" 2>&1 | tee -a "${LOG_FILE}"; then
+      _rc=1
+      echo "ERROR: benchmark ${_bench} failed" | tee -a "${LOG_FILE}"
+    fi
+  done
+  exit "${_rc}"
 fi
 
 "${RUNNER[@]}" "${PYTHON}" -m macro_place.evaluate "${PLACER}" ${EVAL_ARGS} 2>&1 | tee "${LOG_FILE}"

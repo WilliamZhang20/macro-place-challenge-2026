@@ -58,6 +58,22 @@ def _tuner_progress_enabled() -> bool:
     )
 
 
+def _pipeline_log(msg: str) -> None:
+    """Log to stderr, falling back to stdout if stderr is broken.
+
+    After GWTW multiprocessing on SLURM, stderr can stop accepting writes
+    while stdout (evaluate progress) still works — which made ibm04+ look
+    like instant ~1s placements with no ``[tune:dp]`` lines in slurm logs.
+    """
+
+    for stream in (sys.stderr, sys.stdout):
+        try:
+            print(msg, file=stream, flush=True)
+            return
+        except Exception:
+            continue
+
+
 def _clamp_centers(placement: torch.Tensor, benchmark: Benchmark) -> None:
     n = benchmark.num_hard_macros
     if n <= 0:
@@ -1187,10 +1203,10 @@ class DreamPlacePipeline:
             overlap_gap=1e-3,
         )
 
-    def place(self, benchmark: Benchmark) -> torch.Tensor:
-        return self.run(benchmark).placement
+    def place(self, benchmark: Benchmark, plc=None) -> torch.Tensor:
+        return self.run(benchmark, plc=plc).placement
 
-    def run(self, benchmark: Benchmark) -> DreamPlacePipelineResult:
+    def run(self, benchmark: Benchmark, plc=None) -> DreamPlacePipelineResult:
         # Raise NOFILE soft limit before spawning subprocesses or
         # multiprocessing pools.  On SLURM nodes the soft cap is often
         # 1024, which the 50 DREAMPlace subprocesses + 12 RePlAce
@@ -1206,6 +1222,14 @@ class DreamPlacePipeline:
         except Exception:
             pass
 
+        # GWTW SA multiprocessing can leave stderr unusable in the parent;
+        # fall back to stdout so ``[tune:dp]`` lines still appear in slurm logs.
+        try:
+            sys.stderr.write("")
+            sys.stderr.flush()
+        except Exception:
+            sys.stderr = sys.stdout
+
         pipeline_t0 = time.monotonic()
         # Per-benchmark wall budget the pipeline aims to respect.  The
         # official cap is 1h = 3600s; we target 3000s with 600s margin so
@@ -1216,7 +1240,10 @@ class DreamPlacePipeline:
         )
 
         seed = benchmark.macro_positions.clone().float()
-        plc = self.plc_lookup.load(benchmark)
+        if plc is None:
+            plc = self.plc_lookup.load(benchmark)
+        else:
+            self.plc_lookup._cache[benchmark.name] = plc
         inst = (
             Path(self.dreamplace_install)
             if self.dreamplace_install is not None
@@ -1224,6 +1251,11 @@ class DreamPlacePipeline:
         )
 
         if plc is None:
+            _pipeline_log(
+                f"[dreamplace-pipeline] {benchmark.name} abort: missing_plc "
+                f"(PlcLookup could not load PlacementCost — often fd/memory "
+                f"pressure after prior benchmarks in the same evaluate process)"
+            )
             fb = self._repair_seed(seed, benchmark)
             return DreamPlacePipelineResult(
                 placement=fb,
@@ -1231,8 +1263,12 @@ class DreamPlacePipeline:
                 selection=None,
                 reason="missing_plc",
             )
-        ok, _ = dreamplace_install_ok(inst)
+        ok, msg = dreamplace_install_ok(inst)
         if not ok:
+            _pipeline_log(
+                f"[dreamplace-pipeline] {benchmark.name} abort: "
+                f"dreamplace_install_missing ({msg})"
+            )
             fb = self._repair_seed(seed, benchmark)
             return DreamPlacePipelineResult(
                 placement=fb,
@@ -1640,6 +1676,10 @@ class DreamPlacePipeline:
                     candidates.append(rplacement)
 
         if not candidates:
+            _pipeline_log(
+                f"[dreamplace-pipeline] {benchmark.name} abort: "
+                f"all_dreamplace_starts_failed"
+            )
             fb = self._repair_seed(seed, benchmark)
             return DreamPlacePipelineResult(
                 placement=fb,
@@ -1658,6 +1698,10 @@ class DreamPlacePipeline:
             if _tuner_progress_enabled():
                 _log_selection_scores("pre", preliminary)
         except ValueError:
+            _pipeline_log(
+                f"[dreamplace-pipeline] {benchmark.name} abort: "
+                f"no_valid_dreamplace_candidate"
+            )
             fb = self._repair_seed(seed, benchmark)
             return DreamPlacePipelineResult(
                 placement=fb,
@@ -1665,7 +1709,11 @@ class DreamPlacePipeline:
                 selection=None,
                 reason="no_valid_dreamplace_candidate",
             )
-        except Exception:
+        except Exception as exc:
+            _pipeline_log(
+                f"[dreamplace-pipeline] {benchmark.name} abort: "
+                f"selection_failed ({exc!r})"
+            )
             fb = self._repair_seed(seed, benchmark)
             return DreamPlacePipelineResult(
                 placement=fb,
@@ -2282,12 +2330,11 @@ class DreamPlacePipeline:
                             flush=True,
                         )
             except Exception as e:
-                if _tuner_progress_enabled():
-                    print(
-                        f"[tune:dp] {benchmark.name}  gwtw_sa exception: {e!r}",
-                        file=sys.stderr,
-                        flush=True,
-                    )
+                _pipeline_log(
+                    f"[tune:dp] {benchmark.name}  gwtw_sa exception: {e!r} "
+                    f"(keeping pre-GWTW selection proxy="
+                    f"{selection.best.proxy_cost:.4f})"
+                )
 
         return DreamPlacePipelineResult(
             placement=selection.placement,

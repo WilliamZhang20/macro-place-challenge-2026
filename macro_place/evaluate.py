@@ -11,10 +11,14 @@ Usage:
 """
 
 import argparse
+import gc
 import importlib.util
+import inspect
 import sys
 import time
 from pathlib import Path
+
+import torch
 
 from macro_place.loader import load_benchmark, load_benchmark_from_dir
 from macro_place.objective import compute_proxy_cost
@@ -139,7 +143,11 @@ def evaluate_benchmark(placer, name: str, testcase_root: str, ng45_dir: str = No
         benchmark, plc = load_benchmark_from_dir(benchmark_dir)
 
     start = time.time()
-    placement = placer.place(benchmark)
+    place_params = inspect.signature(placer.place).parameters
+    if "plc" in place_params:
+        placement = placer.place(benchmark, plc=plc)
+    else:
+        placement = placer.place(benchmark)
     runtime = time.time() - start
 
     is_valid, violations = validate_placement(placement, benchmark)
@@ -293,7 +301,16 @@ def main():
 
     # ── determine which benchmarks to run ────────────────────────────────
     if args.ng45:
-        benchmarks_to_run = list(NG45_BENCHMARKS.keys())
+        if args.benchmark:
+            if args.benchmark not in NG45_BENCHMARKS:
+                print(
+                    f"Error: unknown NG45 benchmark {args.benchmark!r}. "
+                    f"Expected one of: {', '.join(NG45_BENCHMARKS)}"
+                )
+                sys.exit(2)
+            benchmarks_to_run = [args.benchmark]
+        else:
+            benchmarks_to_run = list(NG45_BENCHMARKS.keys())
     elif args.all:
         benchmarks_to_run = BENCHMARKS
     else:
@@ -322,6 +339,10 @@ def main():
             f"(wl={result['wirelength']:.3f} den={result['density']:.3f} cong={result['congestion']:.3f})  "
             f"{status}  [{result['runtime']:.2f}s]"
         )
+
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         if args.vis:
             vis_dir = Path("vis")

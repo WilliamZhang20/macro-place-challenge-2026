@@ -56,9 +56,46 @@ _W_BENCHMARK: Optional[Benchmark] = None
 _W_PLC = None
 
 
+def _sanitize_mp_worker_env() -> None:
+    """Keep workers off the default user-site *prepend* (matplotlib ABI).
+
+    SLURM sets ``PYTHONNOUSERSITE=1`` and puts conda site-packages ahead of
+    ``~/.local`` in ``PYTHONPATH`` (torch only in user-site).  Do not remove
+    ``~/.local`` from ``sys.path`` here — that breaks torch in pool children.
+    """
+
+    try:
+        import site  # noqa: PLC0415
+
+        site.ENABLE_USER_SITE = False
+    except Exception:
+        pass
+
+
+def _gwtw_mp_context():
+    """Multiprocessing context for GWTW workers.
+
+    ``spawn`` re-runs ``macro_place.evaluate`` in every child (matplotlib/numpy
+    ABI failures).  ``forkserver`` forks from a small server process so
+    workers only execute ``_worker_init`` / ``_worker_sa_batch`` without
+    re-importing the evaluator main module.
+    """
+
+    import multiprocessing as mp  # noqa: PLC0415
+
+    preferred = os.environ.get("MACRO_PLACE_GWTW_MP_START", "forkserver").strip()
+    for method in (preferred, "forkserver", "spawn"):
+        try:
+            return mp.get_context(method)
+        except ValueError:
+            continue
+    return mp.get_context("spawn")
+
+
 def _worker_init(benchmark: Benchmark) -> None:
     """Load PlacementCost in each worker process once."""
     global _W_BENCHMARK, _W_PLC
+    _sanitize_mp_worker_env()
     # Re-add submissions to path inside the child process.
     _here = Path(__file__).resolve().parent
     if str(_here) not in sys.path:
@@ -67,6 +104,10 @@ def _worker_init(benchmark: Benchmark) -> None:
 
     _W_BENCHMARK = benchmark
     _W_PLC = PlcLookup().load(benchmark)
+    if _W_PLC is None:
+        raise RuntimeError(
+            f"GWTW worker could not load PlacementCost for {benchmark.name}"
+        )
 
 
 def _worker_sa_batch(args) -> Tuple[np.ndarray, float, np.ndarray, float, int, int, int]:
@@ -378,7 +419,8 @@ def tilos_gwtw_sa_refine(
             flush=True,
         )
 
-    ctx = mp.get_context("spawn")
+    _sanitize_mp_worker_env()
+    ctx = _gwtw_mp_context()
     pool = ctx.Pool(
         processes=num_workers,
         initializer=_worker_init,

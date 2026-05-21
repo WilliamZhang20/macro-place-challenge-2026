@@ -84,12 +84,16 @@ else
   echo "WARNING: nvcc not found on PATH; DREAMPlace will only work if this install can run without it." >&2
 fi
 
-# -- Python path ---------------------------------------------------------------
-export PYTHONPATH="${REPO_ROOT}/python:${REPO_ROOT}/submissions${PYTHONPATH:+:$PYTHONPATH}"
+# -- Python path (conda before ~/.local; see run_dreamplace_pipeline.slurm) ----
+export PYTHONNOUSERSITE=1
+_PY_SITE="${CONDA_PREFIX}/lib/python3.11/site-packages"
+_USER_SITE="${HOME}/.local/lib/python3.11/site-packages"
+export PYTHONPATH="${_PY_SITE}:${_USER_SITE}:${REPO_ROOT}/python:${REPO_ROOT}/submissions${PYTHONPATH:+:$PYTHONPATH}"
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-8}"
 export CUDA_DEVICE_ORDER=PCI_BUS_ID
 export MACRO_PLACE_DP_GPU="${MACRO_PLACE_DP_GPU:-1}"
 export MACRO_PLACE_TUNER_DEBUG="${MACRO_PLACE_TUNER_DEBUG:-1}"
+export MACRO_PLACE_GWTW_MP_START="${MACRO_PLACE_GWTW_MP_START:-forkserver}"
 
 PYTHON="${PYTHON:-}"
 if [[ -z "${PYTHON}" && -n "${CONDA_PREFIX:-}" && -x "${CONDA_PREFIX}/bin/python" ]]; then
@@ -119,6 +123,20 @@ echo "Log: ${LOG_FILE}"
 RUNNER=()
 if [[ -n "${SLURM_JOB_ID:-}" ]] && command -v srun >/dev/null 2>&1; then
   RUNNER=(srun)
+fi
+
+if [[ "${MACRO_PLACE_ISOLATE_BENCHMARKS:-1}" == "1" && "${EVAL_ARGS}" == "--ng45" ]]; then
+  echo "Isolated per-benchmark mode: one fresh Python process per NG45 benchmark" | tee "${LOG_FILE}"
+  _rc=0
+  for _bench in ariane133 ariane136 mempool_tile nvdla; do
+    echo | tee -a "${LOG_FILE}"
+    echo "==[${_bench}] $(date) ===============================================" | tee -a "${LOG_FILE}"
+    if ! "${RUNNER[@]}" "${PYTHON}" -m macro_place.evaluate "${PLACER}" --ng45 -b "${_bench}" 2>&1 | tee -a "${LOG_FILE}"; then
+      _rc=1
+      echo "ERROR: benchmark ${_bench} failed" | tee -a "${LOG_FILE}"
+    fi
+  done
+  exit "${_rc}"
 fi
 
 "${RUNNER[@]}" "${PYTHON}" -m macro_place.evaluate "${PLACER}" ${EVAL_ARGS} 2>&1 | tee "${LOG_FILE}"

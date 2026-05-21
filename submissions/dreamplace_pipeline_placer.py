@@ -134,5 +134,5 @@ class DreamplacePipelinePlacer:
         else:
             self.pipeline = DreamPlacePipeline(rich_candidate_set=rich)
 
-    def place(self, benchmark: Benchmark) -> torch.Tensor:
-        return self.pipeline.place(benchmark)
+    def place(self, benchmark: Benchmark, plc=None) -> torch.Tensor:
+        return self.pipeline.place(benchmark, plc=plc)
