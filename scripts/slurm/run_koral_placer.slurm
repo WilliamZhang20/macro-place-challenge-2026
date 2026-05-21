@@ -2,19 +2,19 @@
 # Run the DREAMPlace -> RePlAce refinement pipeline evaluator.
 #
 # Submit from repo root:
-#   sbatch scripts/slurm/run_dreamplace_pipeline.slurm
+#   sbatch scripts/slurm/run_koral_placer.slurm
 #
 # Optional:
-#   sbatch --export=ALL,EVAL_ARGS="-b ibm01" scripts/slurm/run_dreamplace_pipeline.slurm
-#   sbatch --export=ALL,TILUS_CONDA_ENV=myenv,TILUS_CONDA_BASE=$HOME/miniconda3 scripts/slurm/run_dreamplace_pipeline.slurm
+#   sbatch --export=ALL,EVAL_ARGS="-b ibm01" scripts/slurm/run_koral_placer.slurm
+#   sbatch --export=ALL,TILUS_CONDA_ENV=myenv,TILUS_CONDA_BASE=$HOME/miniconda3 scripts/slurm/run_koral_placer.slurm
 #
-#SBATCH --job-name=dreamplace_pipeline
+#SBATCH --job-name=koral_placer
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
 #SBATCH --gres=gpu:1
-#SBATCH --time=12:00:00
+#SBATCH --time=18:00:00
 #SBATCH --output=sweep_logs/slurm_%j_%x.out
 #SBATCH --error=sweep_logs/slurm_%j_%x.err
 
@@ -97,7 +97,7 @@ if [[ -z "${PYTHON}" && -n "${CONDA_PREFIX:-}" && -x "${CONDA_PREFIX}/bin/python
 fi
 PYTHON="${PYTHON:-python}"
 
-PLACER="${PLACER:-submissions/dreamplace_pipeline_placer.py}"
+PLACER="${PLACER:-submissions/placer.py}"
 EVAL_ARGS="${EVAL_ARGS:---all}"
 STAMP="$(date +%Y%m%d_%H%M%S)"
 LOG_FILE="${LOG_FILE:-sweep_logs/dreamplace_pipeline_${SLURM_JOB_ID:-local}_${STAMP}.log}"

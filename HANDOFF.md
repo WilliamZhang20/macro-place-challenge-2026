@@ -59,13 +59,14 @@ or `select_best_true_proxy_candidates_only()`.
   `pre_dp_valid_selection="diverse"`.
 - `explicit_legalize_dp_outputs=True`.
 - `replace_rescue=True`, `replace_rescue_trigger_proxy=0.0`,
-  `replace_rescue_timeout_seconds=240.0`.
-- Coordinate descent is enabled:
-  `post_rescue_coord_descent_seconds=240.0`,
-  `post_rescue_coord_descent_max_passes=1`,
-  `post_rescue_coord_descent_node_order="descending_size"`.
+  `replace_rescue_timeout_seconds=150.0` (was 240.0; per-config rescue
+  timeout is further capped by remaining wall budget at call time).
+- Coordinate descent is **disabled by default**
+  (`post_rescue_coord_descent_seconds=0.0`); dropped after a
+  bang-per-minute analysis showed it found 0–1 moves vs GWTW's 7–21 on
+  the same wall time. Set this > 0 to re-enable.
 - GWTW SA is enabled:
-  `post_rescue_gwtw_seconds=180.0`,
+  `post_rescue_gwtw_seconds=360.0` (was 180s; CD's freed budget),
   `post_rescue_gwtw_num_workers=8`,
   `post_rescue_gwtw_num_iters=120`,
   `post_rescue_gwtw_syncup_freq=0.20`,
@@ -118,14 +119,19 @@ Tuner-provided `dreamplace_json_overrides` are deep-merged on top.
 
 ## Start and Iteration Policy
 
-`cap_num_starts()` keeps runtime bounded while allowing 50 DREAMPlace starts on
-smaller benchmarks:
+`cap_num_starts()` keeps runtime bounded; tiers use macro count AND net
+count (`macros × nets` is the runtime proxy):
 
 - `num_hard_macros >= 1600`: cap at 8 starts.
 - `>= 1000`: cap at 14.
 - `>= 700`: cap at 20.
 - `>= 450`: cap at 32.
+- `>= 350 AND num_nets >= 10000`: cap at 24 (added after ibm10 = 9952 s
+  rule violation in the 2026-05-20 sweep).
 - otherwise: cap at 50.
+
+Total DP starts also include pre-DP discovered starts (`pre_dp_valid_starts`,
+nh-capped — see Pre-DP Valid-Start Discovery below).
 
 When `scale_iterations_with_features=True`, iterations are stretched for higher
 hard-area utilization and macro count, capped at 1.25x the base count.
@@ -161,8 +167,15 @@ The pre-DP discovery stage is opt-in (`pre_dp_valid_starts > 0`). It:
 - appends selected starts to the normal DREAMPlace portfolio rather than
   replacing the empirically useful base start/variant pairings.
 
-Default knobs are `pre_dp_valid_pool_size=24`, `pre_dp_valid_selection="proxy"`,
-`pre_dp_proxy_eval_limit=8`, and pre-DP SA disabled.
+Default knobs are `pre_dp_valid_pool_size=56`, `pre_dp_valid_starts=44`,
+`pre_dp_valid_selection="diverse"`, `pre_dp_proxy_eval_limit=8`, and pre-DP
+SA disabled. Both `pool_size` and `requested` are dynamically capped by
+hard-macro count to keep pre-DP discovery time bounded:
+
+- nh ≥ 1000 → pool 10, req 6
+- nh ≥ 600 → pool 18, req 12
+- nh ≥ 400 → pool 30, req 22
+- otherwise → 56/44 (defaults)
 
 ## DREAMPlace Variant Portfolio
 
@@ -243,59 +256,85 @@ removed from the pipeline surface.
 RePlAce rescue is enabled whenever the current selection is valid because
 `replace_rescue_trigger_proxy=0.0`.
 
-The rescue portfolio is a lean 3-config congestion-focused set:
+The rescue portfolio is an **orthogonal 12-config** set spanning the
+`(density, pcofmax, bin, overflow, pcofmin, racnt*)` grid. Memory note:
+RePlAce's final basin is determined by `(density, pcofmax)` regardless of
+seed, so seed diversity without config diversity is wasted. Slots 0-2 are
+the proven congestion-attack winners; slots 3-7 are historical
+`_GENERIC_CONFIGS` winners (including the `-bin 64` paths that found the
+ibm01 0.9219 baseline); slots 8-11 fill in `(density × pcofmax)` corners
+that were not yet covered:
 
-- `density=0.74`, `pcofmax=1.20`, `-bin 128`, `-overflow 0.04`,
-  `-pcofmin 0.90`;
-- `density=0.82`, `pcofmax=1.50`, `-bin 128`, `-overflow 0.05`,
-  `-pcofmin 0.85`;
-- `density=0.72`, `pcofmax=1.08`, `-bin 128`, `-overflow 0.06`,
-  `-racnti 5`, `-racnto 10`.
+| # | density | pcofmax | extra args |
+|---|---------|---------|------------|
+| 0 | 0.74 | 1.20 | `-bin 128 -overflow 0.04 -pcofmin 0.90` |
+| 1 | 0.82 | 1.50 | `-bin 128 -overflow 0.05 -pcofmin 0.85` |
+| 2 | 0.72 | 1.08 | `-bin 128 -overflow 0.06 -racnti 5 -racnto 10` |
+| 3 | 0.80 | 1.03 | `-bin 128 -pcofmin 0.98` |
+| 4 | 0.80 | 1.20 | `-bin 128` |
+| 5 | 0.84 | 1.20 | `-bin 128` |
+| 6 | 0.70 | 1.03 | `-bin 64` |
+| 7 | 0.84 | 1.03 | `-bin 64` |
+| 8 | 0.76 | 1.08 | `-bin 128 -overflow 0.05` |
+| 9 | 0.78 | 1.20 | `-bin 128 -overflow 0.05 -pcofmin 0.92` |
+| 10 | 0.86 | 1.08 | `-bin 128` |
+| 11 | 0.74 | 1.50 | `-bin 128 -overflow 0.05 -racnti 8 -racnto 12` |
 
-It runs those configs from:
+Seeds and configs are paired **Latin-square** style so every `(seed, config)`
+combination targets a distinct basin and no config is duplicated across
+seeds. Densities are matched to seed character so RePlAce does not abort
+with `"no more tier to assign!"` on the dense `.plc` initial placement.
+After winner analysis, DP ranks 1, 2, 3 are **dropped** entirely (never
+won outright). Only three rescue groups survive:
 
-- the original `.plc` seed as a guardrail;
-- the top `top_dp_for_rescue` valid preliminary DREAMPlace outputs by true
-  proxy, default 5.
+- `.plc` initial seed (guardrail, dense): configs 3, 4, 5 (`density >= 0.80`)
+- DP rank 0 (top DP output, dense): configs 1, 7
+- DP rank 4 (most-spread DP): config 6 (low-density 0.70 bin=64)
 
-With defaults, the code attempts 3 initial-seeded RePlAce runs plus up to
-`3 * 5` DP-seeded runs. `ReplacePipeline` scores its own candidates; the outer
-pipeline renames and reuses those cached score records, then selects the lowest
-valid proxy across DREAMPlace, post-DP-SA, and RePlAce candidates.
+Total: **6 invocations** (was 12). Reasoning per benchmark:
+
+- `replace_initial` wins on ibm07, ibm14, ibm17
+- `dp_rank0` wins on ibm10
+- `dp_rank4` wins on ibm01 (only path where low-density bin=64 converges
+  — needs a spread seed)
+
+The three groups are dispatched via a `ThreadPoolExecutor` (3 workers by
+default, `MACRO_PLACE_RESCUE_WORKERS`). Each task gets its own
+`work_root` subdir (`<tmp>/macro_place_replace_pipeline/<bench>__<prefix>/`)
+so concurrent Bookshelf exports don't collide. Thread-safe
+`rescue_scores` aggregation via `threading.Lock`. Expected ~2× speedup
+on rescue stage.
+
+`ReplacePipeline` scores its own candidates; the outer pipeline renames
+and reuses those cached score records, then selects the lowest valid
+proxy across DREAMPlace and RePlAce candidates.
 
 ## Post-Rescue Polish Stages
 
-Post-rescue polish stages run only when their budgets are positive and the
-current best is valid.
+Only GWTW SA is enabled by default. Coordinate descent was dropped after
+bang-per-minute analysis showed it found 0–1 moves vs GWTW's 7–21 on the
+same wall time; on the only benchmark where polish moved the needle
+(ibm01) GWTW was ~5× more cost-effective per minute. GWTW gets the
+budget freed by CD (360s, up from 180s).
 
-1. Legacy post-rescue surrogate SA: disabled by default.
-2. Congestion-targeted directional polish: disabled by default.
-3. Single-worker direct-proxy TILOS-style SA: disabled by default.
-4. Coordinate descent: enabled by default.
-5. Go-With-The-Winners SA: enabled by default.
-6. Random-jitter greedy true-proxy refine: disabled by default.
+Failures in GWTW are caught so the current best (rescue or DP)
+placement remains the fallback.
 
-Failures in these stages are caught so the current best placement remains the
-fallback.
+**Critical fd-leak fix (2026-05-20):** GWTW SA's `multiprocessing.Pool`
+crashed with `OSError(24, "Too many open files")` on slurm runs once
+the process accumulated ~51k fds (cgroup cap 51200). Root cause was
+PyTorch's default `file_descriptor` shared-memory strategy holding one
+fd per shared tensor across DREAMPlace + RePlAce invocations. Both
+`_dreamplace_pipeline.py` and `_tilos_gwtw_sa.py` now call
+`torch.multiprocessing.set_sharing_strategy("file_system")` at module
+import, switching to `/dev/shm` filenames instead of fds.
 
-## Coordinate Descent
+## Coordinate Descent (disabled by default)
 
 `submissions/_coord_descent.py` implements a TILOS-style coordinate descent
-polish with this repo's direct proxy scoring.
-
-For each movable hard macro, it:
-
-- chooses a k-distance bounded neighborhood around the macro's current evaluator
-  grid cell;
-- optionally filters cells with `plc.get_node_mask()`;
-- optionally subsamples cells with `cell_search_prob`;
-- tries candidate cell centers, clips to canvas, legalizes lightly, validates,
-  and scores with `compute_proxy_cost()`;
-- accepts only strict proxy improvements.
-
-Defaults are one pass, 240 seconds, descending macro-size order, and adaptive
-`k_bound` if not provided. The adaptive `k_bound` is broader for small macro
-counts and shrinks on larger benchmarks to keep scored cells bounded.
+polish with this repo's direct proxy scoring. Set
+`post_rescue_coord_descent_seconds > 0` to re-enable; otherwise skipped.
+The 0–1 moves it found across ibm01/07/10/14 didn't justify its 240s.
 
 ## GWTW SA
 
@@ -335,6 +374,109 @@ The pipeline scales GWTW iterations down only when a tuner raises the default:
 With the current default of 120 iterations, these caps do not reduce normal
 default runs.
 
+## Runtime Budget Enforcement (2026-05-20)
+
+After observing **ibm10 = 9952s** (2.77× the 1h rule cap) and **nvdla = 4663s**
+in the prior sweeps, the pipeline now enforces a per-benchmark wall budget end
+to end. Default is 2700s via `MACRO_PLACE_PIPELINE_WALL_BUDGET_S` (900s margin
+under the 3600s rule).
+
+Layered guards:
+
+| Stage | Threshold | Action |
+|-------|----------:|--------|
+| DP loop | elapsed > 55% (1485s) **and** ≥8 starts done | early-exit |
+| Pre-DP discovery cap | nh≥1000 → pool=10 req=6; nh≥600 → 18/12; nh≥400 → 30/22 | shrink pool/req |
+| `cap_num_starts` mid-tier | nh≥350 AND nets≥10000 | cap=24 |
+| Rescue per-call | elapsed > 85% (2295s) | skip remaining `merge_rescue` calls |
+| Rescue per-config timeout | – | `min(150s, (remaining − 360s) / n_configs)`, floor 30s |
+| Polish (GWTW) | elapsed > 92% (2484s) | skip |
+| Polish stage budget | – | `min(360s, remaining × 0.85)` |
+| File-descriptor soft cap | first thing in `run()` | raise to `min(hard, 65536)` to prevent GWTW `OSError(24)` |
+
+These guards target the 1h hard cap with margin. The fd-raise also resolved
+the **GWTW SA `OSError(24, "Too many open files")`** that was crashing the
+ibm10/nvdla GWTW stage in the 2026-05-20 sweep.
+
+### Polish stages: coord_desc dropped
+
+Bang-per-minute analysis across ibm01/07/10/14 showed:
+
+- coord_desc: 0–1 accepted moves per 240s budget, max Δ ≈ -0.0002
+- GWTW SA: 7–21 accepted moves per 180s, max Δ ≈ -0.0008
+
+GWTW won ~5× on Δproxy/minute. **coord_desc was dropped** (default
+`post_rescue_coord_descent_seconds=0.0`); GWTW SA was bumped from 180s to
+360s with the freed budget.
+
+### Rescue trim
+
+After analyzing per-benchmark winners, dropped DP ranks 1, 2, 3 entirely.
+Only `replace_initial` (3 configs), `dp_rank0` (2 configs), and `dp_rank4`
+(1 config) survive. Six invocations down from eleven. Reasoning:
+
+- `replace_initial` wins on ibm07, ibm14
+- `dp_rank0` wins on ibm10
+- `dp_rank4` wins on ibm01 (only path where low-density bin=64 converges)
+- Ranks 1/2/3 never won outright on tested benchmarks
+
+### Parallel rescue + parallel scoring
+
+- `merge_rescue` calls now dispatched via `ThreadPoolExecutor` (3 workers
+  by default, `MACRO_PLACE_RESCUE_WORKERS`). Each task gets its own
+  `work_root` subdir so concurrent Bookshelf exports don't collide.
+  Expected ~2× speedup on rescue stage.
+- `select_best_true_proxy_candidates_only` now scores candidates via
+  `multiprocessing.Pool` (4 workers by default,
+  `MACRO_PLACE_PARALLEL_SCORE_WORKERS`) when ≥4 candidates. Each worker
+  loads its own `PlacementCost`. Expected ~3× speedup on big benchmarks
+  with many DP outputs.
+
+### Status as of 2026-05-20 16:52 UTC (interactive about to be cancelled)
+
+**Slurm job 1441565** — `--all` IBM sweep with fd-leak fix
+(`torch.multiprocessing.set_sharing_strategy('file_system')` in both
+`_dreamplace_pipeline.py` and `_tilos_gwtw_sa.py`) applied. Submitted
+2026-05-20 ~17:35 UTC, queued behind 1441528. Logs:
+`sweep_logs/slurm_1441565_dreamplace_pipeline.{out,err}` plus per-run
+`sweep_logs/dreamplace_pipeline_1441565_<timestamp>.log`. This is the
+"clean" sweep — GWTW SA should not crash mid-run anymore.
+
+**Slurm job 1441528** — `--all` IBM sweep with current runtime-fix code on
+`watgpu108`, started 15:34 UTC, 12h wall limit:
+
+- ibm01: 0.9219 (1554s) ✓
+- ibm02: 1.3059 (1743s) ✓
+- ibm03+: in flight
+
+**Old slurm 1441398** — pre-fix code, still running on same node; its
+ibm10 hit 9952s (rule violation). Don't promote those numbers.
+
+**Local validation chain** (watgpu608, GPU contended by another user's
+vLLM jobs — local timings inflated):
+
+- ibm10 v4: **1.1687** (2761s, 46 min) ✓ beats historical 1.1688
+- ibm16 v4: **1.2533** (2398s, 40 min) ✓ beats historical 1.4780 by 0.225
+- ibm17 v4: in progress, DP loop just done at ~32 min — will likely
+  abort when interactive 1441448 cancels.
+
+### Outstanding work for next session
+
+1. **Wait for slurm 1441528 to finish** — gives clean per-benchmark numbers
+   on all 17 IBM (current code, runtime-safe).
+2. **Compare 1441528 vs historical baselines** to identify any regression
+   the budget guards may have introduced (e.g., truncated rescue on
+   net-heavy benchmarks).
+3. **Stage uncommitted changes**: `submissions/_dreamplace_pipeline.py`
+   (budget guards, rescue trim, parallel rescue, CD-drop, GWTW boost),
+   `submissions/_candidate_select.py` (parallel scoring), HANDOFF.md
+   updates. GPG signing still requires a TTY; commit manually.
+4. **Re-validate ibm17 locally** once interactive session is back —
+   chain v4 was killed mid-ibm17 by interactive cancellation.
+5. **Consider**: relaunching a slurm sweep that picks up the
+   parallel-rescue + parallel-scoring edits (1441528 was launched before
+   those landed and won't benefit).
+
 ## Runtime Environment Notes
 
 `submissions/_dreamplace_cpu_smoke.py` now tries harder to preload a compatible
@@ -362,6 +504,95 @@ Set `MACRO_PLACE_TUNER_DEBUG=1` for stage-level tuner progress logs.
 Fallback placement is produced by `legalize_hard()` on the original seed with
 1200 legalizer rounds and `overlap_gap=1e-3`.
 
+## Sweep Logs
+
+Two SLURM jobs were submitted on 2026-05-20 against the orthogonal RePlAce
+rescue portfolio (`_dreamplace_pipeline.py` Latin-square pairing). Both use
+`scripts/slurm/run_dreamplace_pipeline*.slurm`.
+
+- **IBM `--all`** — job `1441398`, script
+  `scripts/slurm/run_dreamplace_pipeline.slurm`.
+  - SLURM stdout/err: `sweep_logs/slurm_1441398_dreamplace_pipeline.out`,
+    `sweep_logs/slurm_1441398_dreamplace_pipeline.err`.
+  - Per-run tee: `sweep_logs/dreamplace_pipeline_1441398_<timestamp>.log`.
+- **NG45 `--ng45`** — job `1441399`, script
+  `scripts/slurm/run_dreamplace_pipeline_ng45.slurm`.
+  - SLURM stdout/err: `sweep_logs/slurm_1441399_dreamplace_pipeline_ng45.out`,
+    `sweep_logs/slurm_1441399_dreamplace_pipeline_ng45.err`.
+  - Per-run tee: `sweep_logs/dreamplace_pipeline_1441399_<timestamp>.log`.
+
+Track queue state with `squeue -j 1441398,1441399`.
+
+### Density-Aware Re-Pairing Validation (2026-05-20)
+
+After observing repeated `ValueError("no valid placement candidates")`
+exceptions in the `.plc`-seeded rescue on multiple benchmarks, the pairing
+was redesigned so the dense `.plc` seed only sees high-density (`>=0.80`)
+configs. Validation on three IBM benchmarks:
+
+| Benchmark | New (re-paired) | Historical | Δ | Note |
+|-----------|----------------:|-----------:|---:|------|
+| ibm01 | **0.9217** | 0.9219 | -0.0002 | tie within polish variance; `.plc` rescue now succeeds (3 valid candidates vs 0) |
+| ibm07 | 1.2634 | 1.2368 | +0.0266 | matches a different historical state; `.plc` rescue now succeeds but does not beat the older "high-cost initial rescue config" path that the orthogonal refactor removed |
+| ibm14 | **1.4011** | 1.4012 | -0.0001 | matches historical at rescue exit (`.plc` seed + config 3 = `0.80, 1.03, pcofmin=0.98`), GWTW SA polishes by 0.0001 |
+
+Validation logs:
+`sweep_logs/ibm01_repair_pair_20260520_060533.log`,
+`sweep_logs/ibm07_repair_pair_20260520_062753.log`,
+`sweep_logs/ibm14_repair_validation_20260520_072714.log`.
+
+Root cause for the rescue exception: RePlAce's mixed-size global placer
+aborts with `"no more tier to assign"` when a low-density target (e.g.
+`density=0.74`) is applied to a dense seed, producing zero `.pl` files
+that the candidate batch then rejects. Re-pairing only the `.plc` seed
+to high-density configs eliminates the abort across the tested
+benchmarks.
+
+### ibm01 Validation Result
+
+Single-benchmark dry run of the orthogonal rescue change before submitting
+the full sweeps. Log: `sweep_logs/ibm01_ortho_rescue_20260520_043517.log`.
+Total wall: 1357.60 s.
+
+| Stage | Best valid proxy | Δ |
+|-------|------------------|----|
+| DP top-5 (post-DP true-proxy selection) | 0.9959 | — |
+| RePlAce rescue (winner: DP rank 1, config 6 `den=0.70 pcof=1.03 bin=64`) | **0.9219** | −0.0740 |
+| Coordinate descent (1 accepted move) | 0.9217 | −0.0002 |
+| GWTW SA (21/119 accepted) | **0.9209** | −0.0008 |
+
+Final: `proxy=0.9209 (wl=0.067, den=0.596, cong=1.112), VALID`.
+
+For reference: historical baseline is 0.9219 (from the older
+`_GENERIC_CONFIGS` 17-config sweep) and the trimmed 3-config rescue
+regressed to 0.9321. The new orthogonal portfolio recovers the historical
+basin (config 6, `den=0.70 pcof=1.03 bin=64`, was dropped by the trim)
+and beats it by 0.0010.
+
+Per-seed rescue breakdown (10 of 12 invocations succeeded):
+
+| Rescue seed | Configs | Best valid proxy |
+|-------------|---------|------------------|
+| `.plc` initial | 0, 1, 2 | exception — `no valid placement candidates` |
+| DP rank 0 | 3, 4 | 0.9790 |
+| DP rank 1 | 5, 6 | **0.9219** |
+| DP rank 2 | 7, 8 | 1.0043 |
+| DP rank 3 | 9, 10 | 0.9737 |
+| DP rank 4 | 11 | exception — `no valid placement candidates` |
+
+Two known soft failures on this benchmark:
+
+1. The `.plc`-seeded guardrail rescue (configs 0-2) threw `ValueError("no
+   valid placement candidates")`. Under the old cross-product the same
+   three configs were also run from each DP seed, masking this; under the
+   Latin-square pairing they only run from the `.plc` seed and so the
+   failure now surfaces. Did not affect the final result because DP rank 1
+   won, but worth investigating before promoting on harder benchmarks
+   where the guardrail matters.
+2. DP rank 4 with config 11 (aggressive routability, `racnti=8 racnto=12`)
+   threw the same error. Likely a convergence-from-this-seed problem with
+   that specific config.
+
 ## Current Mental Model
 
 The pipeline is a three-layer strategy:
@@ -377,7 +608,8 @@ The highest-leverage knobs are:
 - effective DREAMPlace start count and rich-variant ordering;
 - opt-in pre-DP valid-start discovery;
 - `top_dp_for_rescue`;
-- the 3 RePlAce rescue configs;
+- the 12 orthogonal RePlAce rescue configs and their Latin-square pairing
+  with the `.plc` seed and the top-K DP outputs;
 - coordinate descent `k_bound`, pass count, and time budget;
 - GWTW worker count, iteration count, temperatures, sync frequency, and `top_k`;
 - runtime caps on high-net-count benchmarks.

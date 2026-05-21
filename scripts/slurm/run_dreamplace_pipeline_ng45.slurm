@@ -1,20 +1,20 @@
 #!/bin/bash
-# Run the DREAMPlace -> RePlAce refinement pipeline evaluator.
+# Run the DREAMPlace -> RePlAce refinement pipeline evaluator on the 4 NG45 designs.
 #
 # Submit from repo root:
-#   sbatch scripts/slurm/run_dreamplace_pipeline.slurm
+#   sbatch scripts/slurm/run_dreamplace_pipeline_ng45.slurm
 #
 # Optional:
-#   sbatch --export=ALL,EVAL_ARGS="-b ibm01" scripts/slurm/run_dreamplace_pipeline.slurm
-#   sbatch --export=ALL,TILUS_CONDA_ENV=myenv,TILUS_CONDA_BASE=$HOME/miniconda3 scripts/slurm/run_dreamplace_pipeline.slurm
+#   sbatch --export=ALL,EVAL_ARGS="-b ariane133" scripts/slurm/run_dreamplace_pipeline_ng45.slurm
+#   sbatch --export=ALL,TILUS_CONDA_ENV=myenv,TILUS_CONDA_BASE=$HOME/miniconda3 scripts/slurm/run_dreamplace_pipeline_ng45.slurm
 #
-#SBATCH --job-name=dreamplace_pipeline
+#SBATCH --job-name=dreamplace_pipeline_ng45
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --gres=gpu:1
-#SBATCH --time=12:00:00
+#SBATCH --time=06:00:00
 #SBATCH --output=sweep_logs/slurm_%j_%x.out
 #SBATCH --error=sweep_logs/slurm_%j_%x.err
 
@@ -98,7 +98,7 @@ fi
 PYTHON="${PYTHON:-python}"
 
 PLACER="${PLACER:-submissions/dreamplace_pipeline_placer.py}"
-EVAL_ARGS="${EVAL_ARGS:---all}"
+EVAL_ARGS="${EVAL_ARGS:---ng45}"
 STAMP="$(date +%Y%m%d_%H%M%S)"
 LOG_FILE="${LOG_FILE:-sweep_logs/dreamplace_pipeline_${SLURM_JOB_ID:-local}_${STAMP}.log}"
 

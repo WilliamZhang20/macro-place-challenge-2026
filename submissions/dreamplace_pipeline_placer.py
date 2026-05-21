@@ -4,12 +4,12 @@ Requires ``external/DREAMPlace/install`` (``scripts/setup_dreamplace.sh``).
 GPU/CPU follows ``MACRO_PLACE_DP_GPU`` / ``DreamPlacePipeline`` defaults.
 
 Environment:
-  MACRO_PLACE_DP_CONFIG — path to JSON from ``scripts/tune_dreamplace_optuna.py
-  --write-best-config`` (``pipeline`` + ``dreamplace_json_overrides`` keys).
+  MACRO_PLACE_DP_CONFIG — optional path to a JSON tuner overrides file
+  (``pipeline`` + ``dreamplace_json_overrides`` keys).
   MACRO_PLACE_DP_RICH_CANDIDATES=0 — disable the default feature-derived
   DREAMPlace mode cycling.  By default the pipeline runs a diverse valid-start
   DREAMPlace portfolio with explicit hard-macro legalization, then pushes the
-  best candidate through RePlAce, coordinate descent, and GWTW refinement.
+  best candidate through RePlAce rescue and GWTW SA refinement.
   Optional key ``pipeline.rich_candidate_set`` in the JSON overrides the env flag.
   ``pipeline.hyperband_enabled`` is supported for experiments, but defaults off:
   short-run successive halving was observed to promote starts that later
@@ -18,7 +18,6 @@ Environment:
 Example:
   evaluate submissions/dreamplace_pipeline_placer.py -b ibm01
   MACRO_PLACE_DP_RICH_CANDIDATES=0 evaluate submissions/dreamplace_pipeline_placer.py -b ibm01
-  MACRO_PLACE_DP_CONFIG=tuning_logs/dreamplace_optuna_best.json evaluate submissions/dreamplace_pipeline_placer.py -b ibm01
 """
 
 from __future__ import annotations

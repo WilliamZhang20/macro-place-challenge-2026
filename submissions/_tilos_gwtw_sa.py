@@ -35,6 +35,13 @@ from typing import List, Optional, Sequence, Tuple
 import numpy as np
 import torch
 
+# Critical for slurm: switch torch shared-memory to filename-based so
+# per-tensor fds don't accumulate when GWTW SA Pool workers share state.
+try:
+    torch.multiprocessing.set_sharing_strategy("file_system")
+except Exception:
+    pass
+
 from macro_place.benchmark import Benchmark
 
 _HERE = Path(__file__).resolve().parent

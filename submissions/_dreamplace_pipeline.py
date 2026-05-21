@@ -5,12 +5,23 @@ from __future__ import annotations
 import os
 import sys
 import math
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
+
+# Switch torch.multiprocessing from the default 'file_descriptor'
+# strategy (one fd per shared tensor — accumulated 51k+ fds on the
+# 2026-05-20 slurm sweep, hitting cgroup cap 51200 and crashing GWTW
+# SA with OSError(24)) to 'file_system' which uses /dev/shm filenames
+# instead of fds.  Must be set BEFORE any tensor is shared.
+try:
+    torch.multiprocessing.set_sharing_strategy("file_system")
+except Exception:
+    pass
 
 from macro_place.benchmark import Benchmark
 from macro_place.objective import compute_proxy_cost
@@ -207,11 +218,18 @@ def jitter_hard_centers(
 
 
 def cap_num_starts(benchmark: Benchmark, requested: int) -> int:
-    """Feature-aware cap.  Expanded to 50 DP starts for orthogonal-init
-    multistart strategy; bigger benchmarks still capped to keep wall time
-    bounded (per-start DP cost is roughly linear in macros × nets)."""
+    """Feature-aware cap.  Per-start DP cost is roughly linear in
+    `macros × nets`, so the caps use both as a runtime proxy.
 
-    nh = int(benchmark_features(benchmark)["num_hard_macros"])
+    ibm10 (387 macros × 12k nets) was the regression case: under the old
+    `nh<450 → cap=50` rule it spent 9952 s — 2.77× the 3600 s/benchmark
+    rule cap.  The new mid-tier (`nh>=350` and `nets>=10k`) drops it to
+    24 starts so the total fits the budget.
+    """
+
+    f = benchmark_features(benchmark)
+    nh = int(f["num_hard_macros"])
+    nn = int(f.get("num_nets", 0))
     if nh >= 1600:
         cap = 8
     elif nh >= 1000:
@@ -220,6 +238,10 @@ def cap_num_starts(benchmark: Benchmark, requested: int) -> int:
         cap = 20
     elif nh >= 450:
         cap = 32
+    elif nh >= 350 and nn >= 10000:
+        # ibm10 class: enough macros + nets that 50 starts blows the
+        # per-benchmark wall budget.
+        cap = 24
     else:
         cap = 50
     return max(1, min(int(requested), cap))
@@ -1062,7 +1084,10 @@ class DreamPlacePipeline:
         # search with mask-based feasibility, run on the rescue winner.
         # Strictly-improving (never regresses).  Macro-count-adaptive
         # k_bound keeps per-benchmark wall time bounded.
-        post_rescue_coord_descent_seconds: float = 240.0,
+        # Coord descent dropped 2026-05-20 — bang-per-minute analysis on
+        # ibm01/07/10/14 showed it found 0–1 moves vs GWTW SA's 10+.
+        # GWTW SA gets the freed budget.  Set this >0 to re-enable.
+        post_rescue_coord_descent_seconds: float = 0.0,
         post_rescue_coord_descent_max_passes: int = 1,
         post_rescue_coord_descent_k_bound: Optional[int] = None,
         post_rescue_coord_descent_cell_search_prob: float = 1.0,
@@ -1080,23 +1105,28 @@ class DreamPlacePipeline:
         # so a 0.1% uphill is mostly accepted early; cools to greedy by
         # end of schedule.  This is real SA behaviour rather than the
         # near-greedy descent of t_max=8e-5.
-        post_rescue_gwtw_seconds: float = 180.0,
+        post_rescue_gwtw_seconds: float = 360.0,
         post_rescue_gwtw_num_workers: int = 8,
         post_rescue_gwtw_num_iters: int = 120,
         post_rescue_gwtw_syncup_freq: float = 0.20,
         post_rescue_gwtw_top_k: int = 2,
         post_rescue_gwtw_t_max: float = 5e-3,
         post_rescue_gwtw_t_min: float = 5e-6,
+        # Bias toward bigger jumps: less mirror (often degrades validity),
+        # more shuffle (4-macro permutation — only move that meaningfully
+        # changes topology).  Observed on ibm14: 93% acceptance with
+        # equal probs meant most proposals were trivially-accepted small
+        # moves; rebalancing should produce more basin-escape attempts.
         post_rescue_gwtw_action_probs: Tuple[float, float, float, float, float] = (
-            0.20,
-            0.20,
-            0.20,
-            0.20,
-            0.20,
+            0.20,  # swap
+            0.20,  # shift
+            0.10,  # mirror (was 0.20)
+            0.20,  # move
+            0.30,  # shuffle (was 0.20)
         ),
         replace_rescue: bool = True,
         replace_rescue_trigger_proxy: float = 0.0,
-        replace_rescue_timeout_seconds: float = 240.0,
+        replace_rescue_timeout_seconds: float = 150.0,
         hyperband_enabled: bool = False,
         hyperband_eta: int = 3,
         hyperband_min_iterations: int = 48,
@@ -1161,6 +1191,30 @@ class DreamPlacePipeline:
         return self.run(benchmark).placement
 
     def run(self, benchmark: Benchmark) -> DreamPlacePipelineResult:
+        # Raise NOFILE soft limit before spawning subprocesses or
+        # multiprocessing pools.  On SLURM nodes the soft cap is often
+        # 1024, which the 50 DREAMPlace subprocesses + 12 RePlAce
+        # subprocesses + GWTW SA Pool(8) sequence can exhaust — observed
+        # as `OSError(24, "Too many open files")` killing the GWTW SA
+        # stage on ibm10 and nvdla in the 2026-05-20 sweep.
+        try:
+            import resource as _resource  # noqa: PLC0415
+            _soft, _hard = _resource.getrlimit(_resource.RLIMIT_NOFILE)
+            _target = min(int(_hard), 65536)
+            if _soft < _target:
+                _resource.setrlimit(_resource.RLIMIT_NOFILE, (_target, _hard))
+        except Exception:
+            pass
+
+        pipeline_t0 = time.monotonic()
+        # Per-benchmark wall budget the pipeline aims to respect.  The
+        # official cap is 1h = 3600s; we target 3000s with 600s margin so
+        # one slow stage (e.g. RePlAce hitting its 240s timeout on 12
+        # configs = 2880s worst case) does not blow the cap.
+        pipeline_wall_budget_s = float(
+            os.environ.get("MACRO_PLACE_PIPELINE_WALL_BUDGET_S", "2700")
+        )
+
         seed = benchmark.macro_positions.clone().float()
         plc = self.plc_lookup.load(benchmark)
         inst = (
@@ -1225,12 +1279,41 @@ class DreamPlacePipeline:
             generator=gen,
         )
         if self.pre_dp_valid_starts > 0:
+            # Feature-aware pre-DP cap.  legalize_hard_spiral + true-proxy
+            # scoring is O(nh^2 * legalize_rounds) per pool placement.
+            # On ibm10 (nh=786) the default 56-placement pool + 44 selected
+            # starts was costing >12 minutes alone before DP even began —
+            # blowing the per-benchmark wall budget in the 2026-05-20 sweep.
+            nh_pre = int(benchmark.num_hard_macros)
+            if nh_pre >= 1000:
+                _pre_pool = min(self.pre_dp_valid_pool_size, 10)
+                _pre_req = min(self.pre_dp_valid_starts, 6)
+            elif nh_pre >= 600:
+                _pre_pool = min(self.pre_dp_valid_pool_size, 18)
+                _pre_req = min(self.pre_dp_valid_starts, 12)
+            elif nh_pre >= 400:
+                _pre_pool = min(self.pre_dp_valid_pool_size, 30)
+                _pre_req = min(self.pre_dp_valid_starts, 22)
+            else:
+                _pre_pool = self.pre_dp_valid_pool_size
+                _pre_req = self.pre_dp_valid_starts
+            if _tuner_progress_enabled() and (
+                _pre_pool != self.pre_dp_valid_pool_size
+                or _pre_req != self.pre_dp_valid_starts
+            ):
+                print(
+                    f"[tune:dp] {benchmark.name}  pre_dp cap  "
+                    f"nh={nh_pre}  pool {self.pre_dp_valid_pool_size}->{_pre_pool}  "
+                    f"requested {self.pre_dp_valid_starts}->{_pre_req}",
+                    file=sys.stderr,
+                    flush=True,
+                )
             discovered_starts = _discover_valid_proxy_starts(
                 seed,
                 benchmark,
                 plc,
-                requested=self.pre_dp_valid_starts,
-                pool_size=self.pre_dp_valid_pool_size,
+                requested=_pre_req,
+                pool_size=_pre_pool,
                 selection_mode=self.pre_dp_valid_selection,
                 proxy_eval_limit=self.pre_dp_proxy_eval_limit,
                 jitter_sigma_um=self.jitter_sigma_um,
@@ -1384,7 +1467,29 @@ class DreamPlacePipeline:
             # in-bounds (potentially valid) placements vs which went OOB so
             # we can salvage with a benchmark-specific safe template.
             spec_results: List[Tuple[_DreamPlaceSpec, str, torch.Tensor]] = []
-            for spec in dp_specs:
+            # Reserve roughly 35% of the pipeline budget for everything
+            # AFTER the initial DP pass: rescue (up to 12 × 240s), salvage
+            # reruns, coord descent (240s), GWTW SA (180s), and overhead.
+            # That leaves ~65% for DP starts.  Without this guard, ibm10
+            # with 387 macros + 12k nets blew 9952s — 2.77× the 3600s cap.
+            # DP early-exit at 55% (was 65%) of budget so rescue gets a
+            # bigger slice — rescue contributes ~0.1+ proxy on the hard
+            # benchmarks, whereas DP runs past start 10 contribute
+            # diminishingly.
+            dp_stage_budget_s = pipeline_wall_budget_s * 0.55
+            for k_spec, spec in enumerate(dp_specs):
+                elapsed = time.monotonic() - pipeline_t0
+                if elapsed > dp_stage_budget_s and k_spec >= 8:
+                    if _tuner_progress_enabled():
+                        print(
+                            f"[tune:dp] {benchmark.name}  DP stage early-exit "
+                            f"at {k_spec}/{len(dp_specs)}: elapsed={elapsed:.0f}s "
+                            f"> dp_budget={dp_stage_budget_s:.0f}s "
+                            f"(pipeline_budget={pipeline_wall_budget_s:.0f}s)",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                    break
                 result = run_spec(spec, iters, 0)
                 if result is None:
                     continue
@@ -1689,17 +1794,39 @@ class DreamPlacePipeline:
                     ),
                 )
                 # Latin-square assignment: each (seed, config) pair is
-                # unique.  Initial-.plc seed gets the 3 proven winners;
-                # top-K DP seeds split the remaining 9 ortho configs so
-                # every config is exercised exactly once across the 6
-                # seeds.
-                initial_seed_configs = ortho_rescue_configs[0:3]
+                # unique, and densities are matched to seed character so
+                # RePlAce does not abort with "no more tier to assign" on
+                # the dense .plc seed (observed on ibm01 + ibm07 when
+                # configs with `density<=0.74` were assigned to .plc).
+                #
+                # .plc seed = the raw hand-crafted initial placement, which
+                # is already dense. Only HIGH-density configs (>=0.80) are
+                # safe here. DP-output seeds are progressively more spread
+                # as rank increases (rank 0 = best/densest, rank 4 =
+                # worst/most-spread), so low-density configs go on later
+                # ranks where they actually converge.
+                initial_seed_configs = (
+                    ortho_rescue_configs[3],   # (0.80, 1.03, bin=128, pcofmin=0.98)
+                    ortho_rescue_configs[4],   # (0.80, 1.20, bin=128)
+                    ortho_rescue_configs[5],   # (0.84, 1.20, bin=128)
+                )
+                # TRIMMED PORTFOLIO (2026-05-20): dropped DP ranks 1, 2, 3.
+                # Evidence from per-benchmark winners:
+                #   ibm01 → dp_rank4 + config 6 (low-density)
+                #   ibm07 → replace_initial (high-density)
+                #   ibm10 → dp_rank0 (high-density)
+                #   ibm14 → replace_initial (high-density)
+                # Ranks 1/2/3 never won outright across the IBM tests; their
+                # ~10-12 min of cumulative wall time pushed ibm10 over the
+                # 1h cap.  Keep only .plc + densest-DP + most-spread-DP.
+                # Each empty tuple is a no-op slot that the rescue loop
+                # skips, preserving rank numbering for log readability.
                 dp_seed_config_groups: Tuple[Tuple[ReplaceConfig, ...], ...] = (
-                    ortho_rescue_configs[3:5],   # DP rank 0 → 3,4
-                    ortho_rescue_configs[5:7],   # DP rank 1 → 5,6
-                    ortho_rescue_configs[7:9],   # DP rank 2 → 7,8
-                    ortho_rescue_configs[9:11],  # DP rank 3 → 9,10
-                    ortho_rescue_configs[11:12], # DP rank 4 → 11
+                    (ortho_rescue_configs[1], ortho_rescue_configs[7]),   # rank 0 (dense DP) → high-density: (0.82,1.50), (0.84,1.03 bin=64)
+                    (),                                                    # rank 1 — dropped
+                    (),                                                    # rank 2 — dropped
+                    (),                                                    # rank 3 — dropped
+                    (ortho_rescue_configs[6],),                           # rank 4 (most-spread DP) → low-density (0.70, bin=64)
                 )
 
                 # Reuse rescue's internal scores instead of re-scoring all
@@ -1712,6 +1839,10 @@ class DreamPlacePipeline:
                 # full scoring pass entirely.
                 rescue_scores: List = []
 
+                import tempfile as _tempfile  # noqa: PLC0415
+                import threading as _threading  # noqa: PLC0415
+                rescue_scores_lock = _threading.Lock()
+
                 def merge_rescue(
                     rescue_seed: torch.Tensor,
                     rescue_configs: Tuple[ReplaceConfig, ...],
@@ -1719,18 +1850,57 @@ class DreamPlacePipeline:
                     *,
                     adaptive_top_k: int = 3,
                     timeout_seconds: float | None = None,
+                    work_root: Path | None = None,
                 ) -> bool:
-                    eff_timeout = (
+                    # Rescue-stage wall-time guard.  Each rescue
+                    # invocation can burn up to `timeout * len(configs)`
+                    # seconds; on nvdla the 3 failing rescues each
+                    # consumed near-full timeout before validation
+                    # rejected them, contributing to the 4663s runtime
+                    # violation.  If we've already used most of the
+                    # pipeline budget, skip remaining rescues so coord
+                    # descent + GWTW SA still get to run.
+                    elapsed_now = time.monotonic() - pipeline_t0
+                    rescue_skip_threshold = pipeline_wall_budget_s * 0.85
+                    if elapsed_now > rescue_skip_threshold:
+                        if _tuner_progress_enabled():
+                            print(
+                                f"[tune:dp] {benchmark.name}  replace_rescue skip "
+                                f"prefix={prefix}: elapsed={elapsed_now:.0f}s "
+                                f"> rescue_skip={rescue_skip_threshold:.0f}s "
+                                f"(reserving budget for polish)",
+                                file=sys.stderr,
+                                flush=True,
+                            )
+                        return False
+                    # Per-call timeout cap: if remaining budget is tight,
+                    # shrink the per-config timeout so this rescue can't
+                    # singlehandedly blow the budget.
+                    remaining = pipeline_wall_budget_s - elapsed_now
+                    # Polish reserve.  Coord descent is now disabled (was
+                    # 240s); only GWTW SA remains at 360s budget.  Reserve
+                    # ~6 min total so rescue can use the rest.
+                    polish_reserve = 360.0
+                    rescue_budget = max(60.0, remaining - polish_reserve)
+                    requested_timeout = (
                         float(timeout_seconds)
                         if timeout_seconds is not None
                         else float(self.replace_rescue_timeout_seconds)
                     )
+                    # Cap per-config timeout so worst-case
+                    # (configs * timeout) fits the remaining rescue
+                    # budget.
+                    n_cfg = max(1, len(rescue_configs))
+                    eff_timeout = min(requested_timeout, rescue_budget / n_cfg)
+                    eff_timeout = max(30.0, eff_timeout)
                     try:
                         if _tuner_progress_enabled():
                             print(
                                 f"[tune:dp] {benchmark.name}  replace_rescue start "
                                 f"prefix={prefix} configs={len(rescue_configs)} "
-                                f"timeout={eff_timeout:.0f}s adaptive_top_k={adaptive_top_k}",
+                                f"timeout={eff_timeout:.0f}s (req {requested_timeout:.0f}s) "
+                                f"adaptive_top_k={adaptive_top_k} "
+                                f"elapsed={elapsed_now:.0f}s",
                                 file=sys.stderr,
                                 flush=True,
                             )
@@ -1738,6 +1908,7 @@ class DreamPlacePipeline:
                             configs=rescue_configs,
                             baseline_provider=lambda _benchmark, _seed=rescue_seed: _seed,
                             plc_lookup=self.plc_lookup,
+                            work_root=work_root,
                             timeout_seconds=eff_timeout,
                             adaptive_top_k=adaptive_top_k,
                         ).run(benchmark)
@@ -1759,23 +1930,22 @@ class DreamPlacePipeline:
                                 flush=True,
                             )
                         return False
-                    for sc in rescue.selection.scores:
-                        # Rename score with rescue prefix; placement is
-                        # already legalized + true-proxy-scored by the
-                        # ReplacePipeline's own selection pass.
-                        rescue_scores.append(
-                            type(sc)(
-                                label=f"{prefix}_{sc.label}",
-                                placement=sc.placement,
-                                valid=sc.valid,
-                                proxy_cost=sc.proxy_cost,
-                                wirelength=sc.wirelength,
-                                density=sc.density,
-                                congestion=sc.congestion,
-                                overlaps=sc.overlaps,
-                                violations=sc.violations,
-                            )
+                    local_scores = [
+                        type(sc)(
+                            label=f"{prefix}_{sc.label}",
+                            placement=sc.placement,
+                            valid=sc.valid,
+                            proxy_cost=sc.proxy_cost,
+                            wirelength=sc.wirelength,
+                            density=sc.density,
+                            congestion=sc.congestion,
+                            overlaps=sc.overlaps,
+                            violations=sc.violations,
                         )
+                        for sc in rescue.selection.scores
+                    ]
+                    with rescue_scores_lock:
+                        rescue_scores.extend(local_scores)
                     if _tuner_progress_enabled():
                         valid_scores = [
                             sc for sc in rescue.selection.scores if sc.valid
@@ -1816,20 +1986,21 @@ class DreamPlacePipeline:
                     key=lambda s: s.proxy_cost,
                 )
 
-                # Always run the initial-.plc-seeded baseline rescue
-                # (one config slot) as a guardrail.
-                changed = merge_rescue(
+                # Build the list of rescue tasks (one per surviving
+                # (seed, configs) group).  Each task gets its own
+                # work_root subdir so concurrent ReplacePipeline calls
+                # don't overwrite each other's Bookshelf export.
+                rescue_tasks: List[Tuple[torch.Tensor, Tuple[ReplaceConfig, ...], str, Path]] = []
+                _rescue_root_base = Path(_tempfile.gettempdir()) / "macro_place_replace_pipeline"
+                rescue_tasks.append((
                     seed.clone().float(),
                     initial_seed_configs,
                     "replace_initial",
-                    adaptive_top_k=0,
-                )
+                    _rescue_root_base / f"{benchmark.name}__replace_initial",
+                ))
 
                 # DP-output-seeded rescues: each rank gets a UNIQUE config
-                # subset (Latin-square pairing), so the 9 remaining ortho
-                # configs are each tried exactly once across the top-K DP
-                # seeds.  Total invocations = 3 + 9 = 12, vs old 3 × 6 = 18
-                # that explored only 3 unique basins.
+                # subset (Latin-square pairing).
                 top_k = min(self.top_dp_for_rescue, len(valid_dp_scores))
                 if _tuner_progress_enabled() and top_k > 0:
                     top_proxies = [f"{s.proxy_cost:.4f}" for s in valid_dp_scores[:top_k]]
@@ -1846,12 +2017,58 @@ class DreamPlacePipeline:
                     if not rank_configs:
                         continue
                     dp_seed_placement = dp_label_to_placement[dp_score.label].clone().float()
-                    changed = merge_rescue(
+                    prefix = f"replace_dp_rank{rank}"
+                    rescue_tasks.append((
                         dp_seed_placement,
                         rank_configs,
-                        f"replace_dp_rank{rank}",
-                        adaptive_top_k=0,
-                    ) or changed
+                        prefix,
+                        _rescue_root_base / f"{benchmark.name}__{prefix}",
+                    ))
+
+                # Parallel dispatch.  Each task launches a RePlAce
+                # subprocess (CPU-only — no GPU contention with the
+                # already-finished DP loop) so we can run them
+                # concurrently via a ThreadPoolExecutor.  3 workers by
+                # default (matches the 3 surviving rescue groups after
+                # the trim).
+                import concurrent.futures as _futures  # noqa: PLC0415
+                _rescue_workers = max(1, min(
+                    len(rescue_tasks),
+                    int(os.environ.get("MACRO_PLACE_RESCUE_WORKERS", "3")),
+                ))
+                changed = False
+                if _rescue_workers <= 1 or len(rescue_tasks) == 1:
+                    for seed_t, cfgs, pfx, wr in rescue_tasks:
+                        if merge_rescue(seed_t, cfgs, pfx, adaptive_top_k=0, work_root=wr):
+                            changed = True
+                else:
+                    if _tuner_progress_enabled():
+                        print(
+                            f"[tune:dp] {benchmark.name}  rescue parallel "
+                            f"workers={_rescue_workers} tasks={len(rescue_tasks)}",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                    with _futures.ThreadPoolExecutor(max_workers=_rescue_workers) as _exec:
+                        _futs = [
+                            _exec.submit(
+                                merge_rescue, seed_t, cfgs, pfx,
+                                adaptive_top_k=0, work_root=wr,
+                            )
+                            for seed_t, cfgs, pfx, wr in rescue_tasks
+                        ]
+                        for _f in _futures.as_completed(_futs):
+                            try:
+                                if _f.result():
+                                    changed = True
+                            except Exception as _e:
+                                if _tuner_progress_enabled():
+                                    print(
+                                        f"[tune:dp] {benchmark.name}  rescue task "
+                                        f"raised: {_e!r}",
+                                        file=sys.stderr,
+                                        flush=True,
+                                    )
 
                 if changed and rescue_scores:
                     # Merge cached selection scores with rescue scores; pick
@@ -1878,16 +2095,35 @@ class DreamPlacePipeline:
         # Runs BEFORE GWTW SA so the SA starts from an already-polished
         # state (CD finds easy improvements cheaply; SA covers harder
         # ones that need uphill moves).
+        # Hard wall-time guard before polish stages: if we're already
+        # >92% of the per-benchmark budget, skip coord_desc + GWTW so
+        # the run finishes inside the 1h rule cap.  Each polish stage
+        # alone could otherwise add 240s + 180s = 7 min.
+        _polish_skip_threshold = pipeline_wall_budget_s * 0.92
+        _polish_skip_reason = None
+        if (time.monotonic() - pipeline_t0) > _polish_skip_threshold:
+            _polish_skip_reason = (
+                f"elapsed={time.monotonic() - pipeline_t0:.0f}s > "
+                f"polish_skip={_polish_skip_threshold:.0f}s"
+            )
+        # Also shrink each polish stage's per-stage budget to fit
+        # what's left of the pipeline wall budget.
+        _budget_left = max(0.0, pipeline_wall_budget_s - (time.monotonic() - pipeline_t0))
+        _cd_budget = min(self.post_rescue_coord_descent_seconds, _budget_left * 0.55)
+        _gwtw_budget = min(self.post_rescue_gwtw_seconds, _budget_left * 0.40)
+
         if (
             self.post_rescue_coord_descent_seconds > 0.0
             and selection.best.valid
             and benchmark.num_hard_macros > 1
+            and _polish_skip_reason is None
+            and _cd_budget >= 30.0
         ):
             try:
                 if _tuner_progress_enabled():
                     print(
                         f"[tune:dp] {benchmark.name}  coord_desc start  "
-                        f"budget_s={self.post_rescue_coord_descent_seconds:.0f} "
+                        f"budget_s={_cd_budget:.0f} (req={self.post_rescue_coord_descent_seconds:.0f}) "
                         f"passes={self.post_rescue_coord_descent_max_passes} "
                         f"k_bound={self.post_rescue_coord_descent_k_bound} "
                         f"cell_prob={self.post_rescue_coord_descent_cell_search_prob:.2f} "
@@ -1900,7 +2136,7 @@ class DreamPlacePipeline:
                     selection.placement.clone(),
                     benchmark,
                     plc,
-                    time_budget_s=float(self.post_rescue_coord_descent_seconds),
+                    time_budget_s=float(_cd_budget),
                     max_passes=int(self.post_rescue_coord_descent_max_passes),
                     k_distance_bound=self.post_rescue_coord_descent_k_bound,
                     cell_search_prob=float(self.post_rescue_coord_descent_cell_search_prob),
@@ -1957,12 +2193,18 @@ class DreamPlacePipeline:
         # are replaced with clones of the top ``top_k`` winners.  This is
         # the throughput-amplified variant of single-worker SA — with 8
         # workers we get roughly 8x more proposals in the same wall time.
+        # Re-evaluate budget left and skip GWTW if we've run out.  CD
+        # may have consumed _cd_budget so subtract that.
+        _budget_left2 = max(0.0, pipeline_wall_budget_s - (time.monotonic() - pipeline_t0))
+        _gwtw_budget = min(self.post_rescue_gwtw_seconds, _budget_left2 * 0.85)
         if (
             self.post_rescue_gwtw_seconds > 0.0
             and self.post_rescue_gwtw_num_workers > 0
             and self.post_rescue_gwtw_num_iters > 0
             and selection.best.valid
             and benchmark.num_hard_macros > 1
+            and _gwtw_budget >= 30.0
+            and (time.monotonic() - pipeline_t0) <= _polish_skip_threshold
         ):
             try:
                 # Net-count-scaled num_iters cap — per-worker proxy cost
@@ -1998,7 +2240,7 @@ class DreamPlacePipeline:
                     num_iters=gwtw_iters,
                     syncup_freq=float(self.post_rescue_gwtw_syncup_freq),
                     top_k=int(self.post_rescue_gwtw_top_k),
-                    time_budget_s=float(self.post_rescue_gwtw_seconds),
+                    time_budget_s=float(_gwtw_budget),
                     seed=(
                         20260520
                         + int(benchmark.num_macros) * 53

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
 import torch
@@ -115,17 +118,44 @@ def select_best_true_proxy_candidates_only(
         f"candidate_{i}" for i in range(len(candidates))
     ]
 
-    scored: List[ScoredPlacement] = []
-    for label, placement in zip(labels, candidates):
-        scored.append(
-            score_placement(
-                label,
-                placement,
+    # Parallel scoring path: each `compute_proxy_cost` is a heavyweight
+    # C++ call (O(grid_cells × nets) for the congestion term).  On
+    # ibm10/14/17 sequential scoring of 18-30 candidates was the
+    # multi-minute stall after the DP loop.  Multiprocessing pool with
+    # one PlacementCost per worker amortizes the load cost.
+    par_threshold = int(
+        os.environ.get("MACRO_PLACE_PARALLEL_SCORE_THRESHOLD", "4")
+    )
+    par_workers = int(
+        os.environ.get("MACRO_PLACE_PARALLEL_SCORE_WORKERS", "4")
+    )
+    if par_workers >= 2 and len(candidates) >= par_threshold:
+        try:
+            scored = _score_parallel(
+                list(zip(labels, candidates)),
                 benchmark,
-                plc,
+                require_zero_overlap,
+                par_workers,
+            )
+        except Exception:
+            # Fall back to sequential on any pool error.
+            scored = None
+        if scored is None:
+            scored = [
+                score_placement(
+                    label, p, benchmark, plc,
+                    require_zero_overlap=require_zero_overlap,
+                )
+                for label, p in zip(labels, candidates)
+            ]
+    else:
+        scored = [
+            score_placement(
+                label, p, benchmark, plc,
                 require_zero_overlap=require_zero_overlap,
             )
-        )
+            for label, p in zip(labels, candidates)
+        ]
 
     valid_scores = [s for s in scored if s.valid]
     if not valid_scores:
@@ -133,6 +163,47 @@ def select_best_true_proxy_candidates_only(
 
     best = min(valid_scores, key=lambda s: s.proxy_cost)
     return SelectionResult(best=best, scores=scored)
+
+
+_W_BENCHMARK = None
+_W_PLC = None
+
+
+def _score_worker_init(benchmark: Benchmark) -> None:
+    """Load PlacementCost once per worker process."""
+    global _W_BENCHMARK, _W_PLC
+    _here = Path(__file__).resolve().parent
+    if str(_here) not in sys.path:
+        sys.path.insert(0, str(_here))
+    from _plc_lookup import PlcLookup  # noqa: PLC0415
+    _W_BENCHMARK = benchmark
+    _W_PLC = PlcLookup().load(benchmark)
+
+
+def _score_worker_one(args) -> "ScoredPlacement":
+    label, placement, require_zero_overlap = args
+    return score_placement(
+        label, placement, _W_BENCHMARK, _W_PLC,
+        require_zero_overlap=require_zero_overlap,
+    )
+
+
+def _score_parallel(
+    labelled: Sequence[Tuple[str, torch.Tensor]],
+    benchmark: Benchmark,
+    require_zero_overlap: bool,
+    num_workers: int,
+) -> List["ScoredPlacement"]:
+    import multiprocessing as mp  # noqa: PLC0415
+    workers = max(2, min(int(num_workers), len(labelled)))
+    ctx = mp.get_context("spawn")
+    with ctx.Pool(
+        processes=workers,
+        initializer=_score_worker_init,
+        initargs=(benchmark,),
+    ) as pool:
+        tasks = [(lbl, p, require_zero_overlap) for lbl, p in labelled]
+        return pool.map(_score_worker_one, tasks)
 
 
 def score_placement(
