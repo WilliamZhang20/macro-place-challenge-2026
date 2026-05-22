@@ -1,0 +1,210 @@
+# syntax=docker/dockerfile:1.6
+#
+# Self-contained Docker image for the DREAMPlace-pipeline submission.
+#
+# What it bakes in:
+#   * The macro_place evaluation package (challenge harness)
+#   * The TILOS MacroPlacement benchmarks + RePlAce-static binary
+#   * DREAMPlace built from source with CUDA fatbins for sm_89 (L40S/Ada)
+#     and sm_90 (H200/Hopper)
+#   * submissions/dreamplace_pipeline_placer.py and every helper it imports
+#
+# Build (run from repo root, after `git submodule update --init --recursive`):
+#   docker build \
+#     -f eval_docker/Dockerfile.dreamplace_pipeline \
+#     -t dreamplace-pipeline-submission .
+#
+# Run (air-gapped, all benchmarks):
+#   docker run --rm --gpus all --network none --memory 64g --cpus 16 \
+#     dreamplace-pipeline-submission --all
+#
+# Run a single benchmark:
+#   docker run --rm --gpus all dreamplace-pipeline-submission -b ibm01
+#
+# The image's ENTRYPOINT is `python -m macro_place.evaluate
+# /challenge/submissions/dreamplace_pipeline_placer.py`, so any flags you
+# pass to `docker run ... <image> <flags>` are forwarded to the evaluator.
+
+# NOTE on base version: DREAMPlace's pin_pos_cuda_segment_kernel.cu includes
+# `utility/src/utils_cub.cuh`, which pulls in the CUDA toolkit's CUB headers.
+# CUDA 12.4's CUB moved several symbols (BlockLoadAlgorithm, BLOCK_LOAD_DIRECT,
+# fixed_delay_constructor_t, ...) into `cub::detail::`, breaking the build with
+# "BlockLoadAlgorithm is undefined". CUDA 12.8 ships a CUB that works with the
+# DREAMPlace upstream as-is. We pin to PyTorch 2.10 / CUDA 12.8 (also matches
+# the host conda env: torch 2.10.0+cu128) so the build behaves identically
+# inside the container and on the host.
+ARG PYTORCH_BASE=pytorch/pytorch:2.10.0-cuda12.8-cudnn9-devel
+
+FROM ${PYTORCH_BASE} AS build
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# System packages needed to build DREAMPlace + Limbo + RePlAce-static runtime.
+#  * flex/bison/libfl-dev: Limbo's parsers
+#  * libboost-*-dev (curated, not libboost-all-dev): Limbo, OpenTimer. We avoid
+#    libboost-all-dev because it pulls in libboost-mpi/libboost-graph-parallel,
+#    whose postinst depends on libibverbs/libucx/openmpi -- those bind to
+#    InfiniBand/RDMA hardware and fail inside rootless containers (udocker).
+#  * libcairo2-dev: DREAMPlace draw_place
+#  * libgmp-dev / zlib1g-dev: Limbo deps
+#  * patchelf: occasionally needed when adjusting shipped binaries
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        curl \
+        git \
+        flex \
+        bison \
+        libfl-dev \
+        libboost-dev \
+        libboost-graph-dev \
+        libboost-iostreams-dev \
+        libboost-system-dev \
+        libboost-program-options-dev \
+        libboost-thread-dev \
+        libboost-regex-dev \
+        libboost-filesystem-dev \
+        libboost-serialization-dev \
+        libboost-chrono-dev \
+        libcairo2-dev \
+        libgmp-dev \
+        zlib1g-dev \
+        patchelf \
+        pkg-config \
+        wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# CMake 3.28 (DREAMPlace's CMakeLists pins newer features than Ubuntu 22.04 ships).
+ARG CMAKE_VERSION=3.28.6
+RUN curl -fsSL "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.sh" \
+        -o /tmp/cmake.sh \
+    && sh /tmp/cmake.sh --prefix=/usr/local --skip-license \
+    && rm /tmp/cmake.sh \
+    && cmake --version
+
+WORKDIR /challenge
+
+# DREAMPlace's pip-time deps. Install before COPYing the source so this layer
+# is cacheable across edits to the source tree.
+RUN pip install \
+        "pyunpack>=0.1.2" \
+        "patool>=1.12" \
+        "matplotlib>=3.3" \
+        "cairocffi>=0.9.0" \
+        "pkgconfig>=1.4.0" \
+        "setuptools>=39.1.0" \
+        "scipy>=1.10" \
+        "numpy>=1.24,<2.3" \
+        "shapely>=2.0" \
+        "torch_optimizer==0.3.0" \
+        "ncg_optimizer==0.2.2" \
+        "tqdm>=4.65" \
+        "absl-py>=1.0"
+
+# Bring in DREAMPlace source (the host must have run
+# `git submodule update --init --recursive external/DREAMPlace` first).
+COPY external/DREAMPlace/ /challenge/external/DREAMPlace/
+
+# Build DREAMPlace.
+#
+# Notes mirroring scripts/setup_dreamplace.sh:
+#   * PARSER_GDSII=ON keeps Limbo's GDSII parser so DREAMPlace Python imports
+#     don't dangle on undefined GdsParser symbols.
+#   * CMAKE_CXX_ABI=1 matches the pytorch/pytorch:* base image (C++11 ABI).
+#   * sm_89/sm_90 fatbins cover L40S/Ada and H200/Hopper.
+#   * Override at build time:
+#       --build-arg CUDA_ARCH_FLAGS="-gencode=arch=compute_80,code=sm_80"
+ARG CUDA_ARCH_FLAGS="-gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90"
+ARG DREAMPLACE_JOBS=4
+
+RUN cmake -S /challenge/external/DREAMPlace -B /challenge/external/DREAMPlace/build \
+        -DCMAKE_INSTALL_PREFIX=/challenge/external/DREAMPlace/install \
+        -DPython_EXECUTABLE=/opt/conda/bin/python \
+        -DCMAKE_CXX_ABI=1 \
+        -DPARSER_GDSII=ON \
+        -DPARSER_GDSII_STREAM=ON \
+        -DCMAKE_CUDA_FLAGS="${CUDA_ARCH_FLAGS}" \
+    && cmake --build /challenge/external/DREAMPlace/build --parallel "${DREAMPLACE_JOBS}" \
+    && cmake --install /challenge/external/DREAMPlace/build \
+    && rm -rf /challenge/external/DREAMPlace/build
+
+# NumPy 2.x removed `np.string_` but PlaceDB.py still references it; mirror the
+# in-place patch that scripts/setup_dreamplace.sh applies after install.
+RUN if grep -q 'np\.string_' /challenge/external/DREAMPlace/install/dreamplace/PlaceDB.py 2>/dev/null; then \
+        sed -i 's/dtype=np\.string_/dtype=np.bytes_/g' \
+            /challenge/external/DREAMPlace/install/dreamplace/PlaceDB.py ; \
+    fi
+
+# Smoke-test that the install at least loads its CLI help, so a broken build
+# fails the image build instead of leaking into evaluation runtime.
+RUN cd /challenge/external/DREAMPlace/install \
+    && python dreamplace/Placer.py --help > /dev/null
+
+# Challenge harness: the macro_place package, plus pyproject/requirements.
+COPY pyproject.toml requirements.txt README.md LICENSE.md /challenge/
+COPY macro_place/ /challenge/macro_place/
+
+# Install macro_place. --no-deps because pyproject.toml lists optional convex
+# solvers (cvxpy/dccp/clarabel/casadi) that the DREAMPlace pipeline doesn't
+# need at runtime; the deps we *do* need are pinned in the earlier pip layer.
+RUN pip install --no-deps -e .
+
+# TILOS MacroPlacement: benchmarks (Testcases/ICCAD04, NanGate45), the Plc_client
+# evaluator submodule that PlcLookup imports, plus the bundled RePlAce-static
+# binary used by the rescue stage.
+COPY external/MacroPlacement/Testcases/ICCAD04/ \
+        /challenge/external/MacroPlacement/Testcases/ICCAD04/
+COPY external/MacroPlacement/CodeElements/Plc_client/ \
+        /challenge/external/MacroPlacement/CodeElements/Plc_client/
+# RePlAce-static is a statically-linked ELF; pulling the whole RePlAceFlow
+# directory also brings in the `openroad` binary and Bookshelf conversion
+# helpers that the wrapper sometimes shells out to.
+COPY external/MacroPlacement/Flows/util/RePlAceFlow/ \
+        /challenge/external/MacroPlacement/Flows/util/RePlAceFlow/
+
+# NG45-style designs, if present in the build context, also live under
+# Testcases/. Copying the whole tree is wasteful, so this stays opt-in.
+# Uncomment if you want the NG45 designs:
+# COPY external/MacroPlacement/Flows/NanGate45/ \
+#         /challenge/external/MacroPlacement/Flows/NanGate45/
+
+# Submission code. We bake the placer + every `_*.py` helper it imports so the
+# image is self-contained — no host mount required.
+COPY submissions/dreamplace_pipeline_placer.py /challenge/submissions/
+COPY submissions/_benchmark_features.py        /challenge/submissions/
+COPY submissions/_candidate_select.py          /challenge/submissions/
+COPY submissions/_coord_descent.py             /challenge/submissions/
+COPY submissions/_dreamplace_cpu_smoke.py      /challenge/submissions/
+COPY submissions/_dreamplace_pipeline.py       /challenge/submissions/
+COPY submissions/_hard_legalizer.py            /challenge/submissions/
+COPY submissions/_plc_lookup.py                /challenge/submissions/
+COPY submissions/_replace_bookshelf.py         /challenge/submissions/
+COPY submissions/_replace_candidates.py        /challenge/submissions/
+COPY submissions/_replace_import.py            /challenge/submissions/
+COPY submissions/_replace_pipeline.py          /challenge/submissions/
+COPY submissions/_replace_runner.py            /challenge/submissions/
+COPY submissions/_tilos_gwtw_sa.py             /challenge/submissions/
+COPY submissions/_tilos_moves.py               /challenge/submissions/
+
+# Runtime env:
+#   * MACRO_PLACE_DP_GPU=auto lets the pipeline pick GPU when CUDA is visible
+#     (the smoke helper handles fallback to CPU when --gpus is omitted).
+#   * Pre-seed LD_LIBRARY_PATH / LD_PRELOAD with the conda libstdc++ to avoid
+#     the CXXABI_1.3.15 mismatch that bites pybind11 extensions when PyTorch
+#     binds the older system libstdc++ first.
+ENV MACRO_PLACE_DP_GPU=auto \
+    LD_LIBRARY_PATH=/opt/conda/lib:${LD_LIBRARY_PATH} \
+    LD_PRELOAD=/opt/conda/lib/libstdc++.so.6 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /challenge
+
+# `evaluate ... <placer> [flags]` is the harness contract. The placer is baked
+# in, so callers only supply benchmark selection flags (e.g. `--all`, `-b ibm01`).
+ENTRYPOINT ["python", "-m", "macro_place.evaluate", \
+            "/challenge/submissions/dreamplace_pipeline_placer.py"]
+CMD ["--all"]
